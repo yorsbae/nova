@@ -1,0 +1,45 @@
+<Window x:Class="Nova.App.Features.TopBar.TopBarWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="NOVA Top bar" AutomationProperties.Name="NOVA top bar"
+        WindowStyle="None" ResizeMode="NoResize" AllowsTransparency="False"
+        Topmost="True" ShowInTaskbar="False" ShowActivated="False" Focusable="False"
+        SizeToContent="Manual" Width="800" Height="32"
+        Background="{DynamicResource NovaWindow}" SourceInitialized="OnSourceInitialized" SizeChanged="OnSizeChanged">
+  <Grid Margin="14,0,8,0">
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="*"/>
+      <ColumnDefinition Width="*"/>
+    </Grid.ColumnDefinitions>
+    <TextBlock x:Name="LeftText" Grid.Column="0" HorizontalAlignment="Left" VerticalAlignment="Center"
+               FontSize="13" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"
+               Foreground="{DynamicResource NovaOnSurface}" AutomationProperties.Name="Date"/>
+    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Stretch">
+      <TextBlock x:Name="RightText" VerticalAlignment="Center" FontSize="13" Margin="0,0,10,0"
+                 TextTrimming="CharacterEllipsis" MaxWidth="260"
+                 Foreground="{DynamicResource NovaOnSurface}" AutomationProperties.Name="Weather"/>
+      <StackPanel x:Name="Tray" Orientation="Horizontal" VerticalAlignment="Center">
+        <Button x:Name="WifiButton" Style="{StaticResource NovaBarButton}" Click="OnWifiClick" ToolTip="Wi-Fi"
+                AutomationProperties.Name="Network">
+          <TextBlock x:Name="WifiGlyph" Style="{StaticResource NovaGlyph}" Text="&#xE701;"/>
+        </Button>
+        <Button x:Name="BluetoothButton" Style="{StaticResource NovaBarButton}" Click="OnBluetoothClick" ToolTip="Bluetooth"
+                AutomationProperties.Name="Bluetooth" Visibility="Collapsed">
+          <TextBlock x:Name="BluetoothGlyph" Style="{StaticResource NovaGlyph}" Text="&#xE702;"/>
+        </Button>
+        <Button x:Name="VolumeButton" Style="{StaticResource NovaBarButton}" Click="OnVolumeClick" MouseWheel="OnVolumeWheel"
+                ToolTip="Sound" AutomationProperties.Name="Sound" Visibility="Collapsed">
+          <TextBlock x:Name="VolumeGlyph" Style="{StaticResource NovaGlyph}" Text="&#xE995;"/>
+        </Button>
+        <Button x:Name="BatteryButton" Style="{StaticResource NovaBarButton}" Click="OnBatteryClick" ToolTip="Battery"
+                AutomationProperties.Name="Battery" Visibility="Collapsed">
+          <StackPanel Orientation="Horizontal">
+            <TextBlock x:Name="BatteryText" VerticalAlignment="Center" FontSize="12" Margin="0,0,5,0"
+                       Foreground="{DynamicResource NovaOnSurface}"/>
+            <TextBlock x:Name="BatteryGlyph" Style="{StaticResource NovaGlyph}" Text="&#xE83F;"/>
+          </StackPanel>
+        </Button>
+      </StackPanel>
+    </StackPanel>
+  </Grid>
+</Window>

@@ -1,0 +1,25 @@
+<Window x:Class="Nova.App.Settings.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="NOVA Settings" AutomationProperties.Name="NOVA Settings"
+        Width="560" Height="700" MinWidth="440" MinHeight="420"
+        WindowStartupLocation="CenterScreen" Background="{DynamicResource NovaWindow}">
+  <DockPanel Margin="16">
+    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+      <Button x:Name="ResetAllButton" Content="Reset all to defaults" Margin="0,0,8,0"
+              AutomationProperties.Name="Reset all settings and dock shortcuts to defaults" Click="OnResetAll"/>
+      <Button x:Name="ApplyButton" Content="Apply" Margin="0,0,8,0"
+              AutomationProperties.Name="Apply settings now" Click="OnApply"/>
+      <Button x:Name="SaveButton" Content="Save and close" IsDefault="True" Margin="0,0,8,0"
+              AutomationProperties.Name="Apply settings and close" Click="OnSaveClose"/>
+      <Button x:Name="CloseButton" Content="Close" IsCancel="True"
+              AutomationProperties.Name="Close without applying further changes" Click="OnClose"/>
+    </StackPanel>
+    <TextBlock x:Name="StatusText" DockPanel.Dock="Bottom" Margin="0,10,0,0" TextWrapping="Wrap" FontWeight="SemiBold"
+               Foreground="{DynamicResource NovaOnSurface}" AutomationProperties.LiveSetting="Polite"
+               AutomationProperties.Name="Settings status"/>
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
+      <StackPanel x:Name="Form"/>
+    </ScrollViewer>
+  </DockPanel>
+</Window>

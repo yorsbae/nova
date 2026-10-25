@@ -1,0 +1,729 @@
+using System.Diagnostics;
+using System.Globalization;
+using System.Windows;
+using System.Windows.Automation;
+using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
+using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Shapes;
+using System.Windows.Threading;
+using Nova.App.Integrations.Windows;
+using Nova.Core.Clipboard;
+using Nova.Core.Data;
+using Nova.Core.Launch;
+using Nova.Core.Logging;
+using Nova.Core.Configuration;
+using Nova.Core.Media;
+
+namespace Nova.App.Features.DynamicIsland;
+
+/// <summary>The eight pages of the expanded Island and the way you move between them.</summary>
+public partial class IslandWindow
+{
+    static readonly string[] PageTitles =
+    {
+        "Wi-Fi, Suara & Pengaturan", "Musik", "Catatan & Clipboard", "Rencana",
+        "Pomodoro", "Sedang Diputar", "Kalender & Acara", "Sistem & Alat"
+    };
+    const int Quick = 0, Music = 1, Notes = 2, Plan = 3, Pomo = 4, Detail = 5, Calendar = 6, SystemPage = 7;
+
+    UIElement[] _pages = Array.Empty<UIElement>();
+    readonly Ellipse[] _dots = new Ellipse[8];
+    int _pageIndex, _sub;
+    Point _swipeStart; bool _swipeArmed;
+
+    readonly UserDataStore _dataStore = new();
+    UserData _data = new();
+    readonly PomodoroTimer _pomo = new();
+    readonly DispatcherTimer _pomoTimer = new() { Interval = TimeSpan.FromSeconds(1) };
+    readonly DispatcherTimer _remTimer = new() { Interval = TimeSpan.FromSeconds(30) };
+    readonly DispatcherTimer _quickTimer = new() { Interval = TimeSpan.FromSeconds(5) };
+    DateTime _calMonth = new(DateTime.Today.Year, DateTime.Today.Month, 1);
+    DateTime _calDay = DateTime.Today;
+    bool _quickBusy, _volSetting, _brightChecked, _brightSupported;
+    ClipboardHistory? _clipSource;
+
+    /// <summary>Clipboard history to show on page 3 (null when the feature is off).</summary>
+    public ClipboardHistory? ClipboardSource
+    {
+        get => _clipSource;
+        set
+        {
+            if (_clipSource is not null) _clipSource.Changed -= OnClipChanged;
+            _clipSource = value;
+            if (_clipSource is not null) _clipSource.Changed += OnClipChanged;
+            if (_expanded && _pageIndex == Notes) RebuildClip();
+        }
+    }
+
+    void OnClipChanged() => Dispatcher.InvokeAsync(() => { if (_expanded && _pageIndex == Notes && _sub == 1) RebuildClip(); });
+
+    void InitPages()
+    {
+        _pages = new UIElement[] { PageQuick, PageMusic, PageNotes, PagePlan, PagePomo, PageDetail, PageCalendar, PageSystem };
+        for (int i = 0; i < _dots.Length; i++)
+        {
+            var d = new Ellipse { Width = 5, Height = 5, Margin = new Thickness(2, 0, 2, 0), Opacity = 0.3 };
+            d.SetResourceReference(Shape.FillProperty, "NovaOnSurface");
+            _dots[i] = d;
+            PageDots.Children.Add(d);
+        }
+
+        _data = _dataStore.Load();
+        _pomoTimer.Tick += (_, _) => OnPomoTick();
+        _remTimer.Tick += (_, _) => CheckReminders();
+        _quickTimer.Tick += (_, _) => RefreshQuick();
+        Closed += (_, _) => { _pomoTimer.Stop(); _remTimer.Stop(); _quickTimer.Stop(); _waveTimer.Stop(); _meter?.Dispose(); };
+        UpdateRemTimer();
+
+        // Swipe left/right with the mouse on a page, or scroll the wheel over the title.
+        PageHost.PreviewMouseLeftButtonDown += OnSwipeDown;
+        PageHost.PreviewMouseLeftButtonUp += OnSwipeUp;
+        if (PageTitle.Parent is UIElement header) header.MouseWheel += (_, e) => { GoToPage(_pageIndex + (e.Delta < 0 ? 1 : -1)); e.Handled = true; };
+
+        GoToPage(Quick, morph: false);
+    }
+
+    // ---- navigation ----
+
+    void GoToPage(int index, bool morph = true)
+    {
+        index = (index % _pages.Length + _pages.Length) % _pages.Length;
+        var from = CurrentSize();
+        _pageIndex = index;
+        for (int i = 0; i < _pages.Length; i++)
+        {
+            _pages[i].Visibility = i == index ? Visibility.Visible : Visibility.Collapsed;
+            _dots[i].Opacity = i == index ? 1 : 0.3;
+        }
+        PageTitle.Text = PageTitles[index];
+        PageCounter.Content = $"{index + 1}/{_pages.Length}";
+        RefreshPage();
+        UpdateQuickTimer();
+        UpdateWave();
+        if (morph && _expanded) Morph(from);
+    }
+
+    /// <summary>The page that matters most right now: the running timer, else the music, else the quick settings.</summary>
+    void OpenAdaptivePage()
+    {
+        int target = _pomo.Running ? Pomo : _s.ShowMedia && _media is { HasTrack: true, IsPlaying: true } ? Music : Quick;
+        GoToPage(target, morph: false);
+    }
+
+    void RefreshPage()
+    {
+        switch (_pageIndex)
+        {
+            case Quick: ApplyQuickBasics(); RefreshQuick(); break;
+            case Notes: SetSub(_sub, morph: false); break;
+            case Plan: RebuildPlan(); break;
+            case Pomo: UpdatePomoUi(); break;
+            case Detail: UpdateDetailMedia(); break;
+            case Calendar: RebuildCalendar(); RebuildAgenda(); break;
+            case SystemPage: UpdateStatus(); LoadBrightness(); BuildShortcuts(); break;
+        }
+    }
+
+    void UpdateQuickTimer()
+    {
+        bool need = _expanded && _pageIndex == Quick;
+        if (need && !_quickTimer.IsEnabled) _quickTimer.Start();
+        else if (!need && _quickTimer.IsEnabled) _quickTimer.Stop();
+    }
+
+    void OnPagePrev(object sender, RoutedEventArgs e) => GoToPage(_pageIndex - 1);
+    void OnPageNext(object sender, RoutedEventArgs e) => GoToPage(_pageIndex + 1);
+
+    static bool IsInteractive(DependencyObject? d)
+    {
+        while (d is not null)
+        {
+            if (d is TextBoxBase or Slider or ButtonBase or ScrollBar) return true;
+            d = d is Visual or System.Windows.Media.Media3D.Visual3D ? VisualTreeHelper.GetParent(d) : LogicalTreeHelper.GetParent(d);
+        }
+        return false;
+    }
+
+    void OnSwipeDown(object sender, MouseButtonEventArgs e)
+    {
+        _swipeArmed = !IsInteractive(e.OriginalSource as DependencyObject);
+        if (_swipeArmed) _swipeStart = e.GetPosition(this);
+    }
+
+    void OnSwipeUp(object sender, MouseButtonEventArgs e)
+    {
+        if (!_swipeArmed) return;
+        _swipeArmed = false;
+        var p = e.GetPosition(this);
+        double dx = p.X - _swipeStart.X, dy = p.Y - _swipeStart.Y;
+        if (Math.Abs(dx) < 70 || Math.Abs(dy) > 40) return;
+        GoToPage(_pageIndex + (dx < 0 ? 1 : -1));
+        e.Handled = true;   // a swipe is not a click on whatever is under the pointer
+    }
+
+    /// <summary>Left / Right arrow keys change page unless you are typing.</summary>
+    bool HandlePageKey(KeyEventArgs e)
+    {
+        if (!_expanded || Keyboard.FocusedElement is TextBoxBase || Keyboard.FocusedElement is Slider) return false;
+        if (e.Key == Key.Left) { GoToPage(_pageIndex - 1); return true; }
+        if (e.Key == Key.Right) { GoToPage(_pageIndex + 1); return true; }
+        return false;
+    }
+
+    // ---- small builders ----
+
+    static void OpenUri(string uri)
+    {
+        try { Process.Start(new ProcessStartInfo(uri) { UseShellExecute = true }); }
+        catch (Exception ex) { FileLog.Write($"Couldn't open {uri}: {ex.GetType().Name}"); }
+    }
+
+    Border BuildRow(string text, string right = "", Action? onDelete = null, string deleteName = "Hapus",
+                    string? check = null, Action? onCheck = null, bool strike = false, bool accent = false, Action? onClick = null, Brush? dot = null)
+    {
+        var g = new Grid();
+        g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+        if (check is not null)
+        {
+            var c = new Button { Style = (Style)FindResource("NovaIconButton"), Width = 26, Height = 26, FontSize = 15, Margin = new Thickness(0, 0, 4, 0), Content = check };
+            AutomationProperties.SetName(c, strike ? "Tandai belum selesai" : "Tandai selesai");
+            c.Click += (_, _) => onCheck?.Invoke();
+            g.Children.Add(c);
+        }
+        if (dot is not null)
+            g.Children.Add(new Ellipse { Width = 8, Height = 8, Fill = dot, Margin = new Thickness(2, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center });
+        var t = new TextBlock
+        {
+            Text = text, FontSize = 13, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis,
+            ToolTip = text, TextDecorations = strike ? TextDecorations.Strikethrough : null, Opacity = strike ? 0.55 : 1
+        };
+        t.SetResourceReference(TextBlock.ForegroundProperty, accent ? "NovaAccent" : "NovaOnSurface");
+        Grid.SetColumn(t, 1);
+        g.Children.Add(t);
+        if (right.Length > 0)
+        {
+            var r = new TextBlock { Text = right, FontSize = 11, Opacity = 0.65, Margin = new Thickness(8, 0, 4, 0), VerticalAlignment = VerticalAlignment.Center };
+            r.SetResourceReference(TextBlock.ForegroundProperty, "NovaOnSurface");
+            Grid.SetColumn(r, 2);
+            g.Children.Add(r);
+        }
+        if (onDelete is not null)
+        {
+            var d = new Button { Style = (Style)FindResource("NovaIconButton"), Width = 24, Height = 24, FontSize = 11, Margin = new Thickness(0), Content = "\uE711", ToolTip = deleteName };
+            AutomationProperties.SetName(d, deleteName);
+            d.Click += (_, _) => onDelete();
+            Grid.SetColumn(d, 3);
+            g.Children.Add(d);
+        }
+        var b = new Border { Child = g, CornerRadius = new CornerRadius(8), Padding = new Thickness(8, 3, 4, 3), Margin = new Thickness(0, 2, 0, 0) };
+        b.SetResourceReference(Border.BackgroundProperty, "NovaSurfaceAlt");
+        if (onClick is not null) { b.Cursor = Cursors.Hand; b.MouseLeftButtonUp += (_, e) => { onClick(); e.Handled = true; }; }
+        return b;
+    }
+
+    TextBlock Hint(string text)
+    {
+        var t = new TextBlock { Text = text, FontSize = 12, Opacity = 0.65, TextWrapping = TextWrapping.Wrap, TextAlignment = TextAlignment.Center, Margin = new Thickness(0, 10, 0, 10) };
+        t.SetResourceReference(TextBlock.ForegroundProperty, "NovaOnSurface");
+        return t;
+    }
+
+    void SaveData() { if (!_dataStore.Save(_data)) FileLog.Write("Couldn't save notes/plan/events."); }
+
+    // ---- 1: Wi-Fi, sound, quick toggles ----
+
+    void ApplyQuickBasics()
+    {
+        TglBluetooth.Visibility = _quick is { BluetoothPresent: false } ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    QuickStatus? _quick;
+
+    async void RefreshQuick()
+    {
+        if (_quickBusy || !_expanded) return;
+        _quickBusy = true;
+        try
+        {
+            var q = await Task.Run(QuickStatusService.ReadAsync);
+            _quick = q;
+            WifiChipGlyph.Text = q.Net == NetKind.Wired ? Nova.Core.Status.StatusGlyphs.Ethernet : Nova.Core.Status.StatusGlyphs.Wifi;
+            WifiChipGlyph.Opacity = q.Net == NetKind.None ? 0.35 : q.Net == NetKind.Wifi ? Nova.Core.Status.StatusGlyphs.WifiOpacity(q.WifiSignal) : 1;
+            WifiChipName.Text = q.Net switch { NetKind.Wifi => q.WifiName ?? "Wi-Fi", NetKind.Wired => "Kabel LAN", _ => "Offline" };
+            WifiChipState.Text = q.Net == NetKind.None ? "Tidak terhubung" : q.Net == NetKind.Wifi && q.WifiSignal >= 0 ? $"Terhubung · {q.WifiSignal}%" : "Terhubung";
+            BatteryChipGlyph.Text = q.BatteryPercent is int bp ? Nova.Core.Status.StatusGlyphs.Battery(bp, q.Charging) : "\uE83F";
+            BatteryChipText.Text = q.BatteryPercent is int bp2 ? bp2 + "%" : "";
+            ((FrameworkElement)BatteryChipText.Parent).Visibility = q.BatteryPercent is null ? Visibility.Collapsed : Visibility.Visible;
+            ApplyQuickBasics();
+            SetToggle(TglWifi, q.Net != NetKind.None);
+            SetToggle(TglSound, !q.Muted && q.Volume is not null);
+            SetToggle(TglBluetooth, q.BluetoothOn);
+
+            VolumeRow.Visibility = q.Volume is null ? Visibility.Collapsed : Visibility.Visible;
+            if (q.Volume is double v && !VolumeSlider.IsMouseCaptureWithin)
+            {
+                _volSetting = true;
+                VolumeSlider.Value = Math.Round(v * 100);
+                _volSetting = false;
+                ShowVolume(v, q.Muted);
+            }
+        }
+        catch (Exception ex) { FileLog.Write($"Quick page status failed: {ex.GetType().Name}"); }
+        finally { _quickBusy = false; }
+    }
+
+    void ShowVolume(double v, bool muted)
+    {
+        VolumeIcon.Text = Nova.Core.Status.StatusGlyphs.Volume(v, muted);
+        VolumeValue.Text = muted ? "Bisu" : Math.Round(v * 100) + "%";
+    }
+
+    void OnVolumeSlider(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (_volSetting) return;
+        AudioService.SetVolume(e.NewValue / 100);
+        ShowVolume(e.NewValue / 100, false);
+    }
+
+    /// <summary>Lit (accent) when the thing is on, as in the concept's round toggle buttons.</summary>
+    void SetToggle(Button b, bool on)
+    {
+        if (on)
+        {
+            var c = (Application.Current.Resources["NovaAccent"] as SolidColorBrush)?.Color ?? Color.FromRgb(0x4C, 0x8D, 0xFF);
+            c.A = 0x66;
+            var br = new SolidColorBrush(c); br.Freeze();
+            b.Background = br;
+        }
+        else b.ClearValue(Control.BackgroundProperty);
+    }
+
+    void OnTglWifi(object sender, RoutedEventArgs e) => OpenUri("ms-settings:network-wifi");
+    void OnTglBluetooth(object sender, RoutedEventArgs e) => OpenUri("ms-settings:bluetooth");
+    void OnTglAirplane(object sender, RoutedEventArgs e) => OpenUri("ms-settings:network-airplanemode");
+    void OnTglSound(object sender, RoutedEventArgs e)
+    {
+        AudioService.ToggleMute();
+        if (AudioService.TryGet(out var v, out var m)) { ShowVolume(v, m); SetToggle(TglSound, !m); }
+    }
+
+    // ---- 3: notes, clipboard, shelf ----
+
+    void OnSubNotes(object sender, RoutedEventArgs e) => SetSub(0);
+    void OnSubClip(object sender, RoutedEventArgs e) => SetSub(1);
+    void OnSubShelf(object sender, RoutedEventArgs e) => SetSub(2);
+
+    void SetSub(int sub, bool morph = true)
+    {
+        var from = CurrentSize();
+        _sub = sub;
+        NotesView.Visibility = sub == 0 ? Visibility.Visible : Visibility.Collapsed;
+        ClipView.Visibility = sub == 1 ? Visibility.Visible : Visibility.Collapsed;
+        ShelfPage.Visibility = sub == 2 ? Visibility.Visible : Visibility.Collapsed;
+        SubNotes.Tag = sub == 0 ? "on" : null;
+        SubClip.Tag = sub == 1 ? "on" : null;
+        SubShelf.Tag = sub == 2 ? "on" : null;
+        if (sub == 0) RebuildNotes();
+        if (sub == 1) RebuildClip();
+        if (morph && _expanded) Morph(from);
+    }
+
+    /// <summary>A file is being dragged onto the notch: jump to the shelf.</summary>
+    void ShowShelf()
+    {
+        if (!_s.ShelfEnabled) return;
+        _sub = 2;
+        GoToPage(Notes, morph: false);
+        SetSub(2, morph: false);
+    }
+
+    void RebuildNotes()
+    {
+        NotesList.Children.Clear();
+        foreach (var n in _data.Notes.Take(4).ToList())
+            NotesList.Children.Add(BuildRow(n.Text, n.CreatedUtc.ToLocalTime().ToString("HH:mm", CultureInfo.CurrentCulture),
+                onDelete: () => { _data.Notes.Remove(n); SaveData(); RebuildNotes(); }, deleteName: "Hapus catatan"));
+        if (_data.Notes.Count == 0) NotesList.Children.Add(Hint("Belum ada catatan. Ketik di atas lalu tekan Enter."));
+    }
+
+    void OnNoteAdd(object sender, RoutedEventArgs e)
+    {
+        if (!_data.AddNote(NoteInput.Text)) return;
+        NoteInput.Clear();
+        SaveData();
+        RebuildNotes();
+    }
+
+    void OnNoteKey(object sender, KeyEventArgs e) { if (e.Key == Key.Enter) { OnNoteAdd(sender, e); e.Handled = true; } }
+
+    void RebuildClip()
+    {
+        ClipList.Children.Clear();
+        if (_clipSource is null) { ClipHint.Text = "Riwayat clipboard nonaktif. Aktifkan di Settings (hanya teks, hanya di memori)."; return; }
+        var items = _clipSource.Items.Take(5).ToList();
+        ClipHint.Text = items.Count == 0 ? "Belum ada yang disalin pada sesi ini." : "Klik untuk menyalin lagi.";
+        foreach (var text in items)
+            ClipList.Children.Add(BuildRow(ClipboardHistory.Preview(text, 70), onClick: () =>
+            {
+                try { System.Windows.Clipboard.SetText(text); ShowNotice("Disalin.", important: false); }
+                catch (Exception ex) { FileLog.Write($"Clipboard copy failed: {ex.GetType().Name}"); }
+            }));
+    }
+
+    // ---- 4: plan ----
+
+    void RebuildPlan()
+    {
+        PlanList.Children.Clear();
+        int done = _data.Tasks.Count(t => t.Done), total = _data.Tasks.Count;
+        PlanSummary.Text = total == 0 ? "Belum ada tugas hari ini." : $"Hari ini · {total} tugas · {done}/{total} selesai";
+        PlanProgress.Value = _data.PlanProgress();
+        foreach (var t in _data.Tasks.Take(5).ToList())
+        {
+            var task = t;
+            PlanList.Children.Add(BuildRow((task.Priority > 0 ? "! " : "") + task.Title, task.Time,
+                onDelete: () => { _data.Tasks.Remove(task); SaveData(); RebuildPlan(); }, deleteName: "Hapus tugas",
+                check: task.Done ? "\uE73A" : "\uE739", onCheck: () => { task.Done = !task.Done; SaveData(); RebuildPlan(); },
+                strike: task.Done, accent: task.Priority > 0 && !task.Done));
+        }
+        if (total > 5) PlanList.Children.Add(Hint($"+{total - 5} tugas lainnya"));
+    }
+
+    void OnPlanAdd(object sender, RoutedEventArgs e)
+    {
+        var title = (PlanInput.Text ?? "").Trim();
+        int priority = title.EndsWith('!') ? 1 : 0;   // end a title with "!" to mark it important
+        if (priority > 0) title = title.TrimEnd('!', ' ');
+        if (!_data.AddTask(title, PlanTime.Text, priority)) return;
+        PlanInput.Clear(); PlanTime.Clear();
+        SaveData();
+        RebuildPlan();
+    }
+
+    void OnPlanKey(object sender, KeyEventArgs e) { if (e.Key == Key.Enter) { OnPlanAdd(sender, e); e.Handled = true; } }
+
+    // ---- 5: pomodoro ----
+
+    void UpdatePomoUi()
+    {
+        var now = DateTime.UtcNow;
+        var rem = _pomo.Remaining(now);
+        PomoPhase.Text = _pomo.Phase switch { PomodoroPhase.Focus => "Fokus", PomodoroPhase.ShortBreak => "Istirahat", _ => "Istirahat panjang" };
+        PomoTime.Text = $"{(int)rem.TotalMinutes:00}:{rem.Seconds:00}";
+        SetRing(1 - _pomo.Fraction(now));   // the red ring shows what is LEFT, like the concept
+        var todo = _data.Tasks.FirstOrDefault(t => !t.Done);
+        TodoTitle.Text = todo?.Title ?? "Tidak ada tugas";
+        TodoTime.Text = todo?.Time ?? "";
+        PomoToggle.Content = _pomo.Running ? "\uE769" : "\uE768";
+        PomoSessions.Text = $"Sesi {_pomo.CompletedFocus}/{PomodoroTimer.FocusBeforeLongBreak}";
+    }
+
+    void SetRing(double fraction)
+    {
+        const double R = 45, C = 55;   // centre and radius inside the 110 x 110 box
+        fraction = Math.Min(0.9995, Math.Max(0, fraction));
+        if (fraction < 0.0005) { PomoArc.Data = Geometry.Empty; return; }
+        double a = fraction * 2 * Math.PI;
+        var fig = new PathFigure { StartPoint = new Point(C, C - R), IsClosed = false };
+        fig.Segments.Add(new ArcSegment(new Point(C + R * Math.Sin(a), C - R * Math.Cos(a)), new Size(R, R), 0, fraction > 0.5, SweepDirection.Clockwise, true));
+        var g = new PathGeometry(new[] { fig });
+        g.Freeze();
+        PomoArc.Data = g;
+    }
+
+    void OnPomoToggle(object sender, RoutedEventArgs e)
+    {
+        _pomo.Toggle(DateTime.UtcNow);
+        if (_pomo.Running) _pomoTimer.Start(); else _pomoTimer.Stop();
+        UpdatePomoUi(); UpdateCompactText();
+    }
+
+    void OnPomoReset(object sender, RoutedEventArgs e) { _pomo.Reset(); _pomoTimer.Stop(); UpdatePomoUi(); UpdateCompactText(); }
+    void OnPomoSkip(object sender, RoutedEventArgs e) { _pomo.Skip(); _pomoTimer.Stop(); UpdatePomoUi(); UpdateCompactText(); }
+
+    void OnPomoTick()
+    {
+        if (_pomo.Tick(DateTime.UtcNow))
+        {
+            _pomoTimer.Stop();
+            ShowNotice(_pomo.Phase == PomodoroPhase.Focus ? "Istirahat selesai. Siap fokus lagi?"
+                : $"Sesi fokus selesai. Istirahat {(int)PomodoroTimer.LengthOf(_pomo.Phase).TotalMinutes} menit.", important: true, seconds: 12);
+            if (!IsVisible) { Reposition(); Show(); }
+        }
+        if (_expanded && _pageIndex == Pomo) UpdatePomoUi();
+        UpdateCompactText();
+    }
+
+    /// <summary>Text for the compact notch while the timer runs, or null.</summary>
+    string? PomoCompactText()
+    {
+        if (!_pomo.Running) return null;
+        var rem = _pomo.Remaining(DateTime.UtcNow);
+        var label = _pomo.Phase == PomodoroPhase.Focus ? "Fokus" : "Istirahat";
+        return $"{label}  {(int)rem.TotalMinutes:00}:{rem.Seconds:00}";
+    }
+
+    // ---- 6: now playing, detail ----
+
+    void UpdateDetailMedia()
+    {
+        bool has = _s.ShowMedia && _media is { HasTrack: true };
+        DetailTitle.Text = has ? _media!.Title.Trim() : "Tidak ada musik yang diputar";
+        DetailArtist.Text = has ? _media!.Artist.Trim() : "";
+        DPlay.Content = has && _media!.IsPlaying ? "\uE769" : "\uE768";
+        DPrev.IsEnabled = has && _media!.CanPrevious;
+        DNext.IsEnabled = has && _media!.CanNext;
+        DPlay.IsEnabled = has && _media!.CanPlayPause;
+    }
+
+    void FillDetailLyrics(IReadOnlyList<LyricLine>? lines, int index)
+    {
+        var boxes = new[] { DL0, DL1, DL2, DL3, DL4 };
+        for (int k = 0; k < boxes.Length; k++)
+        {
+            int i = index + k - 2;
+            boxes[k].Text = lines is not null && index >= 0 && i >= 0 && i < lines.Count ? lines[i].Text : "";
+        }
+        if (lines is not null && index < 0) DL2.Text = "♪";
+    }
+
+    // ---- 7: calendar ----
+
+    void OnCalPrev(object sender, RoutedEventArgs e) { _calMonth = _calMonth.AddMonths(-1); RebuildCalendar(); }
+    void OnCalNext(object sender, RoutedEventArgs e) { _calMonth = _calMonth.AddMonths(1); RebuildCalendar(); }
+
+    void RebuildCalendar()
+    {
+        var culture = CultureInfo.CurrentCulture;
+        CalTitle.Text = _calMonth.ToString("MMM yyyy", culture);
+        CalGrid.Children.Clear();
+        var first = culture.DateTimeFormat.FirstDayOfWeek;
+        for (int i = 0; i < 7; i++)
+        {
+            var name = culture.DateTimeFormat.GetShortestDayName((DayOfWeek)(((int)first + i) % 7));
+            var h = new TextBlock { Text = name, FontSize = 11, Opacity = 0.6, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 2, 0, 2) };
+            h.SetResourceReference(TextBlock.ForegroundProperty, "NovaOnSurface");
+            CalGrid.Children.Add(h);
+        }
+        int offset = ((int)_calMonth.DayOfWeek - (int)first + 7) % 7;
+        int days = DateTime.DaysInMonth(_calMonth.Year, _calMonth.Month);
+        for (int i = 0; i < 42; i++)
+        {
+            int day = i - offset + 1;
+            if (day < 1 || day > days) { CalGrid.Children.Add(new Border { Height = 22 }); continue; }
+            var date = new DateTime(_calMonth.Year, _calMonth.Month, day);
+            bool hasEvent = _data.Events.Any(ev => ev.Start.Date == date);
+            var btn = new Button
+            {
+                Style = (Style)FindResource("NovaBarButton"), Height = 22, Padding = new Thickness(0), Margin = new Thickness(0.5),
+                Content = new TextBlock
+                {
+                    Text = day.ToString(culture), FontSize = 11, HorizontalAlignment = HorizontalAlignment.Center,
+                    FontWeight = hasEvent ? FontWeights.Bold : FontWeights.Normal
+                }
+            };
+            AutomationProperties.SetName(btn, date.ToString("D", culture) + (hasEvent ? ", ada acara" : ""));
+            if (date == _calDay.Date) btn.SetResourceReference(Control.BackgroundProperty, "NovaSurfaceAlt");
+            if (date == DateTime.Today) ((TextBlock)btn.Content).SetResourceReference(TextBlock.ForegroundProperty, "NovaAccent");
+            btn.Click += (_, _) => { _calDay = date; RebuildCalendar(); RebuildAgenda(); };
+            CalGrid.Children.Add(btn);
+        }
+    }
+
+    void RebuildAgenda()
+    {
+        var culture = CultureInfo.CurrentCulture;
+        AgendaTitle.Text = _calDay.ToString("dddd, d MMMM", culture);
+        DayName.Text = _calDay.ToString("ddd", culture);
+        DayNumber.Text = _calDay.Day.ToString(culture);
+        DayMonth.Text = _calDay.ToString("MMM", culture);
+        AgendaList.Children.Clear();
+        var palette = new[] { "#FF7C5CFF", "#FF3DA5FF", "#FFFFB020", "#FF3DD68C" };
+        int n = 0;
+        foreach (var ev in _data.EventsOn(_calDay).Take(4).ToList())
+        {
+            var item = ev;
+            var dot = (Brush)new BrushConverter().ConvertFromString(palette[n++ % palette.Length])!;
+            AgendaList.Children.Add(BuildRow(item.Title, item.Start.ToString("HH:mm", culture), dot: dot,
+                onDelete: () => { _data.Events.Remove(item); SaveData(); UpdateRemTimer(); RebuildAgenda(); RebuildCalendar(); }, deleteName: "Hapus acara"));
+        }
+        if (!_data.EventsOn(_calDay).Any()) AgendaList.Children.Add(Hint("Tidak ada acara."));
+    }
+
+    void OnEventAdd(object sender, RoutedEventArgs e)
+    {
+        var timeText = string.IsNullOrWhiteSpace(EventTime.Text) ? "09:00" : EventTime.Text.Trim();
+        if (!TimeSpan.TryParse(timeText, CultureInfo.InvariantCulture, out var ts) || ts < TimeSpan.Zero || ts >= TimeSpan.FromDays(1))
+        {
+            ShowNotice("Jam tidak dikenali. Contoh: 14:30", important: true);
+            return;
+        }
+        if (!_data.AddEvent(EventInput.Text, _calDay.Date + ts)) return;
+        EventInput.Clear(); EventTime.Clear();
+        SaveData();
+        UpdateRemTimer();
+        RebuildAgenda(); RebuildCalendar();
+    }
+
+    void OnEventKey(object sender, KeyEventArgs e) { if (e.Key == Key.Enter) { OnEventAdd(sender, e); e.Handled = true; } }
+
+    // Reminders: one tiny timer, and only while there are events at all.
+    void UpdateRemTimer()
+    {
+        if (_data.Events.Count > 0) { if (!_remTimer.IsEnabled) { _remTimer.Start(); if (IsLoaded) CheckReminders(); } }
+        else _remTimer.Stop();
+    }
+
+    void CheckReminders()
+    {
+        var due = _data.TakeDueReminders(DateTime.Now);
+        if (due.Count == 0) return;
+        var first = due[0];
+        var text = $"{first.Start:HH:mm}  {first.Title}" + (due.Count > 1 ? $"  (+{due.Count - 1})" : "");
+        ShowNotice("Pengingat: " + text, important: true, seconds: 12);
+    }
+
+    // ---- 8: system and tools ----
+
+    void OnToolShot(object sender, RoutedEventArgs e)
+    {
+        Collapse();
+        var t = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
+        t.Tick += (_, _) => { t.Stop(); NativeMethods.PressWinShiftS(); };   // after the Island has folded away
+        t.Start();
+    }
+
+    void OnToolNight(object sender, RoutedEventArgs e) => OpenUri("ms-settings:nightlight");
+
+    void OnToolBright(object sender, RoutedEventArgs e)
+    {
+        if (_pageIndex != SystemPage) { GoToPage(SystemPage); return; }
+        if (_brightSupported) BrightSlider.Focus(); else OpenUri("ms-settings:display");
+    }
+
+    void OnToolDark(object sender, RoutedEventArgs e)
+    {
+        var (apps, _) = WindowsThemeService.Read();
+        bool toDark = apps != 0;   // currently light (or unknown) -> dark
+        WindowsThemeService.SetDark(toDark);
+        ShowNotice(toDark ? "Mode gelap aktif" : "Mode terang aktif", important: false);
+    }
+
+    /// <summary>The first apps pinned in the dock, as launchers right in the Island.</summary>
+    void BuildShortcuts()
+    {
+        AppShortcuts.Children.Clear();
+        var items = _s.DockItems.Take(8).ToList();
+        ShortcutsLabel.Visibility = items.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        foreach (var item in items)
+        {
+            var it = item;
+            var btn = new Button
+            {
+                Style = (Style)FindResource("NovaIconButton"), Width = 40, Height = 40, ToolTip = it.Name,
+                Content = new System.Windows.Controls.Image { Width = 24, Height = 24, Source = IconLoader.Load(it.Path) }
+            };
+            AutomationProperties.SetName(btn, "Buka " + it.Name);
+            btn.Click += (_, _) => LaunchShortcut(it);
+            AppShortcuts.Children.Add(btn);
+        }
+    }
+
+    void LaunchShortcut(DockItem item)
+    {
+        if (!LaunchValidator.TryValidate(item.Path, out var err)) { ShowNotice($"Tidak bisa membuka {item.Name}: {err}", important: true); return; }
+        try { Process.Start(new ProcessStartInfo(item.Path) { UseShellExecute = true }); Collapse(); }
+        catch (Exception ex) { FileLog.Write($"Island launch failed: {ex.GetType().Name}"); ShowNotice($"Gagal membuka {item.Name}.", important: true); }
+    }
+
+    // ---- music visualizer: the real output level of the speakers, drawn as a moving waveform ----
+
+    const int WaveBars = 26;
+    readonly DispatcherTimer _waveTimer = new() { Interval = TimeSpan.FromMilliseconds(90) };
+    AudioService.Meter? _meter;
+    readonly double[] _waveLevels = new double[WaveBars];
+    Rectangle[]? _waveRects;
+
+    /// <summary>Runs only while the Music page is open, a song is playing and the Island is expanded.</summary>
+    void UpdateWave()
+    {
+        bool need = _expanded && _pageIndex == Music && _s.ShowMedia && _media is { HasTrack: true, IsPlaying: true } && !ReducedMotion;
+        if (need)
+        {
+            if (_waveRects is null)
+            {
+                _waveRects = new Rectangle[WaveBars];
+                for (int i = 0; i < WaveBars; i++)
+                {
+                    var r = new Rectangle { Width = 3, Height = 3, Margin = new Thickness(1, 0, 1, 0), RadiusX = 1.5, RadiusY = 1.5, VerticalAlignment = VerticalAlignment.Bottom };
+                    r.SetResourceReference(Shape.FillProperty, "NovaAccent");
+                    _waveRects[i] = r;
+                    Wave.Children.Add(r);
+                }
+                _waveTimer.Tick += (_, _) => TickWave();
+            }
+            if (_meter is null) { var m = new AudioService.Meter(); if (m.Start()) _meter = m; else m.Dispose(); }
+            if (_meter is not null && !_waveTimer.IsEnabled) _waveTimer.Start();
+        }
+        else
+        {
+            _waveTimer.Stop();
+            _meter?.Dispose(); _meter = null;   // nothing is held open while the visualizer is hidden
+        }
+    }
+
+    void TickWave()
+    {
+        if (_meter is null || _waveRects is null) return;
+        Array.Copy(_waveLevels, 1, _waveLevels, 0, WaveBars - 1);
+        _waveLevels[WaveBars - 1] = _meter.Peak();
+        for (int i = 0; i < WaveBars; i++) _waveRects[i].Height = 3 + _waveLevels[i] * 28;
+    }
+    void OnToolSettings(object sender, RoutedEventArgs e) => OpenUri("ms-settings:");
+    void OnToolTaskMgr(object sender, RoutedEventArgs e) => OpenUri("taskmgr.exe");
+    void OnToolCalc(object sender, RoutedEventArgs e) => OpenUri("calc.exe");
+
+    static string? RunPowerShell(string command)
+    {
+        try
+        {
+            var psi = new ProcessStartInfo("powershell.exe", "-NoProfile -NonInteractive -Command \"" + command + "\"")
+            { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true };
+            using var p = Process.Start(psi);
+            if (p is null) return null;
+            var output = p.StandardOutput.ReadToEnd();
+            if (!p.WaitForExit(4000)) { try { p.Kill(); } catch { } return null; }
+            return output.Trim();
+        }
+        catch { return null; }
+    }
+
+    /// <summary>Screen brightness exists only on laptops and tablets with a built-in display; elsewhere the slider stays hidden.</summary>
+    async void LoadBrightness()
+    {
+        if (_brightChecked) { BrightRow.Visibility = _brightSupported ? Visibility.Visible : Visibility.Collapsed; return; }
+        _brightChecked = true;
+        var text = await Task.Run(() => RunPowerShell("(Get-CimInstance -Namespace root/WMI -ClassName WmiMonitorBrightness).CurrentBrightness"));
+        if (int.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out var value) && value is >= 0 and <= 100)
+        {
+            _brightSupported = true;
+            BrightSlider.Value = Math.Max(5, value);
+            BrightRow.Visibility = Visibility.Visible;
+        }
+    }
+
+    void OnBrightCommit(object sender, MouseButtonEventArgs e) => Dispatcher.InvokeAsync(ApplyBrightness, DispatcherPriority.Background);
+    void OnBrightKeyCommit(object sender, KeyEventArgs e) => ApplyBrightness();
+
+    void ApplyBrightness()
+    {
+        int v = (int)Math.Round(Math.Min(100, Math.Max(5, BrightSlider.Value)));   // an integer: nothing else ever reaches the command
+        _ = Task.Run(() => RunPowerShell($"(Get-CimInstance -Namespace root/WMI -ClassName WmiMonitorBrightnessMethods).WmiSetBrightness(1,{v})"));
+    }
+}

@@ -1,0 +1,24 @@
+<Window x:Class="Nova.App.Features.FloatingDock.DockWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="NOVA Dock" AutomationProperties.Name="NOVA app dock"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        Topmost="True" ShowInTaskbar="False" ShowActivated="False" ResizeMode="NoResize"
+        SizeToContent="WidthAndHeight" SizeChanged="OnSizeChanged" SourceInitialized="OnSourceInitialized"
+        MouseEnter="OnMouseEnter" MouseLeave="OnMouseLeave"
+        IsKeyboardFocusWithinChanged="OnKeyboardFocusWithinChanged" KeyDown="OnWindowKeyDown">
+  <!-- The top margin is transparent head-room so a zoomed icon is not cut off by the window edge -->
+  <Grid x:Name="Root" Margin="0,8,0,0">
+    <!-- Edge handle, shown only in "reveal on edge hover" mode while the dock is hidden -->
+    <Border x:Name="Handle" Visibility="Collapsed" Width="180" Height="14" VerticalAlignment="Bottom"
+            Background="#01000000" AutomationProperties.Name="Reveal app dock">
+      <Border Height="5" CornerRadius="3" VerticalAlignment="Bottom" Margin="0,0,0,2"
+              Background="{DynamicResource NovaAccent}"/>
+    </Border>
+    <Border x:Name="Panel" CornerRadius="16" Padding="5" BorderThickness="1" AllowDrop="True"
+            Background="{DynamicResource NovaSurface}" BorderBrush="{DynamicResource NovaBorder}"
+            DragOver="OnPanelDragOver" Drop="OnPanelDrop">
+      <StackPanel x:Name="Items" Orientation="Horizontal" KeyboardNavigation.DirectionalNavigation="Cycle"/>
+    </Border>
+  </Grid>
+</Window>
