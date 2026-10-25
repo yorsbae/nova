@@ -90,6 +90,7 @@ public partial class IslandWindow
     void GoToPage(int index, bool morph = true)
     {
         index = (index % _pages.Length + _pages.Length) % _pages.Length;
+        if (_radioOpen && index != Quick) CloseRadio(morph: false);
         var from = CurrentSize();
         _pageIndex = index;
         for (int i = 0; i < _pages.Length; i++)
@@ -128,7 +129,7 @@ public partial class IslandWindow
 
     void UpdateQuickTimer()
     {
-        bool need = _expanded && _pageIndex == Quick;
+        bool need = _expanded && _pageIndex == Quick && !_radioOpen;
         if (need && !_quickTimer.IsEnabled) _quickTimer.Start();
         else if (!need && _quickTimer.IsEnabled) _quickTimer.Stop();
     }
@@ -304,8 +305,6 @@ public partial class IslandWindow
         else b.ClearValue(Control.BackgroundProperty);
     }
 
-    void OnTglWifi(object sender, RoutedEventArgs e) => OpenUri("ms-settings:network-wifi");
-    void OnTglBluetooth(object sender, RoutedEventArgs e) => OpenUri("ms-settings:bluetooth");
     void OnTglAirplane(object sender, RoutedEventArgs e) => OpenUri("ms-settings:network-airplanemode");
     void OnTglSound(object sender, RoutedEventArgs e)
     {
@@ -480,7 +479,12 @@ public partial class IslandWindow
         DPrev.IsEnabled = has && _media!.CanPrevious;
         DNext.IsEnabled = has && _media!.CanNext;
         DPlay.IsEnabled = has && _media!.CanPlayPause;
+        LyricEnableButton.Visibility = has && !_s.LyricsEnabled ? Visibility.Visible : Visibility.Collapsed;
     }
+
+    /// <summary>Raised when the user taps "Aktifkan lirik" (the app turns the setting on and saves it).</summary>
+    public event Action? EnableLyricsRequested;
+    void OnEnableLyrics(object sender, RoutedEventArgs e) => EnableLyricsRequested?.Invoke();
 
     void FillDetailLyrics(IReadOnlyList<LyricLine>? lines, int index)
     {

@@ -48,6 +48,72 @@ internal static class NativeMethods
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode)] static extern bool QueryFullProcessImageName(IntPtr process, uint flags, StringBuilder name, ref uint size);
     [DllImport("dwmapi.dll")] static extern int DwmGetWindowAttribute(IntPtr hwnd, int attribute, out int value, int size);
 
+    // ---- v2.3: foreground / minimize, window rectangles, PrintWindow, DWM attributes, shell hook ----
+    [DllImport("user32.dll")] internal static extern IntPtr GetForegroundWindow();
+    [DllImport("user32.dll")] internal static extern IntPtr GetAncestor(IntPtr hWnd, uint flags);
+    [DllImport("user32.dll")] internal static extern bool IsWindow(IntPtr hWnd);
+    [DllImport("user32.dll")] internal static extern bool IsZoomed(IntPtr hWnd);
+    [DllImport("user32.dll")] internal static extern bool GetWindowRect(IntPtr hWnd, out RECT rect);
+    [DllImport("user32.dll")] internal static extern bool PrintWindow(IntPtr hWnd, IntPtr hdc, uint flags);
+    [DllImport("user32.dll")] internal static extern bool GetWindowPlacement(IntPtr hWnd, ref WINDOWPLACEMENT placement);
+    [DllImport("user32.dll")] internal static extern bool RegisterShellHookWindow(IntPtr hWnd);
+    [DllImport("user32.dll")] internal static extern bool DeregisterShellHookWindow(IntPtr hWnd);
+    [DllImport("gdi32.dll")] internal static extern bool DeleteObject(IntPtr hObject);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    static extern uint PrivateExtractIcons(string file, int index, int cx, int cy, IntPtr[] icons, uint[] ids, uint count, uint flags);
+    [DllImport("user32.dll")] internal static extern bool DestroyIcon(IntPtr icon);
+
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct WINDOWPLACEMENT
+    {
+        public int length, flags, showCmd;
+        public POINT ptMinPosition, ptMaxPosition;
+        public RECT rcNormalPosition;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct POINT { public int X, Y; }
+
+    internal const int SW_MINIMIZE = 6, SW_RESTORE = 9;
+    internal const uint GA_ROOT = 2;
+    internal const int WPF_RESTORETOMAXIMIZED = 0x2;
+
+    /// <summary>The window as a whole (not just a tab): the foreground window's top-level ancestor.</summary>
+    internal static IntPtr ForegroundRoot()
+    {
+        var fg = GetForegroundWindow();
+        if (fg == IntPtr.Zero) return IntPtr.Zero;
+        var root = GetAncestor(fg, GA_ROOT);
+        return root != IntPtr.Zero ? root : fg;
+    }
+
+    /// <summary>Reads a DWM attribute of any window. Returns false if Windows doesn't know it (older Windows) or refuses.</summary>
+    internal static bool TryGetDwm(IntPtr hwnd, int attribute, out int value)
+    {
+        try { return DwmGetWindowAttribute(hwnd, attribute, out value, sizeof(int)) == 0; }
+        catch { value = 0; return false; }
+    }
+
+    /// <summary>Sets a DWM attribute on any window. Returns false if Windows doesn't know it or refuses (e.g. an elevated app).</summary>
+    internal static bool TrySetDwm(IntPtr hwnd, int attribute, int value)
+    {
+        try { return DwmSetWindowAttribute(hwnd, attribute, ref value, sizeof(int)) == 0; }
+        catch { return false; }
+    }
+
+    /// <summary>Icon at (about) the requested pixel size straight from an .exe/.dll/.ico, so a zoomed dock icon stays sharp. null when not possible.</summary>
+    internal static IntPtr ExtractIconSized(string path, int px)
+    {
+        try
+        {
+            var icons = new IntPtr[1];
+            var ids = new uint[1];
+            uint n = PrivateExtractIcons(path, 0, px, px, icons, ids, 1, 0);
+            return n >= 1 && n != 0xFFFFFFFF ? icons[0] : IntPtr.Zero;
+        }
+        catch { return IntPtr.Zero; }
+    }
+
     internal const int WS_EX_APPWINDOW = 0x00040000;
     internal static int GetExStyle(IntPtr h) => GetWindowLong(h, GWL_EXSTYLE);
     internal static bool IsToolWindow(IntPtr h) => (GetExStyle(h) & WS_EX_TOOLWINDOW) != 0;

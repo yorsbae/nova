@@ -10,6 +10,7 @@ using Nova.Core.Configuration;
 using Nova.Core.Logging;
 using Nova.Core.Media;
 using Nova.Core.Data;
+using Nova.Core.Notifications;
 
 namespace Nova.App;
 
@@ -23,6 +24,9 @@ public partial class App : Application
     IslandWindow? _island;
     DockWindow? _dock;
     TopBarWindow? _topBar;
+    DockReserveWindow? _topReserve;   // island-only mode: an invisible strip that keeps windows below the Island
+    AppAlertService? _alerts;
+    WindowHarmonyService? _harmony;
     SystemChangesService? _system;
     HotkeyService? _hotkey;
     TrayService? _tray;
@@ -114,6 +118,12 @@ public partial class App : Application
             _island.MediaPlayPause += () => _media?.TogglePlayPause();
             _island.MediaNext += () => _media?.Next();
             _island.MediaPrevious += () => _media?.Previous();
+            _island.EnableLyricsRequested += () =>
+            {
+                var c = _settings.Clone();
+                c.LyricsEnabled = true;   // the user tapped "Aktifkan lirik": consent for artist + title to go to lrclib.net
+                ApplySettings(c, keepCurrentDock: true);
+            };
             _island.EnsureVisibilityForMode();
         });
         Guard("hotkey", () =>
@@ -135,6 +145,8 @@ public partial class App : Application
         });
 
         Guard("activity", () => ApplyActivity(_settings));
+        Guard("alerts", () => ApplyAlerts(_settings));
+        Guard("harmony", () => ApplyHarmony(_settings));
         Guard("eco", () => ApplyEco(_settings));
 
         if (_safeMode) Notify("Safe mode: clock and dock only, default layout, nothing is saved.", true);
@@ -151,7 +163,8 @@ public partial class App : Application
     QuickStatus? _lastQuick;
     bool? _lastCharging; bool _warned20, _warned10, _powerHooked;
 
-    void Activity(string text) { if (_settings.ActivityAlerts) _island?.ShowNotice(text, important: true, seconds: 4); }
+    void Activity(string text, string? glyph = null, string? color = null)
+    { if (_settings.ActivityAlerts) _island?.ShowNotice(text, important: true, seconds: 4, glyph: glyph, badgeColor: color); }
 
     void ApplyActivity(NovaSettings s)
     {
@@ -181,7 +194,7 @@ public partial class App : Application
     {
         _volumeTimer.Stop();
         if (_island is null || _island.IsExpanded) return;   // the Island's own slider already shows it
-        Activity(_mutedNow ? "Suara dibisukan" : $"Volume {Math.Round(_volumeNow * 100)}%");
+        Activity(_mutedNow ? "Suara dibisukan" : $"Volume {Math.Round(_volumeNow * 100)}%", _mutedNow ? "\uE74F" : "\uE767", "#4C8DFF");
     }
 
     void OnPowerModeChanged(object sender, Microsoft.Win32.PowerModeChangedEventArgs e)
@@ -193,11 +206,11 @@ public partial class App : Application
             var info = Nova.Core.Status.BatteryInfo.From(p.ACLineStatus, p.BatteryFlag, p.BatteryLifePercent);
             if (info is null) return;   // desktop PC: no battery
             if (_lastCharging is bool was && was != info.Charging)
-                Activity(info.Charging ? $"Mengisi daya · {info.Percent}%" : $"Memakai baterai · {info.Percent}%");
+                Activity(info.Charging ? $"Mengisi daya · {info.Percent}%" : $"Memakai baterai · {info.Percent}%", "\uE83E", info.Charging ? "#30A46C" : "#4C8DFF");
             _lastCharging = info.Charging;
             if (info.Charging) { _warned20 = _warned10 = false; return; }
-            if (info.Percent <= 10 && !_warned10) { _warned10 = true; Activity($"Baterai hampir habis · {info.Percent}%"); }
-            else if (info.Percent <= 20 && !_warned20) { _warned20 = true; Activity($"Baterai rendah · {info.Percent}%"); }
+            if (info.Percent <= 10 && !_warned10) { _warned10 = true; Activity($"Baterai hampir habis · {info.Percent}%", "\uE850", "#E5484D"); }
+            else if (info.Percent <= 20 && !_warned20) { _warned20 = true; Activity($"Baterai rendah · {info.Percent}%", "\uE850", "#F5A524"); }
         });
     }
 
@@ -209,15 +222,74 @@ public partial class App : Application
         if (prev is null || !_settings.ActivityAlerts) return;
 
         if (prev.Net == NetKind.None && q.Net != NetKind.None)
-            Activity(q.Net == NetKind.Wifi ? $"Wi-Fi terhubung{(q.WifiName is null ? "" : " · " + q.WifiName)}" : "Jaringan kabel terhubung");
-        else if (prev.Net != NetKind.None && q.Net == NetKind.None) Activity("Jaringan terputus");
+            Activity(q.Net == NetKind.Wifi ? $"Wi-Fi terhubung{(q.WifiName is null ? "" : " · " + q.WifiName)}" : "Jaringan kabel terhubung", "\uE701", "#4C8DFF");
+        else if (prev.Net != NetKind.None && q.Net == NetKind.None) Activity("Jaringan terputus", "\uEB55", "#E5484D");
 
         var before = prev.BluetoothNames ?? Array.Empty<string>();
         var after = q.BluetoothNames ?? Array.Empty<string>();
         var joined = after.FirstOrDefault(n => !before.Contains(n));
         var left = before.FirstOrDefault(n => !after.Contains(n));
-        if (joined is not null) Activity("Bluetooth terhubung · " + joined);
-        else if (left is not null) Activity("Bluetooth terputus · " + left);
+        if (joined is not null) Activity("Bluetooth terhubung · " + joined, "\uE702", "#4C8DFF");
+        else if (left is not null) Activity("Bluetooth terputus · " + left, "\uE702", "#8A8A94");
+    }
+
+    // ---- chat alerts (WhatsApp, Telegram...) ----
+
+    void ApplyAlerts(NovaSettings s)
+    {
+        if (s.AppAlerts && !_safeMode)
+        {
+            if (_alerts is not null) return;
+            var alerts = _alerts = new AppAlertService();
+            alerts.Alert += (app, unread, window) => Dispatcher.InvokeAsync(() =>
+                _island?.ShowNotice(AppAlerts.Describe(app, unread), important: true, seconds: 6, glyph: "\uE8BD", badgeColor: app.Accent,
+                                    onClick: () => NativeMethods.Activate(window)));
+            alerts.Flashed += (window, path) => Dispatcher.InvokeAsync(() => _dock?.Bounce(window, path));
+            alerts.Start();
+        }
+        else if (_alerts is not null) { _alerts.Dispose(); _alerts = null; }
+    }
+
+    // ---- one look for every window ----
+
+    bool ThemeIsDark()
+    {
+        if (Resources["NovaWindow"] is System.Windows.Media.SolidColorBrush b)
+        {
+            var c = b.Color;
+            return 0.299 * c.R + 0.587 * c.G + 0.114 * c.B < 128;
+        }
+        return true;
+    }
+
+    void ApplyHarmony(NovaSettings s)
+    {
+        bool on = s.HarmonizeWindows && !_safeMode && !SystemParameters.HighContrast && !s.HighContrastOverride;
+        if (on) (_harmony ??= new WindowHarmonyService()).Apply(true, ThemeIsDark());
+        else _harmony?.Apply(false, false);
+    }
+
+    // ---- status polling when there is no top bar to do it ----
+
+    readonly System.Windows.Threading.DispatcherTimer _statusPoll = new() { Interval = TimeSpan.FromSeconds(5) };
+    bool _statusBusy, _statusHooked;
+
+    void UpdateStatusPoll(NovaSettings s, bool barShowing)
+    {
+        if (!_statusHooked)
+        {
+            _statusHooked = true;
+            _statusPoll.Tick += async (_, _) =>
+            {
+                if (_statusBusy) return;
+                _statusBusy = true;
+                try { OnQuickStatus(await Task.Run(QuickStatusService.ReadAsync)); }
+                catch (Exception ex) { FileLog.Write($"Status poll failed: {ex.GetType().Name}"); }
+                finally { _statusBusy = false; }
+            };
+        }
+        bool need = s.ShowSystemStatus && s.ActivityAlerts && !barShowing && !_safeMode;
+        if (need) { if (!_statusPoll.IsEnabled) _statusPoll.Start(); } else _statusPoll.Stop();
     }
 
     // ---- light on resources: low priority, efficiency mode, and giving idle memory back ----
@@ -270,6 +342,8 @@ public partial class App : Application
         ApplyMedia(s);
         ApplyClipboard(s);
         ApplyActivity(s);
+        ApplyAlerts(s);
+        ApplyHarmony(s);
         ApplyEco(s);
         if (!s.LyricsEnabled) { _lyricsCts?.Cancel(); _island?.SetLyrics(null); }
         else if (!old.LyricsEnabled && _lyricsTrack is { HasTrack: true } t) _ = LoadLyricsAsync(t);
@@ -283,16 +357,23 @@ public partial class App : Application
         return hotkeyOk;
     }
 
-    /// <summary>Creates, re-docks or removes the top bar according to the Mac-style (notch) setting.</summary>
+    /// <summary>
+    /// Top of the screen. Full-bar mode: a bar across the screen with Wi-Fi / sound / battery icons. Island-only mode (default):
+    /// no bar and no icons, just the Island, plus an invisible strip that keeps windows below it.
+    /// </summary>
     void ApplyNotch(NovaSettings s)
     {
-        if (s.NotchMode)
+        bool bar = s.NotchMode && s.ShowTopBar;
+        bool strip = s.NotchMode && !s.ShowTopBar && s.ReserveTopSpace;
+
+        if (bar)
         {
             if (_topBar is null)
             {
                 _topBar = new TopBarWindow(s);
                 _topBar.Repositioned += () => _island?.BringToFront();
                 _topBar.StatusRead += OnQuickStatus;
+                _topBar.RadioRequested += kind => _island?.ShowRadio(kind);
                 _topBar.FullscreenChanged += full => { _island?.SetFullscreen(full); _dock?.SetFullscreen(full); };
                 _topBar.Show();
             }
@@ -300,11 +381,31 @@ public partial class App : Application
         }
         else if (_topBar is not null)
         {
-            var bar = _topBar;
+            var old = _topBar;
             _topBar = null;
-            bar.Release();   // give the reserved space back immediately
-            bar.Close();
+            old.Release();   // give the reserved space back immediately
+            old.Close();
         }
+
+        if (strip)
+        {
+            if (_topReserve is null)
+            {
+                _topReserve = new DockReserveWindow(bottom: false);
+                _topReserve.Repositioned += () => _island?.BringToFront();
+                _topReserve.FullscreenChanged += full => { _island?.SetFullscreen(full); _dock?.SetFullscreen(full); };
+            }
+            _topReserve.Apply(s.IslandMonitor, NotchLayout.IslandStripDip(s.ClockFontSize, s.IslandTopOffset));
+        }
+        else if (_topReserve is not null)
+        {
+            var old = _topReserve;
+            _topReserve = null;
+            old.Release();
+            old.Close();
+        }
+
+        UpdateStatusPoll(s, bar);
     }
 
     void ResetLayout()
@@ -439,13 +540,14 @@ public partial class App : Application
             ThemeService.Apply(this, _settings);   // theme / high-contrast changes
             _island?.RefreshTheme();
             _dock?.RefreshTheme();
+            ApplyHarmony(_settings);
             _system?.KeepTaskbarHidden();
             _island?.Relocate();                   // the work area changes when the taskbar auto-hides
             _dock?.Relocate();
         });
 
     void OnDisplaySettingsChanged(object? sender, EventArgs e)
-        => Dispatcher.InvokeAsync(() => { _system?.KeepTaskbarHidden(); _topBar?.Relocate(); _island?.Relocate(); _dock?.Relocate(); });   // monitor plugged/unplugged, resolution or scale changed
+        => Dispatcher.InvokeAsync(() => { _system?.KeepTaskbarHidden(); _topBar?.Relocate(); _topReserve?.Relocate(); _island?.Relocate(); _dock?.Relocate(); });   // monitor plugged/unplugged, resolution or scale changed
 
     static void Guard(string feature, Action a)
     {
@@ -461,7 +563,11 @@ public partial class App : Application
         Microsoft.Win32.SystemEvents.DisplaySettingsChanged -= OnDisplaySettingsChanged;
         _tray?.Dispose();
         _hotkey?.Dispose();
+        _statusPoll.Stop();
+        _alerts?.Dispose();
+        _harmony?.Dispose();   // puts every window's title bar back as it was
         _topBar?.Release();
+        _topReserve?.Release();
         _dock?.ReleaseSpace();
         _system?.RestoreAll();
         _clipboard?.Dispose();

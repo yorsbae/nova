@@ -26,6 +26,8 @@ public partial class TopBarWindow : Window
 
     public event Action<bool>? FullscreenChanged;
     public event Action? Repositioned;
+    /// <summary>The Wi-Fi or Bluetooth icon was clicked: NOVA opens its own on/off + find panel instead of Windows Settings.</summary>
+    public event Action<QuickRadio>? RadioRequested;
     /// <summary>Raised after every status reading, so NOVA can announce changes (Bluetooth connected, Wi-Fi lost...).</summary>
     public event Action<QuickStatus>? StatusRead;
 
@@ -137,8 +139,8 @@ public partial class TopBarWindow : Window
         catch (Exception ex) { FileLog.Write($"Couldn't open {uri}: {ex.GetType().Name}"); }
     }
 
-    void OnWifiClick(object sender, RoutedEventArgs e) => OpenSettingsPage("ms-settings:network-wifi");
-    void OnBluetoothClick(object sender, RoutedEventArgs e) => OpenSettingsPage("ms-settings:bluetooth");
+    void OnWifiClick(object sender, RoutedEventArgs e) => RadioRequested?.Invoke(QuickRadio.WiFi);
+    void OnBluetoothClick(object sender, RoutedEventArgs e) => RadioRequested?.Invoke(QuickRadio.Bluetooth);
     void OnBatteryClick(object sender, RoutedEventArgs e) => OpenSettingsPage("ms-settings:batterysaver");
 
     void OnVolumeClick(object sender, RoutedEventArgs e)

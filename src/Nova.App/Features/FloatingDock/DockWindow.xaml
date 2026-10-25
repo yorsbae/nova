@@ -7,18 +7,21 @@
         SizeToContent="WidthAndHeight" SizeChanged="OnSizeChanged" SourceInitialized="OnSourceInitialized"
         MouseEnter="OnMouseEnter" MouseLeave="OnMouseLeave"
         IsKeyboardFocusWithinChanged="OnKeyboardFocusWithinChanged" KeyDown="OnWindowKeyDown">
-  <!-- The top margin is transparent head-room so a zoomed icon is not cut off by the window edge -->
-  <Grid x:Name="Root" Margin="0,8,0,0">
+  <!-- In the normal (transparent) mode this window is as wide as the screen and has see-through room above the dock:
+       icons grow into that room when the pointer comes near, and clicks on the see-through parts fall through to the windows below.
+       The dock itself sits at the bottom centre. -->
+  <Grid x:Name="Root">
     <!-- Edge handle, shown only in "reveal on edge hover" mode while the dock is hidden -->
-    <Border x:Name="Handle" Visibility="Collapsed" Width="180" Height="14" VerticalAlignment="Bottom"
+    <Border x:Name="Handle" Visibility="Collapsed" Width="180" Height="14" VerticalAlignment="Bottom" HorizontalAlignment="Center"
             Background="#01000000" AutomationProperties.Name="Reveal app dock">
       <Border Height="5" CornerRadius="3" VerticalAlignment="Bottom" Margin="0,0,0,2"
               Background="{DynamicResource NovaAccent}"/>
     </Border>
-    <Border x:Name="Panel" CornerRadius="16" Padding="5" BorderThickness="1" AllowDrop="True"
+    <Border x:Name="Panel" CornerRadius="18" Padding="6,5,6,4" BorderThickness="1" AllowDrop="True"
+            HorizontalAlignment="Center" VerticalAlignment="Bottom"
             Background="{DynamicResource NovaSurface}" BorderBrush="{DynamicResource NovaBorder}"
             DragOver="OnPanelDragOver" Drop="OnPanelDrop">
-      <StackPanel x:Name="Items" Orientation="Horizontal" KeyboardNavigation.DirectionalNavigation="Cycle"/>
+      <StackPanel x:Name="Items" Orientation="Horizontal" VerticalAlignment="Bottom" KeyboardNavigation.DirectionalNavigation="Cycle"/>
     </Border>
   </Grid>
 </Window>

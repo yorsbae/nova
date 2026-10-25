@@ -31,6 +31,12 @@ Package (portable zip + Inno Setup installer): `.\build\publish.ps1` (add `-Self
 
 On exit NOVA gives the screen space back, and puts the taskbar (and the Windows theme, if you used it) back exactly as it found them. If NOVA was force-killed and the taskbar stays hidden: start NOVA again and exit normally. Or press `Ctrl+Shift+Esc` → Task Manager → *Windows Explorer* → *Restart*, which brings the taskbar back immediately.
 
+## New in v2.3 (default look)
+- **Only the Island at the top**: floating, centred, shows day · date · time; shows lyrics while music plays, and chat alerts (WhatsApp...) / volume / battery / Wi-Fi activity as it changes size. The old full bar is a setting.
+- **Wi-Fi and Bluetooth in the Island**: tap the tile (or the bar icon) for an on/off switch and a list to find and connect, no trip to Settings.
+- **Dock like the Mac**: small icons that grow near the pointer; click to open, click again to minimize, with a fly-into-the-icon animation; icons hop when an app wants attention.
+- **One look for all windows** (Windows 11): title-bar colour, dark mode and round corners are matched across apps; undone on exit.
+
 ## What "Mac style" does (and does not do)
 - **Top bar**: a real Windows AppBar, like the taskbar. Maximized and snapped windows stop below it. It shows the date on the left and status/weather on the right.
 - **Notch**: the Island is flush with the top edge, black, with rounded bottom corners. Click it (or `Ctrl+Alt+N`) to expand clock, media, dock, settings.

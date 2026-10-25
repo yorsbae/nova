@@ -12,7 +12,7 @@ public class SettingsValidatorTests
         var old = new NovaSettings { SchemaVersion = 3, NotchMode = false, HideTaskbar = false, ShowRunningApps = false, DockReservesSpace = false, ShowMedia = false };
         SettingsValidator.Normalize(old);
         Assert.True(old.NotchMode && old.HideTaskbar && old.ShowRunningApps && old.DockReservesSpace && old.ShowMedia);
-        Assert.Equal(4, old.SchemaVersion);
+        Assert.Equal(new NovaSettings().SchemaVersion, old.SchemaVersion);
 
         // Once migrated, the user's own choice is kept.
         old.HideTaskbar = false;

@@ -35,7 +35,7 @@ public class PresetApplierTests
         s.DockItems.Add(new DockItem { Name = "x", Path = @"C:\x.exe" });
         PresetApplier.Apply(s, LayoutPreset.Minimal);
         Assert.Equal(LayoutPreset.Minimal, s.Preset);
-        Assert.Equal(32, s.DockIconSize);
+        Assert.Equal(24, s.DockIconSize);
         Assert.Equal(DockVisibility.RevealOnEdgeHover, s.DockVisibility);
         Assert.Equal(ThemeMode.Dark, s.Theme);
         Assert.Equal("Ctrl+Shift+K", s.Hotkey);

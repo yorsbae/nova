@@ -36,6 +36,30 @@ public sealed class RunningAppsService
         return apps;
     }
 
+    /// <summary>Every app window (not one per program), top of the Z-order first. Used to restyle windows, never to launch anything.</summary>
+    public IReadOnlyList<IntPtr> AllWindows()
+    {
+        var list = new List<IntPtr>();
+        uint self = (uint)Environment.ProcessId;
+        NativeMethods.EnumWindows((h, _) =>
+        {
+            try
+            {
+                if (!IsAppWindow(h)) return true;
+                NativeMethods.GetWindowThreadProcessId(h, out var pid);
+                if (pid != self) list.Add(h);
+            }
+            catch { /* a window vanishing mid-enumeration is normal */ }
+            return true;
+        }, IntPtr.Zero);
+        return list;
+    }
+
+    /// <summary>True when this window is the one the user is working in right now.</summary>
+    public static bool IsForeground(IntPtr hwnd) => hwnd != IntPtr.Zero && NativeMethods.ForegroundRoot() == hwnd;
+
+    public static bool IsMinimized(IntPtr hwnd) => NativeMethods.IsIconic(hwnd);
+
     static bool IsAppWindow(IntPtr h)
     {
         if (!NativeMethods.IsWindowVisible(h) || NativeMethods.IsCloaked(h)) return false;

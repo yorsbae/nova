@@ -31,29 +31,39 @@ public sealed class LyricsService
         var key = (artist + "\u0001" + title).ToLowerInvariant();
         if (_cache.TryGetValue(key, out var cached)) return cached;
 
+        // Browser tabs give titles like "Artist - Song (Lyric Video)": try the plain song name first, then the title as it came.
+        var cleanTitle = TrackName.CleanTitle(title, artist);
+        var cleanArtist = TrackName.CleanArtist(artist);
+        var candidates = new List<(string Title, string Artist)> { (cleanTitle, cleanArtist) };
+        if (!string.Equals(cleanTitle, title, StringComparison.Ordinal) || !string.Equals(cleanArtist, artist, StringComparison.Ordinal))
+            candidates.Add((title, artist));
+
         try
         {
-            var url = "https://lrclib.net/api/get?track_name=" + Uri.EscapeDataString(title);
-            if (artist.Length > 0) url += "&artist_name=" + Uri.EscapeDataString(artist);
-            if (duration is { } d && d > TimeSpan.Zero) url += "&duration=" + (int)Math.Round(d.TotalSeconds);
-
-            using var response = await Http.GetAsync(url, ct);
             IReadOnlyList<LyricLine>? lines = null;
-            if (response.IsSuccessStatusCode)
+            foreach (var (t, a) in candidates)
             {
-                var json = await response.Content.ReadAsStringAsync(ct);
-                using var doc = JsonDocument.Parse(json);
-                if (doc.RootElement.ValueKind == JsonValueKind.Object &&
-                    doc.RootElement.TryGetProperty("syncedLyrics", out var synced) &&
-                    synced.ValueKind == JsonValueKind.String)
+                var url = "https://lrclib.net/api/get?track_name=" + Uri.EscapeDataString(t);
+                if (a.Length > 0) url += "&artist_name=" + Uri.EscapeDataString(a);
+                if (duration is { } d && d > TimeSpan.Zero) url += "&duration=" + (int)Math.Round(d.TotalSeconds);
+
+                using var response = await Http.GetAsync(url, ct);
+                if (response.IsSuccessStatusCode)
                 {
-                    var parsed = Lrc.Parse(synced.GetString());
-                    if (parsed.Count > 0) lines = parsed;
+                    var json = await response.Content.ReadAsStringAsync(ct);
+                    using var doc = JsonDocument.Parse(json);
+                    if (doc.RootElement.ValueKind == JsonValueKind.Object &&
+                        doc.RootElement.TryGetProperty("syncedLyrics", out var synced) &&
+                        synced.ValueKind == JsonValueKind.String)
+                    {
+                        var parsed = Lrc.Parse(synced.GetString());
+                        if (parsed.Count > 0) { lines = parsed; break; }
+                    }
                 }
-            }
-            else if ((int)response.StatusCode != 404)
-            {
-                return null;   // temporary problem: don't cache, try again next time
+                else if ((int)response.StatusCode != 404)
+                {
+                    return null;   // temporary problem: don't cache, try again next time
+                }
             }
 
             if (_cache.Count >= 30) _cache.Clear();

@@ -12,7 +12,7 @@ public static class PresetApplier
         if (p == LayoutPreset.Minimal)
         {
             t.ClockFontSize = 14;
-            t.DockIconSize = 32;
+            t.DockIconSize = 24;
             t.DockSpacing = 4;
             t.Opacity = 0.9;
             t.DockVisibility = DockVisibility.RevealOnEdgeHover;

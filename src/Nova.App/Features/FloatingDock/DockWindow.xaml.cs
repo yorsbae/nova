@@ -5,6 +5,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using Microsoft.Win32;
@@ -24,6 +25,10 @@ public partial class DockWindow : Window
     readonly RunningAppsService _running = new();
     readonly DispatcherTimer _runTimer = new() { Interval = TimeSpan.FromSeconds(2) };
     readonly DockReserveWindow _reserve = new();
+    readonly WindowGenie _genie = new();
+    readonly List<Tile> _tiles = new();
+    double _restPanelHeight = 40, _baseItemsWidth, _sigma = 40, _icon = 26;
+    bool _magHooked;
     IReadOnlyList<RunningApp> _apps = Array.Empty<RunningApp>();
     string _appsKey = "";
     NovaSettings _s;
@@ -38,7 +43,11 @@ public partial class DockWindow : Window
         _runTimer.Tick += (_, _) => PollRunning();
         _reserve.FullscreenChanged += SetFullscreen;
         _reserve.Repositioned += () => { if (!_placing) Reposition(); };
-        Closed += (_, _) => { _hideTimer.Stop(); _runTimer.Stop(); _reserve.Close(); };
+        Closed += (_, _) => { _hideTimer.Stop(); _runTimer.Stop(); StopZoomLoop(); _reserve.Close(); };
+        // The zoom follows the pointer over the dock; the loop also runs for a moment after it leaves, to shrink the icons back.
+        Panel.MouseEnter += (_, _) => StartZoomLoop();
+        Panel.MouseMove += OnPanelMouseMove;
+        Panel.MouseLeave += (_, _) => StartZoomLoop();
 
         // Right-click on the dock itself (not on an icon): add an app. There is no permanent "+" button taking up room.
         var menu = new ContextMenu();
@@ -52,6 +61,22 @@ public partial class DockWindow : Window
         ApplySettings(settings);
     }
 
+    /// <summary>One icon in the dock, with what the zoom animation needs to know about it.</summary>
+    sealed class Tile
+    {
+        public Button Button = null!;
+        public ScaleTransform Zoom = new(1, 1);
+        public double BaseCenter, Scale = 1;
+        public IntPtr Hwnd;
+        public string? Exe;
+    }
+
+    /// <summary>The transparent window is as wide as the screen so icons can grow without moving it. The opaque fallback keeps the old snug size.</summary>
+    bool Wide => AllowsTransparency;
+    bool MotionOff => _s.ReducedMotion || !SystemParameters.ClientAreaAnimation;
+    bool MagnifyOn => Wide && _s.DockMagnify && _s.DockMagnifyScale > 1.01 && !MotionOff;
+    double Headroom => MagnifyOn ? DockMagnify.HeadroomFor(_icon, _s.DockMagnifyScale) : 6;
+
     bool RevealMode => _s.DockVisibility == DockVisibility.RevealOnEdgeHover;
     bool ReserveSpace => _s.DockReservesSpace && !RevealMode;
 
@@ -59,10 +84,10 @@ public partial class DockWindow : Window
     {
         _s = s;
         Panel.Margin = new Thickness(0, 0, 0, s.DockBottomOffset);
-        // Transparent head-room above the panel lets a zoomed icon grow past the panel. An opaque window can't be see-through, so it gets none.
-        Root.Margin = new Thickness(0, AllowsTransparency ? 8 : 0, 0, 0);
-        // In reveal mode the whole window area must be hit-testable so moving the mouse within it doesn't hide the dock.
-        Root.Background = RevealMode ? new SolidColorBrush(Color.FromArgb(1, 0, 0, 0)) : null;
+        Root.Margin = new Thickness(0);
+        // The old snug opaque window needs its whole area hit-testable in reveal mode. The wide transparent window must NOT be:
+        // it spans the screen, and clicks on its see-through parts have to reach the windows below.
+        Root.Background = RevealMode && !Wide ? new SolidColorBrush(Color.FromArgb(1, 0, 0, 0)) : null;
         if (s.ShowRunningApps)
         {
             _apps = _running.Snapshot();
@@ -71,6 +96,7 @@ public partial class DockWindow : Window
         }
         else { _runTimer.Stop(); _apps = Array.Empty<RunningApp>(); _appsKey = ""; }
         ApplyGlass();
+        if (!MagnifyOn) ResetZoom();
         Rebuild();
         SetRevealed(!RevealMode);
         Reposition();
@@ -125,6 +151,7 @@ public partial class DockWindow : Window
     void SetRevealed(bool revealed)
     {
         _revealed = revealed || !RevealMode;
+        if (!_revealed) ResetZoom();
         Panel.Visibility = _revealed ? Visibility.Visible : Visibility.Collapsed;
         Handle.Visibility = !_revealed ? Visibility.Visible : Visibility.Collapsed;
         Reposition();
@@ -145,7 +172,7 @@ public partial class DockWindow : Window
         var snap = _running.Snapshot();
         var key = AppsKey(snap);
         if (key == _appsKey) return;
-        if (IsKeyboardFocusWithin) return;   // never pull the buttons away from a keyboard user; try again next tick
+        if (IsKeyboardFocusWithin || Panel.IsMouseOver) return;   // never pull the buttons away from a keyboard or mouse user; try again next tick
         _apps = snap; _appsKey = key;
         Rebuild();
     }
@@ -169,9 +196,13 @@ public partial class DockWindow : Window
     void Rebuild()
     {
         Items.Children.Clear();
+        _tiles.Clear();
+        _genie.Prune();
         var extra = _apps.Where(a => !_s.DockItems.Any(i => Matches(i, a))).ToList();
         int tiles = (_s.HideTaskbar ? 1 : 0) + _s.DockItems.Count + extra.Count;
         double icon = EffectiveIconSize(tiles), gap = _s.DockSpacing;
+        _icon = icon;
+        _sigma = DockMagnify.Sigma(icon, gap);
 
         // Start button: the dock stands in for the taskbar, so it must offer Start.
         if (_s.HideTaskbar)
@@ -190,7 +221,7 @@ public partial class DockWindow : Window
                     rect.SetResourceReference(System.Windows.Shapes.Shape.FillProperty, "NovaAccent");
                     glyph.Children.Add(rect);
                 }
-            var start = BuildTile("Start", null, glyph, false, icon, gap);
+            var start = BuildTile("Start", null, glyph, false, icon, gap, IntPtr.Zero, null);
             AutomationProperties.SetName(start, "Open the Start menu");
             start.Click += (_, _) => NativeMethods.PressWinKey();
             Items.Children.Add(start);
@@ -200,10 +231,10 @@ public partial class DockWindow : Window
         foreach (var item in _s.DockItems.ToList())
         {
             var open = _apps.FirstOrDefault(a => Matches(item, a));
-            var btn = BuildTile(item.Name, IconLoader.Load(item.Path), null, open is not null, icon, gap);
+            var btn = BuildTile(item.Name, IconLoader.LoadSized(item.Path, 64), null, open is not null, icon, gap, open?.Hwnd ?? IntPtr.Zero, open?.ExePath ?? item.Path);
             AutomationProperties.SetName(btn, open is null ? $"Launch {item.Name}" : $"Switch to {item.Name}");
             AutomationProperties.SetHelpText(btn, "Alt plus Left or Right moves this shortcut. Delete removes it.");
-            btn.Click += (_, _) => { if (open is not null) RunningAppsService.Activate(open.Hwnd); else Launch(item); };
+            btn.Click += (_, _) => { if (open is not null) ClickRunning(open.Hwnd, btn); else { Bounce(btn); Launch(item); } };
             btn.ContextMenu = BuildMenu(item);
             btn.KeyDown += (_, e) => OnItemKeyDown(item, e);
             Items.Children.Add(btn);
@@ -212,7 +243,7 @@ public partial class DockWindow : Window
         // Open apps that are not pinned, after a thin separator (like the macOS Dock).
         if (extra.Count > 0)
         {
-            var sep = new Border { Width = 1, Height = icon * 0.7, Margin = new Thickness(gap / 2, 0, gap / 2, 6), VerticalAlignment = VerticalAlignment.Center, Opacity = 0.4 };
+            var sep = new Border { Width = 1, Height = icon * 0.7, Margin = new Thickness(gap / 2, 0, gap / 2, 6), VerticalAlignment = VerticalAlignment.Bottom, Opacity = 0.4 };
             sep.SetResourceReference(Border.BackgroundProperty, "NovaBorder");
             Items.Children.Add(sep);
         }
@@ -220,20 +251,40 @@ public partial class DockWindow : Window
         {
             var title = string.IsNullOrWhiteSpace(app.Title) ? "App" : app.Title;
             var label = app.ExePath is { } p ? System.IO.Path.GetFileNameWithoutExtension(p) : title;
-            var btn = BuildTile(label, RunningIcon(app), null, true, icon, gap);
+            var btn = BuildTile(label, RunningIcon(app), null, true, icon, gap, app.Hwnd, app.ExePath);
             btn.ToolTip = title;
             AutomationProperties.SetName(btn, $"Switch to {title}");
-            btn.Click += (_, _) => RunningAppsService.Activate(app.Hwnd);
+            btn.Click += (_, _) => ClickRunning(app.Hwnd, btn);
             if (app.ExePath is not null) btn.ContextMenu = BuildRunningMenu(app, label);
             Items.Children.Add(btn);
         }
+        MeasureRest();
     }
 
-    /// <summary>One dock tile: just the icon (the name is in the tooltip), with a dot underneath when the app is open.</summary>
-    Button BuildTile(string label, ImageSource? image, UIElement? glyph, bool running, double icon, double gap)
+    /// <summary>Measures the dock at rest (no zoom): its height, its width, and where each icon's centre is. The zoom is computed against these.</summary>
+    void MeasureRest()
+    {
+        Items.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        double x = 0;
+        int ti = 0;
+        foreach (UIElement child in Items.Children)
+        {
+            double w = child.DesiredSize.Width;
+            if (child is Button && ti < _tiles.Count && ReferenceEquals(_tiles[ti].Button, child)) _tiles[ti++].BaseCenter = x + w / 2;
+            x += w;
+        }
+        _baseItemsWidth = x;
+        // Worked out from the icons, not from the panel, so it is right even while the panel is hidden (reveal mode).
+        _restPanelHeight = Math.Max(1, Items.DesiredSize.Height + Panel.Padding.Top + Panel.Padding.Bottom + Panel.BorderThickness.Top + Panel.BorderThickness.Bottom);
+    }
+
+    /// <summary>One dock tile: just the icon (the name is in the tooltip), with a dot underneath when the app is open. Its content can be zoomed.</summary>
+    Button BuildTile(string label, ImageSource? image, UIElement? glyph, bool running, double icon, double gap, IntPtr hwnd, string? exe)
     {
         var stack = new StackPanel();
-        stack.Children.Add(glyph ?? new System.Windows.Controls.Image { Width = icon, Height = icon, Source = image });
+        UIElement face = glyph ?? new System.Windows.Controls.Image { Width = icon, Height = icon, Source = image };
+        RenderOptions.SetBitmapScalingMode(face, BitmapScalingMode.HighQuality);
+        stack.Children.Add(face);
         var dot = new System.Windows.Shapes.Ellipse
         {
             Width = 4, Height = 4, HorizontalAlignment = HorizontalAlignment.Center,
@@ -241,18 +292,24 @@ public partial class DockWindow : Window
         };
         dot.SetResourceReference(System.Windows.Shapes.Shape.FillProperty, "NovaOnSurface");
         stack.Children.Add(dot);
-        return new Button
+
+        var tile = new Tile { Hwnd = hwnd, Exe = exe };
+        stack.LayoutTransform = tile.Zoom;   // a layout transform, so the neighbours make room as an icon grows
+        tile.Button = new Button
         {
             Content = stack,
             Style = (Style)FindResource("NovaDockTile"),
             Margin = new Thickness(gap / 2, 0, gap / 2, 0),
+            VerticalAlignment = VerticalAlignment.Bottom,   // every icon sits on the same baseline while one of them is bigger
             ToolTip = label
         };
+        _tiles.Add(tile);
+        return tile.Button;
     }
 
     static ImageSource? RunningIcon(RunningApp app)
     {
-        if (!app.IsHostedApp && app.ExePath is not null) return IconLoader.Load(app.ExePath);
+        if (!app.IsHostedApp && app.ExePath is not null) return IconLoader.LoadSized(app.ExePath, 64);
         try
         {
             var h = NativeMethods.WindowIcon(app.Hwnd);
@@ -395,20 +452,36 @@ public partial class DockWindow : Window
     /// <summary>Re-centres on the configured monitor and re-fits the icons. Also called after monitors or scaling change.</summary>
     public void Relocate() { _reserve.Relocate(); Rebuild(); Reposition(); }
 
+    /// <summary>Wide mode: the window is as wide as the monitor and tall enough for the resting dock plus the room the zoom needs.</summary>
+    void FitWindow()
+    {
+        if (!Wide) { if (SizeToContent != SizeToContent.WidthAndHeight) SizeToContent = SizeToContent.WidthAndHeight; return; }
+        var scr = MonitorService.Resolve(_s.DockMonitor);
+        var area = _s.HideTaskbar ? scr.Bounds : scr.WorkingArea;
+        double dpi = VisualTreeHelper.GetDpi(this).DpiScaleX;
+        if (dpi <= 0) dpi = 1;
+        double w = Math.Floor(area.Width / dpi);
+        double h = Math.Ceiling(Headroom + _restPanelHeight + _s.DockBottomOffset);
+        if (SizeToContent != SizeToContent.Manual) SizeToContent = SizeToContent.Manual;
+        if (Math.Abs(Width - w) > 0.5 || double.IsNaN(Width)) Width = w;
+        if (Math.Abs(Height - h) > 0.5 || double.IsNaN(Height)) Height = h;
+    }
+
     void Reposition()
     {
         if (_placing) return;
         _placing = true;
         try
         {
-            double hDip = ActualHeight;
-            if (hDip <= 0) { Measure(new Size(double.PositiveInfinity, double.PositiveInfinity)); hDip = DesiredSize.Height; }
+            FitWindow();
+            double hDip = Wide ? Height : ActualHeight;
+            if (hDip <= 0 || double.IsNaN(hDip)) { Measure(new Size(double.PositiveInfinity, double.PositiveInfinity)); hDip = DesiredSize.Height; }
 
             if (ReserveSpace && !_fullscreen)
             {
-                // Tell Windows how much room the dock takes, then sit exactly inside that strip.
-                // The transparent head-room is not reserved: it may overlap windows (it is click-through).
-                _reserve.Apply(_s.DockMonitor, Math.Max(1, hDip - Root.Margin.Top));
+                // Tell Windows how much room the resting dock takes, then sit exactly inside that strip.
+                // The see-through head-room above it is not reserved: it may overlap windows (clicks fall through it).
+                _reserve.Apply(_s.DockMonitor, Math.Max(1, _restPanelHeight + _s.DockBottomOffset));
                 if (_reserve.PlacedBottomPx is int bottom) { WindowPlacement.PlaceCenteredAtBottom(this, _s.DockMonitor, bottom); return; }   // the strip's bottom row = the dock's bottom row
             }
             else _reserve.Release();
@@ -416,6 +489,94 @@ public partial class DockWindow : Window
             WindowPlacement.PlaceCentered(this, _s.DockMonitor, _s.HideTaskbar ? PlacementEdge.BottomFlush : PlacementEdge.Bottom, 0);
         }
         finally { _placing = false; }
+    }
+
+    // ---- clicking an open app: open it, click again to put it away ----
+
+    void ClickRunning(IntPtr hwnd, Button tile)
+    {
+        if (!NativeMethods.IsWindow(hwnd)) return;
+        if (_genie.Busy) return;
+        var dpi = VisualTreeHelper.GetDpi(this).DpiScaleX;
+        if (dpi <= 0) dpi = 1;
+        var centre = tile.PointToScreen(new Point(tile.ActualWidth / 2, tile.ActualHeight / 2));   // physical pixels
+        double iconPx = Math.Max(16, _icon * dpi * (_tiles.FirstOrDefault(t => ReferenceEquals(t.Button, tile))?.Scale ?? 1));
+        bool animate = !MotionOff;
+
+        if (RunningAppsService.IsMinimized(hwnd)) _genie.Restore(hwnd, centre, iconPx, animate);
+        else if (RunningAppsService.IsForeground(hwnd)) _genie.Minimize(hwnd, centre, iconPx, animate);
+        else RunningAppsService.Activate(hwnd);
+    }
+
+    // ---- a little hop, like the Mac dock when an app opens or wants attention ----
+
+    void Bounce(Button b)
+    {
+        if (MotionOff) return;
+        var move = new TranslateTransform();
+        b.RenderTransform = move;
+        var hop = new DoubleAnimation(0, -Math.Max(10, _icon * 0.55), TimeSpan.FromMilliseconds(240))
+        {
+            AutoReverse = true, RepeatBehavior = new RepeatBehavior(3),
+            EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
+        };
+        hop.Completed += (_, _) => b.RenderTransform = Transform.Identity;
+        move.BeginAnimation(TranslateTransform.YProperty, hop);
+    }
+
+    /// <summary>A window asked for attention (its taskbar button would flash): hop its dock icon.</summary>
+    public void Bounce(IntPtr hwnd, string? exePath)
+    {
+        var tile = _tiles.FirstOrDefault(t => t.Hwnd != IntPtr.Zero && t.Hwnd == hwnd)
+                   ?? _tiles.FirstOrDefault(t => exePath is not null && t.Exe is not null && string.Equals(t.Exe, exePath, StringComparison.OrdinalIgnoreCase));
+        if (tile is not null) Bounce(tile.Button);
+    }
+
+    // ---- zoom under the pointer ----
+
+    void OnPanelMouseMove(object sender, MouseEventArgs e) => StartZoomLoop();
+
+    void StartZoomLoop()
+    {
+        if (!MagnifyOn || _magHooked) return;
+        CompositionTarget.Rendering += OnZoomFrame;
+        _magHooked = true;
+    }
+
+    void StopZoomLoop()
+    {
+        if (!_magHooked) return;
+        CompositionTarget.Rendering -= OnZoomFrame;
+        _magHooked = false;
+    }
+
+    void ResetZoom()
+    {
+        foreach (var t in _tiles) { t.Scale = 1; t.Zoom.ScaleX = 1; t.Zoom.ScaleY = 1; }
+        StopZoomLoop();
+    }
+
+    void OnZoomFrame(object? sender, EventArgs e)
+    {
+        if (!MagnifyOn) { ResetZoom(); return; }
+        bool inside = Panel.IsMouseOver && Panel.Visibility == Visibility.Visible;
+        double pointer = double.NaN;
+        if (inside)
+        {
+            double cur = Items.ActualWidth, x = Mouse.GetPosition(Items).X;
+            // The zoom is worked out against the resting layout, so growing icons don't push the pointer's target around.
+            pointer = cur > 1 && _baseItemsWidth > 1 ? (x - cur / 2) * (_baseItemsWidth / cur) + _baseItemsWidth / 2 : x;
+        }
+
+        bool resting = true;
+        foreach (var t in _tiles)
+        {
+            double target = inside ? DockMagnify.Scale(pointer, t.BaseCenter, _sigma, _s.DockMagnifyScale) : 1;
+            double next = DockMagnify.Approach(t.Scale, target);
+            if (next != t.Scale) { t.Scale = next; t.Zoom.ScaleX = next; t.Zoom.ScaleY = next; }
+            if (next != 1) resting = false;
+        }
+        if (!inside && resting) StopZoomLoop();
     }
 
     void OnSizeChanged(object sender, SizeChangedEventArgs e) => Reposition();

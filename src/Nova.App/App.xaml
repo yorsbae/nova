@@ -41,24 +41,17 @@
       </Setter>
     </Style>
 
-    <!-- Dock tile: just the icon, a soft highlight and a slight zoom under the pointer -->
+    <!-- Dock tile: just the icon. The zoom under the pointer is done by the dock itself, so there is no hover box and no fixed scale here. -->
     <Style x:Key="NovaDockTile" TargetType="Button">
       <Setter Property="FocusVisualStyle" Value="{StaticResource NovaFocusVisual}"/>
       <Setter Property="Padding" Value="4,3,4,1"/>
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="Button">
-            <Border x:Name="Bd" CornerRadius="10" Background="Transparent" Padding="{TemplateBinding Padding}"
-                    RenderTransformOrigin="0.5,1">
-              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            <Border x:Name="Bd" CornerRadius="10" Background="Transparent" Padding="{TemplateBinding Padding}">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Bottom"/>
             </Border>
             <ControlTemplate.Triggers>
-              <Trigger Property="IsMouseOver" Value="True">
-                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource NovaSurfaceAlt}"/>
-                <Setter TargetName="Bd" Property="RenderTransform">
-                  <Setter.Value><ScaleTransform ScaleX="1.15" ScaleY="1.15"/></Setter.Value>
-                </Setter>
-              </Trigger>
               <Trigger Property="IsPressed" Value="True">
                 <Setter TargetName="Bd" Property="Opacity" Value="0.7"/>
               </Trigger>
@@ -233,6 +226,62 @@
               <Trigger Property="Text" Value="">
                 <Setter TargetName="Ph" Property="Visibility" Value="Visible"/>
               </Trigger>
+              <Trigger Property="IsKeyboardFocused" Value="True">
+                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource NovaAccent}"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <!-- On/off switch (Wi-Fi, Bluetooth) -->
+    <Style x:Key="NovaSwitch" TargetType="ToggleButton">
+      <Setter Property="FocusVisualStyle" Value="{StaticResource NovaFocusVisual}"/>
+      <Setter Property="Width" Value="46"/>
+      <Setter Property="Height" Value="26"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="ToggleButton">
+            <Grid>
+              <Border x:Name="Track" CornerRadius="13" BorderThickness="1"
+                      Background="{DynamicResource NovaSurfaceAlt}" BorderBrush="{DynamicResource NovaBorder}"/>
+              <Ellipse x:Name="Thumb" Width="20" Height="20" HorizontalAlignment="Left" Margin="3,0,0,0" Fill="{DynamicResource NovaOnSurface}"/>
+            </Grid>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsChecked" Value="True">
+                <Setter TargetName="Track" Property="Background" Value="{DynamicResource NovaAccent}"/>
+                <Setter TargetName="Track" Property="BorderBrush" Value="{DynamicResource NovaAccent}"/>
+                <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
+                <Setter TargetName="Thumb" Property="Margin" Value="0,0,3,0"/>
+              </Trigger>
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter Property="Opacity" Value="0.4"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <!-- Rounded password input (Wi-Fi password) -->
+    <Style x:Key="NovaPassword" TargetType="PasswordBox">
+      <Setter Property="Foreground" Value="{DynamicResource NovaOnSurface}"/>
+      <Setter Property="CaretBrush" Value="{DynamicResource NovaOnSurface}"/>
+      <Setter Property="SelectionBrush" Value="{DynamicResource NovaAccent}"/>
+      <Setter Property="FontSize" Value="13"/>
+      <Setter Property="Padding" Value="10,6"/>
+      <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="PasswordBox">
+            <Border x:Name="Bd" CornerRadius="10" Background="{DynamicResource NovaSurfaceAlt}" BorderBrush="Transparent"
+                    BorderThickness="1.5" Padding="{TemplateBinding Padding}">
+              <ScrollViewer x:Name="PART_ContentHost" VerticalAlignment="Center" Focusable="False"
+                            HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Hidden"/>
+            </Border>
+            <ControlTemplate.Triggers>
               <Trigger Property="IsKeyboardFocused" Value="True">
                 <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource NovaAccent}"/>
               </Trigger>

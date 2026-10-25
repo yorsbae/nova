@@ -33,6 +33,10 @@ public static class SettingsValidator
             s.ShowSystemStatus = true;
         }
 
+        // v4 -> v5: the dock now starts small and grows under the pointer. Only files that still carry the old default size are
+        // moved; a size the user picked is kept.
+        if (s.SchemaVersion < 5 && s.DockIconSize == 32 && s.DockSpacing == 6) s.DockIconSize = d.DockIconSize;
+
         s.SchemaVersion = d.SchemaVersion;
         s.Opacity = Clamp(s.Opacity, 0.7, 1.0, d.Opacity);
         s.ClockFontSize = Clamp(s.ClockFontSize, 12, 72, d.ClockFontSize);
@@ -40,6 +44,7 @@ public static class SettingsValidator
         s.DockBottomOffset = Clamp(s.DockBottomOffset, 0, 400, d.DockBottomOffset);
         s.DockIconSize = Clamp(s.DockIconSize, 24, 96, d.DockIconSize);
         s.DockSpacing = Clamp(s.DockSpacing, 0, 32, d.DockSpacing);
+        s.DockMagnifyScale = Clamp(s.DockMagnifyScale, 1.0, 2.2, d.DockMagnifyScale);
         s.ClipboardMaxItems = Math.Min(50, Math.Max(5, s.ClipboardMaxItems));
 
         if (!Enum.IsDefined(s.Theme)) s.Theme = d.Theme;

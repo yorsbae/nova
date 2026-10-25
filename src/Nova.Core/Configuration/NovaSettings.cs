@@ -25,7 +25,7 @@ public sealed class LayoutProfile
     public double IslandTopOffset { get; set; } = 8;
     public DockVisibility DockVisibility { get; set; } = DockVisibility.AlwaysVisible;
     public double DockBottomOffset { get; set; } = 6;
-    public double DockIconSize { get; set; } = 32;
+    public double DockIconSize { get; set; } = 26;
     public double DockSpacing { get; set; } = 6;
     public string IslandMonitor { get; set; } = "";
     public string DockMonitor { get; set; } = "";
@@ -34,7 +34,7 @@ public sealed class LayoutProfile
 /// <summary>User settings. Every default here is the "known-good layout" used by Reset.</summary>
 public sealed class NovaSettings
 {
-    public int SchemaVersion { get; set; } = 4;
+    public int SchemaVersion { get; set; } = 5;
     public LayoutPreset Preset { get; set; } = LayoutPreset.Balanced;
     public ThemeMode Theme { get; set; } = ThemeMode.System;
     public string AccentColor { get; set; } = "#4C8DFF";
@@ -53,7 +53,7 @@ public sealed class NovaSettings
 
     public DockVisibility DockVisibility { get; set; } = DockVisibility.AlwaysVisible;
     public double DockBottomOffset { get; set; } = 6;
-    public double DockIconSize { get; set; } = 32;
+    public double DockIconSize { get; set; } = 26;
     public double DockSpacing { get; set; } = 6;
     public string DockMonitor { get; set; } = "";
     /// <summary>Reserves the strip the dock occupies (like the taskbar does), so maximized windows such as the browser stop above it instead of going under it.</summary>
@@ -103,6 +103,24 @@ public sealed class NovaSettings
     public bool ActivityAlerts { get; set; } = true;
     /// <summary>Keeps NOVA light: lower CPU priority, Windows efficiency mode (EcoQoS) and trimming of unused memory after it has been idle.</summary>
     public bool EcoMode { get; set; } = true;
+
+
+    // --- v2.3: island-only top, Mac-style dock, app alerts, window harmony ---
+    /// <summary>false (default): no bar at all, just the Island floating at the top centre with the day, date and time.
+    /// true: the older full-width bar with the date on the left and Wi-Fi / sound / battery icons on the right.</summary>
+    public bool ShowTopBar { get; set; } = false;
+    /// <summary>Island-only mode: keeps maximized windows below the Island (an invisible strip, like the Mac menu bar).</summary>
+    public bool ReserveTopSpace { get; set; } = true;
+    /// <summary>Dock icons are small and grow towards the pointer, like the macOS Dock.</summary>
+    public bool DockMagnify { get; set; } = true;
+    /// <summary>How big the icon under the pointer gets, as a multiple of its resting size.</summary>
+    public double DockMagnifyScale { get; set; } = 1.7;
+    /// <summary>Shows "new message" alerts on the Island for chat apps (WhatsApp, Telegram, Discord...). Reads only window titles and
+    /// taskbar-flash signals on this PC; Windows does not let NOVA read the message text.</summary>
+    public bool AppAlerts { get; set; } = true;
+    /// <summary>Gives other apps' windows the same title-bar colour, light/dark mode, round corners and no border (Windows 11), like one Mac theme.
+    /// Reversible: everything is put back when switched off or when NOVA exits.</summary>
+    public bool HarmonizeWindows { get; set; } = true;
 
     public bool ReducedMotion { get; set; } = false;
     public bool HighContrastOverride { get; set; } = false;

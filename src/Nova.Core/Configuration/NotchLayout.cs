@@ -12,4 +12,11 @@ public static class NotchLayout
         if (double.IsNaN(clockFontSize) || double.IsInfinity(clockFontSize)) clockFontSize = 18;
         return Math.Min(MaxBarHeight, Math.Max(MinBarHeight, Math.Round(clockFontSize * 1.5 + 4)));
     }
+
+    /// <summary>Height of the invisible strip kept free at the top in island-only mode: the Island, its distance from the edge and a small gap.</summary>
+    public static double IslandStripDip(double clockFontSize, double topOffset)
+    {
+        if (double.IsNaN(topOffset) || double.IsInfinity(topOffset)) topOffset = 8;
+        return BarHeightDip(clockFontSize) + Math.Min(40, Math.Max(0, topOffset)) + 4;
+    }
 }

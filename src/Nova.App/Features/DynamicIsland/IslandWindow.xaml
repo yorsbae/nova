@@ -34,9 +34,17 @@
         </StackPanel>
       </Grid>
 
-      <TextBlock x:Name="NoticeText" Visibility="Collapsed" HorizontalAlignment="Center" TextWrapping="Wrap"
-                 MaxWidth="340" Margin="0,4,0,0" Foreground="{DynamicResource NovaOnSurface}"
-                 AutomationProperties.LiveSetting="Polite" AutomationProperties.Name="NOVA notice"/>
+      <!-- Alerts: a round badge (chat app, Wi-Fi, volume...) and one line of text. In the compact state they replace the clock for a few seconds. -->
+      <StackPanel x:Name="NoticeRow" Orientation="Horizontal" HorizontalAlignment="Center" Visibility="Collapsed" Margin="0,4,0,0">
+        <Border x:Name="NoticeBadge" Width="22" Height="22" CornerRadius="11" Margin="0,0,8,0" VerticalAlignment="Center"
+                Visibility="Collapsed" Background="#25D366">
+          <TextBlock x:Name="NoticeGlyph" Style="{StaticResource NovaGlyph}" FontSize="12" Foreground="White" HorizontalAlignment="Center"
+                     Text="&#xE8BD;"/>
+        </Border>
+        <TextBlock x:Name="NoticeText" VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="320"
+                   Foreground="{DynamicResource NovaOnSurface}"
+                   AutomationProperties.LiveSetting="Polite" AutomationProperties.Name="NOVA notice"/>
+      </StackPanel>
 
       <!-- Expanded content: 8 pages, one at a time -->
       <StackPanel x:Name="ExpandedPanel" Visibility="Collapsed" Width="380" Margin="0,6,0,0">
@@ -71,6 +79,7 @@
 
           <!-- 1: Wi-Fi, sound, dll -->
           <StackPanel x:Name="PageQuick">
+          <StackPanel x:Name="QuickMain">
             <TextBlock x:Name="DateText" Visibility="Collapsed"/>
             <Border CornerRadius="14" Padding="10,6" Background="#14FFFFFF">
               <Grid>
@@ -107,6 +116,45 @@
             </UniformGrid>
             <TextBlock x:Name="WeatherText" Visibility="Collapsed" HorizontalAlignment="Center" TextWrapping="Wrap"
                        Margin="0,8,0,0" FontSize="12" Foreground="{DynamicResource NovaOnSurface}" AutomationProperties.Name="Cuaca"/>
+          </StackPanel>   <!-- /QuickMain -->
+
+            <!-- Wi-Fi / Bluetooth: on/off switch and a list to find and connect, right here (no trip to Windows Settings) -->
+            <StackPanel x:Name="RadioView" Visibility="Collapsed">
+              <Grid>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                <Button x:Name="RadioBack" Style="{StaticResource NovaIconButton}" Width="30" Height="30" Margin="0" Content="&#xE72B;"
+                        ToolTip="Kembali" AutomationProperties.Name="Kembali ke pengaturan cepat" Click="OnRadioBack"/>
+                <StackPanel Grid.Column="1" Margin="8,0,0,0" VerticalAlignment="Center">
+                  <TextBlock x:Name="RadioTitle" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource NovaOnSurface}"/>
+                  <TextBlock x:Name="RadioStatus" FontSize="11" Opacity="0.65" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource NovaOnSurface}"
+                             AutomationProperties.LiveSetting="Polite"/>
+                </StackPanel>
+                <ToggleButton x:Name="RadioSwitch" Grid.Column="2" Style="{StaticResource NovaSwitch}" Click="OnRadioSwitch"
+                              AutomationProperties.Name="Nyalakan atau matikan"/>
+              </Grid>
+              <Grid Margin="0,8,0,2">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                <TextBlock x:Name="RadioListLabel" FontSize="11" Opacity="0.6" VerticalAlignment="Center" Foreground="{DynamicResource NovaOnSurface}"/>
+                <Button x:Name="RadioScan" Grid.Column="1" Style="{StaticResource NovaTab}" Content="Cari" Click="OnRadioScan"
+                        AutomationProperties.Name="Cari jaringan atau perangkat"/>
+              </Grid>
+              <ScrollViewer MaxHeight="170" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False">
+                <StackPanel x:Name="RadioList"/>
+              </ScrollViewer>
+              <Border x:Name="RadioPassBox" Visibility="Collapsed" CornerRadius="12" Padding="8" Margin="0,6,0,0" Background="#14808080">
+                <StackPanel>
+                  <TextBlock x:Name="RadioPassLabel" FontSize="12" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource NovaOnSurface}"/>
+                  <Grid Margin="0,4,0,0">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                    <PasswordBox x:Name="RadioPass" Style="{StaticResource NovaPassword}" KeyDown="OnRadioPassKey" AutomationProperties.Name="Kata sandi Wi-Fi"/>
+                    <Button Grid.Column="1" Style="{StaticResource NovaIconButton}" Width="32" Height="32" Margin="6,0,0,0" Content="&#xE73E;"
+                            ToolTip="Sambungkan" AutomationProperties.Name="Sambungkan" Click="OnRadioConnect"/>
+                  </Grid>
+                </StackPanel>
+              </Border>
+              <Button Style="{StaticResource NovaTab}" HorizontalAlignment="Right" Margin="0,4,0,0" FontSize="11" Content="Pengaturan Windows…"
+                      AutomationProperties.Name="Buka pengaturan Windows untuk ini" Click="OnRadioOpenSettings"/>
+            </StackPanel>
           </StackPanel>
 
           <!-- 2: Music -->
@@ -243,6 +291,9 @@
             </StackPanel>
             <TextBlock x:Name="DetailHint" TextWrapping="Wrap" TextAlignment="Center" FontSize="11" Opacity="0.6" Margin="0,6,0,0" Foreground="{DynamicResource NovaOnSurface}"
                        Text="Windows tidak membagikan daftar putar atau antrean aplikasi musik. Lirik tampil jika fitur lirik diaktifkan di Settings."/>
+            <Button x:Name="LyricEnableButton" Content="Aktifkan lirik" Style="{StaticResource NovaTab}" HorizontalAlignment="Center" Visibility="Collapsed"
+                    Click="OnEnableLyrics" ToolTip="Mengirim judul dan artis lagu ke lrclib.net"
+                    AutomationProperties.Name="Aktifkan lirik. Judul dan artis lagu dikirim ke lrclib.net"/>
           </StackPanel>
 
           <!-- 7: Calendar -->

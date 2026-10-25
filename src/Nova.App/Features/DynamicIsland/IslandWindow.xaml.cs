@@ -79,9 +79,12 @@ public partial class IslandWindow : Window
         _noticeTimer.Tick += (_, _) =>
         {
             _noticeTimer.Stop();
+            var from = CurrentSize();
             _noticeActive = false;
-            NoticeText.Visibility = Visibility.Collapsed;
+            _alertClick = null;
+            UpdateCompactLayout();
             UpdateNotchPadding();
+            Morph(from);
             if (HiddenMode && !_expanded) Hide();
         };
         _hoverTimer.Tick += (_, _) =>
@@ -108,7 +111,7 @@ public partial class IslandWindow : Window
     {
         _s = s;
         TimeText.FontSize = s.ClockFontSize;
-        NoticeText.FontSize = Math.Max(12, s.ClockFontSize * 0.6);
+        NoticeText.FontSize = Math.Max(12, s.ClockFontSize * 0.7);
         DateText.FontSize = Math.Max(12, s.ClockFontSize * 0.6);
         Pill.AllowDrop = s.ShelfEnabled;
         SubShelf.Visibility = s.ShelfEnabled ? Visibility.Visible : Visibility.Collapsed;
@@ -334,19 +337,42 @@ public void SetTimeline(NovaMediaTimeline? t)
     /// Brief, non-focus-stealing message. Informational notices respect the "temporary notices" setting;
     /// important ones (errors from explicit user actions) always show.
     /// </summary>
-    public void ShowNotice(string text, bool important = false, int seconds = 5)
+    public void ShowNotice(string text, bool important = false, int seconds = 5, string? glyph = null, string? badgeColor = null, Action? onClick = null)
     {
         if (!important && !_s.TemporaryNotices) return;
+        var from = CurrentSize();
         _noticeTimer.Interval = TimeSpan.FromSeconds(Math.Min(30, Math.Max(2, seconds)));
         NoticeText.Text = text;
-        NoticeText.Visibility = Visibility.Visible;
+        NoticeGlyph.Text = glyph ?? "";
+        NoticeBadge.Visibility = glyph is null ? Visibility.Collapsed : Visibility.Visible;
+        if (glyph is not null)
+        {
+            try { NoticeBadge.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(badgeColor ?? "#4C8DFF")); }
+            catch { NoticeBadge.Background = Brushes.DimGray; }
+        }
+        _alertClick = onClick;
         _noticeActive = true;
+        UpdateCompactLayout();
         UpdateNotchPadding();
         if (!IsVisible) { Reposition(); Show(); }
+        else Morph(from);
         var peer = UIElementAutomationPeer.FromElement(NoticeText) ?? UIElementAutomationPeer.CreatePeerForElement(NoticeText);
         peer?.RaiseAutomationEvent(AutomationEvents.LiveRegionChanged);
         _noticeTimer.Stop();
         _noticeTimer.Start();
+    }
+
+    Action? _alertClick;
+
+    /// <summary>
+    /// What fills the compact notch: an alert (replacing the clock for a few seconds) or the clock / lyric row.
+    /// Expanded: the alert, if any, sits above the pages and the clock row is gone (the header shows the time).
+    /// </summary>
+    void UpdateCompactLayout()
+    {
+        NoticeRow.Visibility = _noticeActive ? Visibility.Visible : Visibility.Collapsed;
+        NoticeRow.Margin = _expanded ? new Thickness(0, 4, 0, 0) : new Thickness(0);
+        TimeRow.Visibility = _expanded || _noticeActive ? Visibility.Collapsed : Visibility.Visible;
     }
 
     /// <param name="focus">true for an explicit request (shortcut, click): the Island may take keyboard focus.
@@ -359,7 +385,7 @@ public void SetTimeline(NovaMediaTimeline? t)
         if (focus) _hoverOpened = false;
         ApplyCorners();
         UpdateNotchPadding();
-        TimeRow.Visibility = Visibility.Collapsed;   // the expanded header shows the time itself
+        UpdateCompactLayout();   // the expanded header shows the time itself
         ExpandedPanel.Visibility = Visibility.Visible;
         OpenAdaptivePage();
         UpdateQuickTimer();
@@ -390,7 +416,8 @@ public void SetTimeline(NovaMediaTimeline? t)
         UpdateNotchPadding();
         _statusTimer.Stop();                       // no background work while compact
         ExpandedPanel.Visibility = Visibility.Collapsed;
-        TimeRow.Visibility = Visibility.Visible;
+        CloseRadio(morph: false);
+        UpdateCompactLayout();
         NativeMethods.SetOverlayStyle(this, noActivate: true);
         UpdateCompactText();
         UpdateQuickTimer();
@@ -579,6 +606,8 @@ public void SetTimeline(NovaMediaTimeline? t)
     // ---- Mac-style notch look ----
 
     bool NotchActive => _s.NotchMode;
+    /// <summary>The older look: a bar across the screen with the Island attached like a notch (square top corners, flush with the edge).</summary>
+    bool FlushNotch => NotchActive && _s.ShowTopBar;
 
     /// <summary>
     /// Notch mode: pure black, square top corners flush with the screen edge, rounded bottom corners, exactly as tall as the
@@ -595,6 +624,7 @@ public void SetTimeline(NovaMediaTimeline? t)
             Pill.BorderThickness = new Thickness(0);
             Pill.MinHeight = bar;
             TimeRow.Height = bar;
+            NoticeRow.MinHeight = bar;
             if (!highContrast)
             {
                 Pill.Resources["NovaSurface"] = Frozen(Color.FromRgb(0, 0, 0));
@@ -609,6 +639,7 @@ public void SetTimeline(NovaMediaTimeline? t)
             Pill.MinHeight = 0;
             Pill.MinWidth = 0;
             TimeRow.Height = double.NaN;
+            NoticeRow.MinHeight = 0;
         }
         ApplyCorners();
         UpdateNotchPadding();
@@ -622,8 +653,8 @@ public void SetTimeline(NovaMediaTimeline? t)
 
     void ApplyCorners()
     {
-        double r = _expanded ? 28 : 22;
-        Pill.CornerRadius = NotchActive ? new CornerRadius(0, 0, r, r) : new CornerRadius(r);
+        double r = _expanded ? 28 : NotchActive && !FlushNotch ? Math.Max(14, NotchLayout.BarHeightDip(_s.ClockFontSize) / 2) : 22;
+        Pill.CornerRadius = FlushNotch ? new CornerRadius(0, 0, r, r) : new CornerRadius(r);
         ApplyGlassLook();
     }
 
@@ -636,7 +667,7 @@ public void SetTimeline(NovaMediaTimeline? t)
             var fill = new LinearGradientBrush(Color.FromRgb(0, 0, 0), Color.FromRgb(0x0B, 0x14, 0x24), 90);
             fill.Freeze();
             Pill.Background = fill;
-            Pill.BorderThickness = new Thickness(1, 0, 1, 1);
+            Pill.BorderThickness = FlushNotch ? new Thickness(1, 0, 1, 1) : new Thickness(1);
             Pill.BorderBrush = Frozen(Color.FromArgb(0x66, 0x4C, 0x8D, 0xFF));
         }
         else
@@ -649,7 +680,7 @@ public void SetTimeline(NovaMediaTimeline? t)
 
     void UpdateNotchPadding()
     {
-        if (NotchActive) Pill.Padding = new Thickness(14, 0, 14, _expanded || _noticeActive ? 8 : 0);
+        if (NotchActive) Pill.Padding = new Thickness(14, !FlushNotch && _expanded ? 8 : 0, 14, _expanded ? 8 : 0);
         else Pill.Padding = new Thickness(14, 5, 14, 5);
     }
 
@@ -675,8 +706,9 @@ public void SetTimeline(NovaMediaTimeline? t)
         var now = DateTime.Now;
         var c = CultureInfo.CurrentCulture;
         var time = now.ToString(_s.ClockFormat == ClockFormat.H12 ? "h:mm tt" : "HH:mm", c);
-        // In notch mode the top bar already shows the date, so the notch itself only needs the time.
-        _clockText = NotchActive ? time : time + " · " + now.ToString("ddd, d MMM", c);
+        // With the full top bar the bar already shows the date, so the notch only needs the time. Island-only: day, date and time.
+        var day = now.ToString("ddd, d MMM", c);
+        _clockText = FlushNotch ? time : NotchActive ? day + " · " + time : time + " · " + day;
         DateText.Text = now.ToString("dddd, d MMMM yyyy", c);
         HdrTime.Text = now.ToString(_s.ClockFormat == ClockFormat.H12 ? "h:mm tt" : "HH:mm", c);
         HdrDate.Text = now.ToString("ddd, d MMM", c);
@@ -702,7 +734,7 @@ public void SetTimeline(NovaMediaTimeline? t)
         try
         {
             // Notch: flush with the very top of the monitor (on top of the bar). Otherwise: floating below the work-area top.
-            if (NotchActive) WindowPlacement.PlaceCentered(this, _s.IslandMonitor, PlacementEdge.TopFlush, 0);
+            if (NotchActive) WindowPlacement.PlaceCentered(this, _s.IslandMonitor, PlacementEdge.TopFlush, FlushNotch ? 0 : _s.IslandTopOffset);
             else WindowPlacement.PlaceCentered(this, _s.IslandMonitor, PlacementEdge.Top, _s.IslandTopOffset);
         }
         finally { _placing = false; }
@@ -751,6 +783,15 @@ public void SetTimeline(NovaMediaTimeline? t)
     void OnPillClick(object sender, MouseButtonEventArgs e)
     {
         if (e.OriginalSource is Button) return;
+        if (!_expanded && _noticeActive && _alertClick is { } go)
+        {
+            _alertClick = null;
+            _noticeTimer.Stop();
+            _noticeTimer.Interval = TimeSpan.FromMilliseconds(10);
+            _noticeTimer.Start();   // dismiss the alert, then do what it offers (e.g. bring WhatsApp forward)
+            go();
+            return;
+        }
         if (!_expanded) Expand(focus: true);
         else if (_hoverOpened) PinOpen();
         else Collapse();

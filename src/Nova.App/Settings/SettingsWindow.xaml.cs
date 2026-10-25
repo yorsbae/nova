@@ -44,6 +44,10 @@ public partial class SettingsWindow : Window
         AddCheck("Replace the Windows taskbar and Start button with the dock (taskbar is hidden while NOVA runs and restored when it exits)", nameof(NovaSettings.HideTaskbar));
         AddCheck("Show open apps in the dock, with a dot under them", nameof(NovaSettings.ShowRunningApps));
         AddCheck("Use Windows dark mode while NOVA runs (restored when NOVA exits)", nameof(NovaSettings.WindowsDarkMode));
+        AddCheck("Show the full top bar with date, Wi-Fi, sound and battery icons (off = only the Island, floating at the top centre)", nameof(NovaSettings.ShowTopBar));
+        AddCheck("Island-only mode: keep maximized windows below the Island", nameof(NovaSettings.ReserveTopSpace));
+        AddCheck("Give other apps' windows one look: same title-bar colour, light/dark mode, round corners (Windows 11; undone when off or on exit)", nameof(NovaSettings.HarmonizeWindows));
+        AddCheck("Chat alerts on the Island (WhatsApp, Telegram, Discord...). Reads only window titles on this PC, not message text", nameof(NovaSettings.AppAlerts));
 
         Header("Appearance");
         AddCombo<ThemeMode>("Theme", nameof(NovaSettings.Theme));
@@ -59,7 +63,7 @@ public partial class SettingsWindow : Window
         Header("Island");
         AddCombo<IslandBehavior>("Island behavior", nameof(NovaSettings.IslandBehavior));
         AddMonitor("Island monitor", nameof(NovaSettings.IslandMonitor));
-        AddSlider("Distance from top of screen (floating mode only; the notch is always flush)", nameof(NovaSettings.IslandTopOffset), 0, 200, 1, "0");
+        AddSlider("Distance from top of screen (Island-only mode and classic floating mode; the full-bar notch is always flush)", nameof(NovaSettings.IslandTopOffset), 0, 200, 1, "0");
         AddCheck("Live activities: show volume changes, charger, low battery and Bluetooth / Wi-Fi connecting on the Island", nameof(NovaSettings.ActivityAlerts));
         AddCheck("Eco mode: lower priority, Windows efficiency mode and memory trimming when idle (lightest on RAM and CPU)", nameof(NovaSettings.EcoMode));
         AddCheck("Expand the Island when the pointer rests on it, and fold it again when the pointer leaves", nameof(NovaSettings.IslandHoverExpand));
@@ -72,6 +76,8 @@ public partial class SettingsWindow : Window
         AddMonitor("Dock monitor", nameof(NovaSettings.DockMonitor));
         AddSlider("Icon size", nameof(NovaSettings.DockIconSize), 24, 96, 1, "0");
         AddSlider("Icon spacing", nameof(NovaSettings.DockSpacing), 0, 32, 1, "0");
+        AddCheck("Zoom icons towards the pointer, like the Mac Dock", nameof(NovaSettings.DockMagnify));
+        AddSlider("Zoom size (1.0 = none)", nameof(NovaSettings.DockMagnifyScale), 1.0, 2.2, 0.1, "0.0");
         AddSlider("Distance from bottom of screen", nameof(NovaSettings.DockBottomOffset), 0, 200, 1, "0");
         AddCheck("Keep windows above the dock (reserve its strip of the screen, like the taskbar does)", nameof(NovaSettings.DockReservesSpace));
         AddCheck("Glass dock: see-through strip, only the Start button and app icons are visible", nameof(NovaSettings.DockGlass));

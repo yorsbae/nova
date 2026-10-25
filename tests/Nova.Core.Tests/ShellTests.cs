@@ -151,7 +151,7 @@ public class MigrationTests
     public void Old_default_dock_size_moves_to_the_new_default_but_custom_sizes_stay()
     {
         var oldDefaults = SettingsValidator.Normalize(new NovaSettings { SchemaVersion = 2, DockIconSize = 40, DockSpacing = 8, DockBottomOffset = 12 });
-        Assert.Equal(32, oldDefaults.DockIconSize);
+        Assert.Equal(new NovaSettings().DockIconSize, oldDefaults.DockIconSize);
 
         var custom = SettingsValidator.Normalize(new NovaSettings { SchemaVersion = 2, DockIconSize = 48, DockSpacing = 8, DockBottomOffset = 12 });
         Assert.Equal(48, custom.DockIconSize);
