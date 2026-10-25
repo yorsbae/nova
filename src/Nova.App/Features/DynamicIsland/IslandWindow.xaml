@@ -12,20 +12,28 @@
           DragEnter="OnDragEnter" DragOver="OnDragOver" DragLeave="OnDragLeave" Drop="OnDrop">
     <StackPanel>
 
-      <!-- Compact row: album art | time (or the current lyric line) | equalizer -->
+      <!-- Compact row: album art | lyric line (wraps, the Island grows with it) or title + artist | play/pause | equalizer -->
       <Grid x:Name="TimeRow">
         <Grid.ColumnDefinitions>
           <ColumnDefinition Width="Auto"/>
           <ColumnDefinition Width="*"/>
           <ColumnDefinition Width="Auto"/>
+          <ColumnDefinition Width="Auto"/>
         </Grid.ColumnDefinitions>
-        <Border x:Name="MiniArt" Grid.Column="0" Width="20" Height="20" Margin="0,0,8,0" VerticalAlignment="Center"
-                CornerRadius="5" Visibility="Collapsed" Background="{DynamicResource NovaSurfaceAlt}">
-          <Image x:Name="MiniArtImage" Width="20" Height="20" Stretch="UniformToFill"/>
+        <Border x:Name="MiniArt" Grid.Column="0" Width="34" Height="34" Margin="0,0,10,0" VerticalAlignment="Center"
+                CornerRadius="9" Visibility="Collapsed" Background="{DynamicResource NovaSurfaceAlt}">
+          <Image x:Name="MiniArtImage" Width="34" Height="34" Stretch="UniformToFill"/>
         </Border>
-        <TextBlock x:Name="TimeText" Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center"
-                   FontWeight="SemiBold" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource NovaOnSurface}"/>
-        <StackPanel x:Name="Eq" Grid.Column="2" Orientation="Horizontal" Margin="8,0,0,0" VerticalAlignment="Center"
+        <StackPanel x:Name="TextCol" Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Center">
+          <TextBlock x:Name="TimeText" HorizontalAlignment="Center" TextAlignment="Center" VerticalAlignment="Center"
+                     FontWeight="SemiBold" TextWrapping="Wrap" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource NovaOnSurface}"/>
+          <TextBlock x:Name="SubText" HorizontalAlignment="Left" TextAlignment="Left" FontSize="11" Opacity="0.6" Margin="0,1,0,0"
+                     TextTrimming="CharacterEllipsis" Visibility="Collapsed" Foreground="{DynamicResource NovaOnSurface}"/>
+        </StackPanel>
+        <Button x:Name="MiniPlay" Grid.Column="2" Style="{StaticResource NovaIconButton}" Width="30" Height="30" FontSize="14" Margin="8,0,0,0"
+                VerticalAlignment="Center" Visibility="Collapsed" Content="&#xE769;"
+                ToolTip="Putar / jeda" AutomationProperties.Name="Putar atau jeda" Click="OnPlayClick"/>
+        <StackPanel x:Name="Eq" Grid.Column="3" Orientation="Horizontal" Margin="6,0,0,0" VerticalAlignment="Center"
                     Height="16" Visibility="Collapsed" AutomationProperties.Name="Playing">
           <Rectangle x:Name="Bar1" Width="3" Height="14" Margin="1,0" RadiusX="1.5" RadiusY="1.5" RenderTransformOrigin="0.5,0.5" Fill="{DynamicResource NovaAccent}"/>
           <Rectangle x:Name="Bar2" Width="3" Height="14" Margin="1,0" RadiusX="1.5" RadiusY="1.5" RenderTransformOrigin="0.5,0.5" Fill="{DynamicResource NovaAccent}"/>
@@ -46,7 +54,7 @@
                    AutomationProperties.LiveSetting="Polite" AutomationProperties.Name="NOVA notice"/>
       </StackPanel>
 
-      <!-- Expanded content: 8 pages, one at a time -->
+      <!-- Expanded content: 7 pages, one at a time -->
       <StackPanel x:Name="ExpandedPanel" Visibility="Collapsed" Width="380" Margin="0,6,0,0">
 
         <!-- Header: page counter on the left, the time on the right (as in the concept) -->
@@ -163,7 +171,7 @@
                        TextWrapping="Wrap" TextAlignment="Center" HorizontalAlignment="Center" VerticalAlignment="Center"
                        Opacity="0.7" Foreground="{DynamicResource NovaOnSurface}"/>
             <Grid x:Name="MediaCard" Visibility="Collapsed" VerticalAlignment="Top" AutomationProperties.Name="Kontrol musik">
-              <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+              <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
               <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
               <Border Width="64" Height="64" CornerRadius="10" Background="{DynamicResource NovaSurfaceAlt}">
                 <Grid>
@@ -194,6 +202,10 @@
                 <StackPanel x:Name="Wave" Grid.Column="1" Orientation="Horizontal" Height="32" VerticalAlignment="Bottom" Margin="12,0,0,0"
                             AutomationProperties.Name="Level suara"/>
               </Grid>
+              <Button x:Name="LyricEnableButton" Grid.Row="2" Grid.ColumnSpan="2" Content="Aktifkan lirik" Style="{StaticResource NovaTab}"
+                      HorizontalAlignment="Center" Margin="0,8,0,0" Visibility="Collapsed" Click="OnEnableLyrics"
+                      ToolTip="Mengirim judul dan artis lagu ke lrclib.net"
+                      AutomationProperties.Name="Aktifkan lirik. Judul dan artis lagu dikirim ke lrclib.net"/>
             </Grid>
           </Grid>
 
@@ -273,30 +285,7 @@
             </StackPanel>
           </Grid>
 
-          <!-- 6: Now playing, detail -->
-          <StackPanel x:Name="PageDetail" Visibility="Collapsed">
-            <TextBlock x:Name="DetailTitle" HorizontalAlignment="Center" FontSize="15" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource NovaOnSurface}"/>
-            <TextBlock x:Name="DetailArtist" HorizontalAlignment="Center" FontSize="12" Opacity="0.7" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource NovaOnSurface}"/>
-            <StackPanel Margin="0,10,0,0" MinHeight="110" AutomationProperties.Name="Lirik">
-              <TextBlock x:Name="DL0" HorizontalAlignment="Center" FontSize="12" Opacity="0.35" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource NovaOnSurface}"/>
-              <TextBlock x:Name="DL1" HorizontalAlignment="Center" FontSize="13" Opacity="0.55" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource NovaOnSurface}"/>
-              <TextBlock x:Name="DL2" HorizontalAlignment="Center" FontSize="18" FontWeight="SemiBold" Margin="0,3" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource NovaOnSurface}"/>
-              <TextBlock x:Name="DL3" HorizontalAlignment="Center" FontSize="13" Opacity="0.55" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource NovaOnSurface}"/>
-              <TextBlock x:Name="DL4" HorizontalAlignment="Center" FontSize="12" Opacity="0.35" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource NovaOnSurface}"/>
-            </StackPanel>
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-              <Button x:Name="DPrev" Style="{StaticResource NovaIconButton}" Content="&#xE892;" ToolTip="Sebelumnya" AutomationProperties.Name="Lagu sebelumnya" Click="OnPrevClick"/>
-              <Button x:Name="DPlay" Style="{StaticResource NovaIconButton}" Content="&#xE768;" ToolTip="Putar / jeda" AutomationProperties.Name="Putar atau jeda" Click="OnPlayClick"/>
-              <Button x:Name="DNext" Style="{StaticResource NovaIconButton}" Content="&#xE893;" ToolTip="Berikutnya" AutomationProperties.Name="Lagu berikutnya" Click="OnNextClick"/>
-            </StackPanel>
-            <TextBlock x:Name="DetailHint" TextWrapping="Wrap" TextAlignment="Center" FontSize="11" Opacity="0.6" Margin="0,6,0,0" Foreground="{DynamicResource NovaOnSurface}"
-                       Text="Windows tidak membagikan daftar putar atau antrean aplikasi musik. Lirik tampil jika fitur lirik diaktifkan di Settings."/>
-            <Button x:Name="LyricEnableButton" Content="Aktifkan lirik" Style="{StaticResource NovaTab}" HorizontalAlignment="Center" Visibility="Collapsed"
-                    Click="OnEnableLyrics" ToolTip="Mengirim judul dan artis lagu ke lrclib.net"
-                    AutomationProperties.Name="Aktifkan lirik. Judul dan artis lagu dikirim ke lrclib.net"/>
-          </StackPanel>
-
-          <!-- 7: Calendar -->
+          <!-- 6: Calendar -->
           <StackPanel x:Name="PageCalendar" Visibility="Collapsed">
             <Grid>
               <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
@@ -331,7 +320,7 @@
             </Grid>
           </StackPanel>
 
-          <!-- 8: System + tools -->
+          <!-- 7: System + tools -->
           <StackPanel x:Name="PageSystem" Visibility="Collapsed">
             <TextBlock x:Name="StatusText" Visibility="Collapsed" HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center"
                        FontSize="12" Opacity="0.85" Margin="0,0,0,6" Foreground="{DynamicResource NovaOnSurface}" AutomationProperties.Name="Status sistem"/>

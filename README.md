@@ -31,6 +31,14 @@ Package (portable zip + Inno Setup installer): `.\build\publish.ps1` (add `-Self
 
 On exit NOVA gives the screen space back, and puts the taskbar (and the Windows theme, if you used it) back exactly as it found them. If NOVA was force-killed and the taskbar stays hidden: start NOVA again and exit normally. Or press `Ctrl+Shift+Esc` → Task Manager → *Windows Explorer* → *Restart*, which brings the taskbar back immediately.
 
+## New in v2.4
+- **One music page.** The duplicate "Sedang Diputar" page is gone; the Island now has **7 pages**, and *Musik* (page 2) is the only music page (it also holds the *Aktifkan lirik* button).
+- **Lyrics fit the Island.** The compact Island shows the current lyric line and **wraps it onto up to 3 lines** when it is long; the Island grows wider/taller with the text (smoothly) and shrinks again on the next short line. Under the lyric, a small line shows *title · artist*. Without lyrics it shows the title with the artist underneath, plus a play/pause button and the equalizer, as in the concept.
+- **New place and look.** The Island floats at the top centre, a little away from the edge (10 px), as a dark-navy glass capsule with a soft blue edge. It **floats over the windows**: no strip is kept free for it any more (*ReserveTopSpace* now defaults to off; it is still a setting).
+- **Rounded-square app windows.** The programs you open get large rounded corners (radius 6–40, default 20) through the Windows window-region API. Reversible. See `docs/LIMITATIONS.md` for what it cannot do (no anti-aliasing, maximized windows are left alone).
+- **Auto-hide.** Settings → Dock → *Auto-hide the dock*. If you keep the Windows taskbar (dock does not replace it): Settings → Mac style → *Auto-hide the Windows taskbar* (original state restored on exit).
+- **Right-click like Windows.** On an app in the dock: **Quick access** (folders) · the app (new window) · **Pin to dock / Unpin from dock** · **Close window** · **Exit program** (closes all its windows; if it does not close within 5 s NOVA asks before ending it). On the Start button: Windows' Win+X menu. On an empty part of the dock: *Add app…*, *Task Manager*.
+
 ## New in v2.3 (default look)
 - **Only the Island at the top**: floating, centred, shows day · date · time; shows lyrics while music plays, and chat alerts (WhatsApp...) / volume / battery / Wi-Fi activity as it changes size. The old full bar is a setting.
 - **Wi-Fi and Bluetooth in the Island**: tap the tile (or the bar icon) for an on/off switch and a list to find and connect, no trip to Settings.
@@ -64,19 +72,18 @@ Settings live in `%LocalAppData%\NOVA\settings.json`; logs (local only, no conte
 ## Layout
 `src/Nova.Core` (settings, validation, hotkey parsing, launch validation, logging, no UI) · `src/Nova.App` (WPF UI + Windows integrations) · `tests/Nova.Core.Tests` · `installer/` · `build/`
 
-## v2.2: Island with 8 pages, glass dock
-Hover the notch (or click it, or press `Ctrl+Alt+N`) and it grows into a panel with **8 pages**. Move between them with the ◀ ▶ buttons, the `←` / `→` keys, the mouse wheel over the title, or by dragging sideways on a page. It opens on the page that matters: Pomodoro while the timer runs, Music while a song plays, otherwise page 1. When the pointer leaves it folds back to the clock.
+## v2.2: Island with pages (now 7), glass dock
+Hover the notch (or click it, or press `Ctrl+Alt+N`) and it grows into a panel with **7 pages** (8 before v2.4). Move between them with the ◀ ▶ buttons, the `←` / `→` keys, the mouse wheel over the title, or by dragging sideways on a page. It opens on the page that matters: Pomodoro while the timer runs, Music while a song plays, otherwise page 1. When the pointer leaves it folds back to the clock.
 
 | # | Page | What it does |
 |---|---|---|
 | 1 | Wi-Fi, Suara & Pengaturan | Network / Bluetooth / battery summary, volume slider, shortcuts to Wi-Fi, mute, Bluetooth, airplane mode, Night light, Windows Settings |
-| 2 | Musik | Album art, previous / play-pause / next, progress, synced lyrics |
+| 2 | Musik | Album art, previous / play-pause / next, progress, synced lyrics, one-tap *Aktifkan lirik* |
 | 3 | Catatan & Clipboard | Quick notes (saved locally), clipboard history (opt-in), file shelf (drop files on the notch, drag them out later) |
 | 4 | Rencana | Today's tasks with time, priority (end a title with `!`) and progress |
 | 5 | Pomodoro | 25 / 5 / 15 min timer, pause, skip, session count |
-| 6 | Sedang Diputar | Detail view of the current song with surrounding lyric lines |
-| 7 | Kalender & Acara | Month view, agenda per day, events with a reminder 10 minutes before |
-| 8 | Sistem & Alat | CPU / memory / battery, brightness (laptops), screenshot, Night light, Task Manager, Calculator, Settings |
+| 6 | Kalender & Acara | Month view, agenda per day, events with a reminder 10 minutes before |
+| 7 | Sistem & Alat | CPU / memory / battery, brightness (laptops), screenshot, Night light, Task Manager, Calculator, Settings |
 
 **Adaptive compact notch** (most urgent first): reminder notice → running Pomodoro timer → current lyric line while music plays → time and date. The equalizer and album art appear while music plays.
 

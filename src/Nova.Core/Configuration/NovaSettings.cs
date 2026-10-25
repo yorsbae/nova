@@ -34,7 +34,7 @@ public sealed class LayoutProfile
 /// <summary>User settings. Every default here is the "known-good layout" used by Reset.</summary>
 public sealed class NovaSettings
 {
-    public int SchemaVersion { get; set; } = 5;
+    public int SchemaVersion { get; set; } = 6;
     public LayoutPreset Preset { get; set; } = LayoutPreset.Balanced;
     public ThemeMode Theme { get; set; } = ThemeMode.System;
     public string AccentColor { get; set; } = "#4C8DFF";
@@ -46,7 +46,7 @@ public sealed class NovaSettings
     public double ClockFontSize { get; set; } = 18;
 
     public IslandBehavior IslandBehavior { get; set; } = IslandBehavior.AlwaysCompact;
-    public double IslandTopOffset { get; set; } = 8;
+    public double IslandTopOffset { get; set; } = 10;
     public bool TemporaryNotices { get; set; } = false;
     /// <summary>Windows device name such as \\.\DISPLAY2. Empty = primary monitor.</summary>
     public string IslandMonitor { get; set; } = "";
@@ -110,7 +110,7 @@ public sealed class NovaSettings
     /// true: the older full-width bar with the date on the left and Wi-Fi / sound / battery icons on the right.</summary>
     public bool ShowTopBar { get; set; } = false;
     /// <summary>Island-only mode: keeps maximized windows below the Island (an invisible strip, like the Mac menu bar).</summary>
-    public bool ReserveTopSpace { get; set; } = true;
+    public bool ReserveTopSpace { get; set; } = false;
     /// <summary>Dock icons are small and grow towards the pointer, like the macOS Dock.</summary>
     public bool DockMagnify { get; set; } = true;
     /// <summary>How big the icon under the pointer gets, as a multiple of its resting size.</summary>
@@ -121,6 +121,23 @@ public sealed class NovaSettings
     /// <summary>Gives other apps' windows the same title-bar colour, light/dark mode, round corners and no border (Windows 11), like one Mac theme.
     /// Reversible: everything is put back when switched off or when NOVA exits.</summary>
     public bool HarmonizeWindows { get; set; } = true;
+
+    // --- v2.4: auto-hide, rounded app windows ---
+    /// <summary>Convenience switch for the dock's "auto hide": the dock slides away and comes back when the pointer touches the bottom edge.
+    /// Stored as <see cref="DockVisibility"/>, so older settings files and profiles keep working.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool DockAutoHide
+    {
+        get => DockVisibility == DockVisibility.RevealOnEdgeHover;
+        set => DockVisibility = value ? DockVisibility.RevealOnEdgeHover : DockVisibility.AlwaysVisible;
+    }
+    /// <summary>Only when the Windows taskbar is kept (the dock does not replace it): turns on the taskbar's own "automatically hide".
+    /// The original state is put back when switched off or when NOVA exits.</summary>
+    public bool TaskbarAutoHide { get; set; } = false;
+    /// <summary>Other apps' windows get large rounded corners (a "rounded square"), like the concept. Reversible; best-effort.</summary>
+    public bool RoundAppWindows { get; set; } = true;
+    /// <summary>Corner radius of those windows in device-independent pixels.</summary>
+    public double WindowCornerRadius { get; set; } = 20;
 
     public bool ReducedMotion { get; set; } = false;
     public bool HighContrastOverride { get; set; } = false;

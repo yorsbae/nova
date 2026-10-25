@@ -27,6 +27,7 @@ public partial class App : Application
     DockReserveWindow? _topReserve;   // island-only mode: an invisible strip that keeps windows below the Island
     AppAlertService? _alerts;
     WindowHarmonyService? _harmony;
+    WindowShapeService? _shape;
     SystemChangesService? _system;
     HotkeyService? _hotkey;
     TrayService? _tray;
@@ -147,6 +148,7 @@ public partial class App : Application
         Guard("activity", () => ApplyActivity(_settings));
         Guard("alerts", () => ApplyAlerts(_settings));
         Guard("harmony", () => ApplyHarmony(_settings));
+        Guard("shape", () => ApplyShape(_settings));
         Guard("eco", () => ApplyEco(_settings));
 
         if (_safeMode) Notify("Safe mode: clock and dock only, default layout, nothing is saved.", true);
@@ -269,6 +271,14 @@ public partial class App : Application
         else _harmony?.Apply(false, false);
     }
 
+    /// <summary>Large rounded corners ("rounded square") on other programs' windows. Off in safe mode and in high contrast.</summary>
+    void ApplyShape(NovaSettings s)
+    {
+        bool on = s.RoundAppWindows && !_safeMode && !SystemParameters.HighContrast && !s.HighContrastOverride;
+        if (on) (_shape ??= new WindowShapeService()).Apply(true, s.WindowCornerRadius);
+        else _shape?.Apply(false, 0);
+    }
+
     // ---- status polling when there is no top bar to do it ----
 
     readonly System.Windows.Threading.DispatcherTimer _statusPoll = new() { Interval = TimeSpan.FromSeconds(5) };
@@ -344,6 +354,7 @@ public partial class App : Application
         ApplyActivity(s);
         ApplyAlerts(s);
         ApplyHarmony(s);
+        ApplyShape(s);
         ApplyEco(s);
         if (!s.LyricsEnabled) { _lyricsCts?.Cancel(); _island?.SetLyrics(null); }
         else if (!old.LyricsEnabled && _lyricsTrack is { HasTrack: true } t) _ = LoadLyricsAsync(t);
@@ -541,6 +552,7 @@ public partial class App : Application
             _island?.RefreshTheme();
             _dock?.RefreshTheme();
             ApplyHarmony(_settings);
+            ApplyShape(_settings);
             _system?.KeepTaskbarHidden();
             _island?.Relocate();                   // the work area changes when the taskbar auto-hides
             _dock?.Relocate();
@@ -566,6 +578,7 @@ public partial class App : Application
         _statusPoll.Stop();
         _alerts?.Dispose();
         _harmony?.Dispose();   // puts every window's title bar back as it was
+        _shape?.Dispose();     // removes the rounded shapes from every window
         _topBar?.Release();
         _topReserve?.Release();
         _dock?.ReleaseSpace();

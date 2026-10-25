@@ -45,8 +45,11 @@ public partial class SettingsWindow : Window
         AddCheck("Show open apps in the dock, with a dot under them", nameof(NovaSettings.ShowRunningApps));
         AddCheck("Use Windows dark mode while NOVA runs (restored when NOVA exits)", nameof(NovaSettings.WindowsDarkMode));
         AddCheck("Show the full top bar with date, Wi-Fi, sound and battery icons (off = only the Island, floating at the top centre)", nameof(NovaSettings.ShowTopBar));
-        AddCheck("Island-only mode: keep maximized windows below the Island", nameof(NovaSettings.ReserveTopSpace));
+        AddCheck("Island-only mode: keep maximized windows below the Island (off = the Island floats over the windows, like the concept)", nameof(NovaSettings.ReserveTopSpace));
         AddCheck("Give other apps' windows one look: same title-bar colour, light/dark mode, round corners (Windows 11; undone when off or on exit)", nameof(NovaSettings.HarmonizeWindows));
+        AddCheck("Rounded-square app windows: large rounded corners on the programs you open (not maximized ones; edges are not anti-aliased; undone when off or on exit)", nameof(NovaSettings.RoundAppWindows));
+        AddSlider("Corner radius of app windows", nameof(NovaSettings.WindowCornerRadius), 6, 40, 1, "0");
+        AddCheck("Auto-hide the Windows taskbar (only when the dock does not replace it; restored when off or on exit)", nameof(NovaSettings.TaskbarAutoHide));
         AddCheck("Chat alerts on the Island (WhatsApp, Telegram, Discord...). Reads only window titles on this PC, not message text", nameof(NovaSettings.AppAlerts));
 
         Header("Appearance");
@@ -72,7 +75,7 @@ public partial class SettingsWindow : Window
         AddText("Keyboard shortcut (e.g. Ctrl+Alt+N)", nameof(NovaSettings.Hotkey));
 
         Header("Dock");
-        AddCombo<DockVisibility>("Dock visibility", nameof(NovaSettings.DockVisibility));
+        AddCheck("Auto-hide the dock: it slides away and comes back when the pointer touches the bottom edge of the screen", nameof(NovaSettings.DockAutoHide));
         AddMonitor("Dock monitor", nameof(NovaSettings.DockMonitor));
         AddSlider("Icon size", nameof(NovaSettings.DockIconSize), 24, 96, 1, "0");
         AddSlider("Icon spacing", nameof(NovaSettings.DockSpacing), 0, 32, 1, "0");

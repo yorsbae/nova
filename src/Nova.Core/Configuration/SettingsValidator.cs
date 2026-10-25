@@ -37,6 +37,14 @@ public static class SettingsValidator
         // moved; a size the user picked is kept.
         if (s.SchemaVersion < 5 && s.DockIconSize == 32 && s.DockSpacing == 6) s.DockIconSize = d.DockIconSize;
 
+        // v5 -> v6: the Island floats above the windows (no strip kept free for it) and a little further from the edge, like the concept.
+        // Only the old defaults are moved; a distance the user picked is kept.
+        if (s.SchemaVersion < 6)
+        {
+            s.ReserveTopSpace = false;
+            if (s.IslandTopOffset == 8) s.IslandTopOffset = d.IslandTopOffset;
+        }
+
         s.SchemaVersion = d.SchemaVersion;
         s.Opacity = Clamp(s.Opacity, 0.7, 1.0, d.Opacity);
         s.ClockFontSize = Clamp(s.ClockFontSize, 12, 72, d.ClockFontSize);
@@ -44,6 +52,7 @@ public static class SettingsValidator
         s.DockBottomOffset = Clamp(s.DockBottomOffset, 0, 400, d.DockBottomOffset);
         s.DockIconSize = Clamp(s.DockIconSize, 24, 96, d.DockIconSize);
         s.DockSpacing = Clamp(s.DockSpacing, 0, 32, d.DockSpacing);
+        s.WindowCornerRadius = Clamp(s.WindowCornerRadius, 6, 40, d.WindowCornerRadius);
         s.DockMagnifyScale = Clamp(s.DockMagnifyScale, 1.0, 2.2, d.DockMagnifyScale);
         s.ClipboardMaxItems = Math.Min(50, Math.Max(5, s.ClipboardMaxItems));
 

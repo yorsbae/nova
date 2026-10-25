@@ -209,6 +209,16 @@ internal static class NativeMethods
         keybd_event(0x5B, 0, 0x2 /* KEYEVENTF_KEYUP */, UIntPtr.Zero);
     }
 
+    /// <summary>Win+X: Windows' own quick-link menu (what a right-click on the Start button opens).</summary>
+    internal static void PressWinX()
+    {
+        const uint UP = 0x2;
+        keybd_event(0x5B, 0, 0, UIntPtr.Zero);   // Win
+        keybd_event(0x58, 0, 0, UIntPtr.Zero);   // X
+        keybd_event(0x58, 0, UP, UIntPtr.Zero);
+        keybd_event(0x5B, 0, UP, UIntPtr.Zero);
+    }
+
     // ---- AppBar (docking a bar to a screen edge), taskbar state, theme broadcast ----
     [StructLayout(LayoutKind.Sequential)]
     internal struct RECT { public int Left, Top, Right, Bottom; }

@@ -18,18 +18,18 @@ using Nova.Core.Media;
 
 namespace Nova.App.Features.DynamicIsland;
 
-/// <summary>The eight pages of the expanded Island and the way you move between them.</summary>
+/// <summary>The seven pages of the expanded Island and the way you move between them.</summary>
 public partial class IslandWindow
 {
     static readonly string[] PageTitles =
     {
         "Wi-Fi, Suara & Pengaturan", "Musik", "Catatan & Clipboard", "Rencana",
-        "Pomodoro", "Sedang Diputar", "Kalender & Acara", "Sistem & Alat"
+        "Pomodoro", "Kalender & Acara", "Sistem & Alat"
     };
-    const int Quick = 0, Music = 1, Notes = 2, Plan = 3, Pomo = 4, Detail = 5, Calendar = 6, SystemPage = 7;
+    const int Quick = 0, Music = 1, Notes = 2, Plan = 3, Pomo = 4, Calendar = 5, SystemPage = 6;
 
     UIElement[] _pages = Array.Empty<UIElement>();
-    readonly Ellipse[] _dots = new Ellipse[8];
+    readonly Ellipse[] _dots = new Ellipse[7];
     int _pageIndex, _sub;
     Point _swipeStart; bool _swipeArmed;
 
@@ -61,7 +61,7 @@ public partial class IslandWindow
 
     void InitPages()
     {
-        _pages = new UIElement[] { PageQuick, PageMusic, PageNotes, PagePlan, PagePomo, PageDetail, PageCalendar, PageSystem };
+        _pages = new UIElement[] { PageQuick, PageMusic, PageNotes, PagePlan, PagePomo, PageCalendar, PageSystem };
         for (int i = 0; i < _dots.Length; i++)
         {
             var d = new Ellipse { Width = 5, Height = 5, Margin = new Thickness(2, 0, 2, 0), Opacity = 0.3 };
@@ -121,7 +121,6 @@ public partial class IslandWindow
             case Notes: SetSub(_sub, morph: false); break;
             case Plan: RebuildPlan(); break;
             case Pomo: UpdatePomoUi(); break;
-            case Detail: UpdateDetailMedia(); break;
             case Calendar: RebuildCalendar(); RebuildAgenda(); break;
             case SystemPage: UpdateStatus(); LoadBrightness(); BuildShortcuts(); break;
         }
@@ -468,17 +467,11 @@ public partial class IslandWindow
         return $"{label}  {(int)rem.TotalMinutes:00}:{rem.Seconds:00}";
     }
 
-    // ---- 6: now playing, detail ----
+    // ---- music page: the "enable lyrics" shortcut (there is only one music page) ----
 
-    void UpdateDetailMedia()
+    void UpdateLyricEnable()
     {
         bool has = _s.ShowMedia && _media is { HasTrack: true };
-        DetailTitle.Text = has ? _media!.Title.Trim() : "Tidak ada musik yang diputar";
-        DetailArtist.Text = has ? _media!.Artist.Trim() : "";
-        DPlay.Content = has && _media!.IsPlaying ? "\uE769" : "\uE768";
-        DPrev.IsEnabled = has && _media!.CanPrevious;
-        DNext.IsEnabled = has && _media!.CanNext;
-        DPlay.IsEnabled = has && _media!.CanPlayPause;
         LyricEnableButton.Visibility = has && !_s.LyricsEnabled ? Visibility.Visible : Visibility.Collapsed;
     }
 
@@ -486,18 +479,7 @@ public partial class IslandWindow
     public event Action? EnableLyricsRequested;
     void OnEnableLyrics(object sender, RoutedEventArgs e) => EnableLyricsRequested?.Invoke();
 
-    void FillDetailLyrics(IReadOnlyList<LyricLine>? lines, int index)
-    {
-        var boxes = new[] { DL0, DL1, DL2, DL3, DL4 };
-        for (int k = 0; k < boxes.Length; k++)
-        {
-            int i = index + k - 2;
-            boxes[k].Text = lines is not null && index >= 0 && i >= 0 && i < lines.Count ? lines[i].Text : "";
-        }
-        if (lines is not null && index < 0) DL2.Text = "♪";
-    }
-
-    // ---- 7: calendar ----
+    // ---- 6: calendar ----
 
     void OnCalPrev(object sender, RoutedEventArgs e) { _calMonth = _calMonth.AddMonths(-1); RebuildCalendar(); }
     void OnCalNext(object sender, RoutedEventArgs e) { _calMonth = _calMonth.AddMonths(1); RebuildCalendar(); }

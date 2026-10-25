@@ -54,6 +54,9 @@ public partial class DockWindow : Window
         var add = new MenuItem { Header = "Add app…" };
         add.Click += (_, _) => Add();
         menu.Items.Add(add);
+        var taskMgr = new MenuItem { Header = "Task Manager" };
+        taskMgr.Click += (_, _) => AppControl.OpenTaskManager();
+        menu.Items.Add(taskMgr);
         menu.Opened += (_, _) => _modal = true;
         menu.Closed += (_, _) => { _modal = false; if (RevealMode) _hideTimer.Start(); };
         Panel.ContextMenu = menu;
@@ -224,6 +227,7 @@ public partial class DockWindow : Window
             var start = BuildTile("Start", null, glyph, false, icon, gap, IntPtr.Zero, null);
             AutomationProperties.SetName(start, "Open the Start menu");
             start.Click += (_, _) => NativeMethods.PressWinKey();
+            start.ContextMenuOpening += (_, e) => { e.Handled = true; NativeMethods.PressWinX(); };   // right-click on Start: Windows' own quick-link menu
             Items.Children.Add(start);
         }
 
@@ -235,7 +239,7 @@ public partial class DockWindow : Window
             AutomationProperties.SetName(btn, open is null ? $"Launch {item.Name}" : $"Switch to {item.Name}");
             AutomationProperties.SetHelpText(btn, "Alt plus Left or Right moves this shortcut. Delete removes it.");
             btn.Click += (_, _) => { if (open is not null) ClickRunning(open.Hwnd, btn); else { Bounce(btn); Launch(item); } };
-            btn.ContextMenu = BuildMenu(item);
+            btn.ContextMenu = BuildAppMenu(item.Name, open?.ExePath ?? item.Path, open, item);
             btn.KeyDown += (_, e) => OnItemKeyDown(item, e);
             Items.Children.Add(btn);
         }
@@ -255,7 +259,7 @@ public partial class DockWindow : Window
             btn.ToolTip = title;
             AutomationProperties.SetName(btn, $"Switch to {title}");
             btn.Click += (_, _) => ClickRunning(app.Hwnd, btn);
-            if (app.ExePath is not null) btn.ContextMenu = BuildRunningMenu(app, label);
+            btn.ContextMenu = BuildAppMenu(label, app.ExePath, app, null);
             Items.Children.Add(btn);
         }
         MeasureRest();
@@ -321,17 +325,6 @@ public partial class DockWindow : Window
         catch { return null; }
     }
 
-    ContextMenu BuildRunningMenu(RunningApp app, string label)
-    {
-        var menu = new ContextMenu();
-        var keep = new MenuItem { Header = $"Keep {label} in dock" };
-        keep.Click += (_, _) => Pin(app, label);
-        menu.Items.Add(keep);
-        menu.Opened += (_, _) => _modal = true;
-        menu.Closed += (_, _) => { _modal = false; if (RevealMode) _hideTimer.Start(); };
-        return menu;
-    }
-
     void Pin(RunningApp app, string label)
     {
         if (app.ExePath is null) return;
@@ -342,17 +335,84 @@ public partial class DockWindow : Window
         Rebuild();
     }
 
-    ContextMenu BuildMenu(DockItem item)
+    // MenuItem headers treat "_" as an access key; double it so names such as "my_app" show as they are.
+    static string Plain(string text) => text.Replace("_", "__");
+
+    /// <summary>
+    /// Right-click on an app in the dock, laid out like the Windows taskbar: Quick access, the app itself (opens a new window),
+    /// Pin to dock / Unpin from dock, Close window, Exit program. Pinned apps also get Move left / right.
+    /// </summary>
+    /// <param name="open">The running copy of the app, or null when it is only pinned and not open.</param>
+    /// <param name="pinned">The dock shortcut, or null when the app is open but not pinned.</param>
+    ContextMenu BuildAppMenu(string label, string? exe, RunningApp? open, DockItem? pinned)
     {
         var menu = new ContextMenu();
-        var left = new MenuItem { Header = "Move left" };   left.Click += (_, _) => Move(item, -1);
-        var right = new MenuItem { Header = "Move right" }; right.Click += (_, _) => Move(item, +1);
-        var remove = new MenuItem { Header = $"Remove {item.Name}" }; remove.Click += (_, _) => Remove(item);
-        menu.Items.Add(left); menu.Items.Add(right); menu.Items.Add(new Separator()); menu.Items.Add(remove);
+
+        // Quick access: folders, read only when the submenu is opened (not on every redraw of the dock).
+        var quick = new MenuItem { Header = "Quick access" };
+        quick.Items.Add(new MenuItem { Header = "Loading…", IsEnabled = false });
+        bool filled = false;
+        quick.SubmenuOpened += (_, _) =>
+        {
+            if (filled) return;
+            filled = true;
+            quick.Items.Clear();
+            var folders = AppControl.QuickAccessFolders();
+            if (folders.Count == 0) quick.Items.Add(new MenuItem { Header = "No folders found", IsEnabled = false });
+            foreach (var (name, path) in folders)
+            {
+                var folder = new MenuItem { Header = Plain(name), ToolTip = path };
+                folder.Click += (_, _) => AppControl.OpenFolder(path);
+                quick.Items.Add(folder);
+            }
+        };
+        menu.Items.Add(quick);
+        menu.Items.Add(new Separator());
+
+        // The app itself: a new window (or start it, when it is not open).
+        if (exe is not null)
+        {
+            var launchItem = pinned ?? new DockItem { Name = label, Path = exe };
+            var launch = new MenuItem { Header = Plain(label), FontWeight = FontWeights.SemiBold };
+            launch.Click += (_, _) => Launch(launchItem);
+            menu.Items.Add(launch);
+
+            if (pinned is null)
+            {
+                var pin = new MenuItem { Header = "Pin to dock" };
+                pin.Click += (_, _) => { if (open is not null) Pin(open, label); };
+                menu.Items.Add(pin);
+            }
+        }
+        if (pinned is not null)
+        {
+            var unpin = new MenuItem { Header = "Unpin from dock" };
+            unpin.Click += (_, _) => Remove(pinned);
+            menu.Items.Add(unpin);
+            var left = new MenuItem { Header = "Move left" };   left.Click += (_, _) => Move(pinned, -1);
+            var right = new MenuItem { Header = "Move right" }; right.Click += (_, _) => Move(pinned, +1);
+            menu.Items.Add(left); menu.Items.Add(right);
+        }
+
+        if (open is not null)
+        {
+            menu.Items.Add(new Separator());
+            var close = new MenuItem { Header = "Close window" };
+            close.Click += (_, _) => AppControl.CloseWindow(open.Hwnd);
+            var exit = new MenuItem { Header = "Exit program" };
+            exit.Click += (_, _) => AppControl.ExitProgram(open.Hwnd, open.IsHostedApp, ConfirmEnd);
+            menu.Items.Add(close); menu.Items.Add(exit);
+        }
+
         menu.Opened += (_, _) => _modal = true;
         menu.Closed += (_, _) => { _modal = false; if (RevealMode) _hideTimer.Start(); };
         return menu;
     }
+
+    /// <summary>Asked only when a program did not close after "Exit program". Ending it loses unsaved work, so the default answer is No.</summary>
+    bool ConfirmEnd(string programName) =>
+        MessageBox.Show($"{programName} did not close. End it now? Unsaved work in it will be lost.", "NOVA",
+                        MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No) == MessageBoxResult.Yes;
 
     void OnItemKeyDown(DockItem item, KeyEventArgs e)
     {

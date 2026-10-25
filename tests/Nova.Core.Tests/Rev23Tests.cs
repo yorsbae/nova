@@ -113,7 +113,7 @@ public class Rev23SettingsTests
     {
         var s = new NovaSettings();
         Assert.False(s.ShowTopBar);
-        Assert.True(s.ReserveTopSpace);
+        Assert.False(s.ReserveTopSpace);   // v2.4: the Island floats above the windows, no strip kept free
         Assert.True(s.DockMagnify);
         Assert.Equal(26, s.DockIconSize);
         Assert.False(s.LyricsEnabled);   // sends data off the PC: stays opt-in
@@ -141,4 +141,46 @@ public class Rev23SettingsTests
     [Fact]
     public void Island_strip_covers_island_and_gap()
         => Assert.Equal(NotchLayout.BarHeightDip(18) + 8 + 4, NotchLayout.IslandStripDip(18, 8));
+}
+
+public class Rev24Tests
+{
+    [Fact]
+    public void Dock_auto_hide_switch_maps_to_dock_visibility()
+    {
+        var s = new NovaSettings();
+        Assert.False(s.DockAutoHide);
+        s.DockAutoHide = true;
+        Assert.Equal(DockVisibility.RevealOnEdgeHover, s.DockVisibility);
+        s.DockAutoHide = false;
+        Assert.Equal(DockVisibility.AlwaysVisible, s.DockVisibility);
+        s.DockVisibility = DockVisibility.RevealOnEdgeHover;   // an older settings file
+        Assert.True(s.DockAutoHide);
+    }
+
+    [Fact]
+    public void Older_files_move_to_the_floating_island_once()
+    {
+        var old = SettingsValidator.Normalize(new NovaSettings { SchemaVersion = 5, ReserveTopSpace = true, IslandTopOffset = 8 });
+        Assert.False(old.ReserveTopSpace);
+        Assert.Equal(new NovaSettings().IslandTopOffset, old.IslandTopOffset);
+
+        var custom = SettingsValidator.Normalize(new NovaSettings { SchemaVersion = 5, IslandTopOffset = 30 });
+        Assert.Equal(30, custom.IslandTopOffset);
+
+        var later = SettingsValidator.Normalize(new NovaSettings { SchemaVersion = 6, ReserveTopSpace = true });
+        Assert.True(later.ReserveTopSpace);   // chosen on purpose after the move: kept
+    }
+
+    [Fact]
+    public void Window_corner_radius_is_clamped_and_defaults_are_on()
+    {
+        var s = new NovaSettings();
+        Assert.True(s.RoundAppWindows);
+        Assert.False(s.TaskbarAutoHide);
+        s.WindowCornerRadius = 500;
+        Assert.Equal(40, SettingsValidator.Normalize(s).WindowCornerRadius);
+        s.WindowCornerRadius = double.NaN;
+        Assert.Equal(new NovaSettings().WindowCornerRadius, SettingsValidator.Normalize(s).WindowCornerRadius);
+    }
 }

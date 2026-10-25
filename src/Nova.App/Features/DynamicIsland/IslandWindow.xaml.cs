@@ -63,7 +63,8 @@ public partial class IslandWindow : Window
 
         var bars = new[] { Bar1, Bar2, Bar3, Bar4 };
         for (int i = 0; i < bars.Length; i++) { _bars[i] = new ScaleTransform(1, 0.5); bars[i].RenderTransform = _bars[i]; }
-        MiniArtImage.Clip = new RectangleGeometry(new Rect(0, 0, 20, 20), 5, 5);
+        MiniArtImage.Clip = new RectangleGeometry(new Rect(0, 0, 34, 34), 9, 9);
+        Pill.SizeChanged += (_, _) => UpdateCompactRadius();   // the pill grows taller when a long lyric wraps: keep it a rounded capsule
         ArtImage.Clip = new RectangleGeometry(new Rect(0, 0, 64, 64), 10, 10);
 
         _clock.Tick += (_, _) => { UpdateClock(); ScheduleNextMinute(); };
@@ -127,9 +128,11 @@ public partial class IslandWindow : Window
 
     public void SetMedia(MediaInfo? info)
     {
+        var from = CurrentSize();
         _media = info;
         if (info is not { HasTrack: true }) { _lyrics = null; _lyricIndex = -2; }
         RefreshExtras();
+        if (!_expanded && IsVisible) Morph(from);
     }
 
     public void SetWeather(string? text) { _weather = text; RefreshExtras(); }
@@ -196,12 +199,16 @@ public void SetTimeline(NovaMediaTimeline? t)
         NoMusicText.Text = _s.ShowMedia
             ? "Tidak ada musik yang diputar. Putar lagu di Spotify, browser, atau pemutar lain."
             : "Kontrol musik dimatikan. Aktifkan “Media controls” di Settings NOVA.";
-        UpdateDetailMedia();
+        UpdateLyricEnable();
         MiniArt.Visibility = hasMedia ? Visibility.Visible : Visibility.Collapsed;
         Eq.Visibility = playing ? Visibility.Visible : Visibility.Collapsed;
+        MiniPlay.Visibility = hasMedia ? Visibility.Visible : Visibility.Collapsed;
         if (hasMedia)
         {
             var m = _media!;
+            MiniPlay.Content = m.IsPlaying ? "\uE769" : "\uE768";
+            MiniPlay.IsEnabled = m.CanPlayPause;
+            AutomationProperties.SetName(MiniPlay, m.IsPlaying ? "Jeda musik" : "Putar musik");
             MediaTitle.Text = m.Title.Trim();
             MediaArtist.Text = m.Artist.Trim();
             PrevButton.IsEnabled = m.CanPrevious;
@@ -211,7 +218,7 @@ public void SetTimeline(NovaMediaTimeline? t)
             AutomationProperties.SetName(PlayButton, m.IsPlaying ? "Pause playback" : "Resume playback");
             AutomationProperties.SetName(MediaCard, "Media controls: " + m.Describe() + (m.IsPlaying ? "" : ", paused"));
         }
-        else { SetLyricText(null, null); FillDetailLyrics(null, -1); }
+        else SetLyricText(null, null);
         SetEqualizer(playing);
 
         bool hasWeather = _s.WeatherEnabled && !string.IsNullOrWhiteSpace(_weather);
@@ -269,11 +276,10 @@ public void SetTimeline(NovaMediaTimeline? t)
 
     void UpdateLyrics(TimeSpan position)
     {
-        if (!_s.LyricsEnabled || _lyrics is not { Count: > 0 } lines) { SetLyricText(null, null); FillDetailLyrics(null, -1); return; }
+        if (!_s.LyricsEnabled || _lyrics is not { Count: > 0 } lines) { SetLyricText(null, null); return; }
         int i = Lrc.IndexAt(lines, position);
         if (i == _lyricIndex) return;
         _lyricIndex = i;
-        FillDetailLyrics(lines, i);
         string current = i >= 0 ? lines[i].Text : "";
         if (string.IsNullOrWhiteSpace(current)) current = "♪";   // an empty line is an instrumental break
         string? next = i + 1 < lines.Count ? lines[i + 1].Text : null;
@@ -282,25 +288,59 @@ public void SetTimeline(NovaMediaTimeline? t)
 
     void SetLyricText(string? current, string? next)
     {
+        var from = CurrentSize();
         _lyricNow = current;
         LyricPanel.Visibility = current is null ? Visibility.Collapsed : Visibility.Visible;
         LyricText.Text = current ?? "";
         LyricNext.Text = next ?? "";
         LyricNext.Visibility = next is null ? Visibility.Collapsed : Visibility.Visible;
         UpdateCompactText();
+        if (!_expanded && IsVisible) Morph(from);   // a longer line makes the Island wider / taller, a shorter one shrinks it again
     }
 
-    /// <summary>The compact notch shows the current lyric line while music plays, otherwise the time.</summary>
+    /// <summary>
+    /// What the compact Island shows, most urgent first: the running timer, the current lyric line (it wraps onto more lines when it is long,
+    /// and the Island grows with it), the song title with the artist underneath, then the day, date and time.
+    /// </summary>
     void UpdateCompactText()
     {
-        // What the compact notch shows, most urgent first: the running timer, the current lyric line, then time and date.
         var pomo = _expanded ? null : PomoCompactText();
-        bool showLyric = pomo is null && _lyricNow is not null && !_expanded && _media is { IsPlaying: true };
-        bool small = pomo is not null || showLyric;
-        TimeText.Text = pomo ?? (showLyric ? _lyricNow : _clockText);
+        bool hasMedia = _s.ShowMedia && _media is { HasTrack: true };
+        bool playing = hasMedia && _media!.IsPlaying;
+        bool showLyric = pomo is null && _lyricNow is not null && !_expanded && playing;
+        bool showTrack = pomo is null && !showLyric && !_expanded && playing;
+        double size = _s.ClockFontSize;
+        double small = Math.Max(12, size * 0.75);
+
+        string? sub = null;
+        if (pomo is not null) { TimeText.Text = pomo; }
+        else if (showLyric)
+        {
+            TimeText.Text = _lyricNow;
+            var m = _media!;
+            sub = string.IsNullOrWhiteSpace(m.Artist) ? m.Title.Trim() : m.Title.Trim() + " · " + m.Artist.Trim();
+        }
+        else if (showTrack)
+        {
+            TimeText.Text = _media!.Title.Trim();
+            sub = _media.Artist.Trim();
+        }
+        else TimeText.Text = _clockText;
+
+        bool left = showLyric || showTrack;
         TimeText.Width = double.NaN;      // hug the text: no empty room left and right of it
-        TimeText.MaxWidth = small ? 220 : 260;
-        TimeText.FontSize = small ? Math.Max(12, _s.ClockFontSize * 0.75) : _s.ClockFontSize;
+        TimeText.MaxWidth = left ? 270 : 260;
+        TimeText.FontSize = pomo is not null || left ? small : size;
+        TimeText.TextWrapping = showLyric ? TextWrapping.Wrap : TextWrapping.NoWrap;
+        // A long lyric may use up to 3 lines (then it ends with "…"); everything else stays on one line.
+        TimeText.MaxHeight = showLyric ? Math.Ceiling(small * 1.4 * 3) + 2 : double.PositiveInfinity;
+        TimeText.TextAlignment = left ? TextAlignment.Left : TextAlignment.Center;
+        TimeText.HorizontalAlignment = left ? HorizontalAlignment.Left : HorizontalAlignment.Center;
+        TextCol.HorizontalAlignment = left ? HorizontalAlignment.Left : HorizontalAlignment.Center;
+
+        SubText.Text = sub ?? "";
+        SubText.MaxWidth = 270;
+        SubText.Visibility = string.IsNullOrWhiteSpace(sub) ? Visibility.Collapsed : Visibility.Visible;
     }
 
     void StartStatus() { UpdateStatus(); _statusTimer.Start(); }
@@ -622,9 +662,11 @@ public void SetTimeline(NovaMediaTimeline? t)
         {
             double bar = NotchLayout.BarHeightDip(_s.ClockFontSize);
             Pill.BorderThickness = new Thickness(0);
-            Pill.MinHeight = bar;
-            TimeRow.Height = bar;
-            NoticeRow.MinHeight = bar;
+            // Flush notch: exactly the bar's height. Floating Island: a little taller, and it grows with what it shows (wrapped lyrics).
+            Pill.MinHeight = FlushNotch ? bar : bar + 6;
+            TimeRow.Height = double.NaN;
+            TimeRow.MinHeight = FlushNotch ? bar : bar - 2;
+            NoticeRow.MinHeight = TimeRow.MinHeight;
             if (!highContrast)
             {
                 Pill.Resources["NovaSurface"] = Frozen(Color.FromRgb(0, 0, 0));
@@ -639,6 +681,7 @@ public void SetTimeline(NovaMediaTimeline? t)
             Pill.MinHeight = 0;
             Pill.MinWidth = 0;
             TimeRow.Height = double.NaN;
+            TimeRow.MinHeight = 0;
             NoticeRow.MinHeight = 0;
         }
         ApplyCorners();
@@ -653,22 +696,38 @@ public void SetTimeline(NovaMediaTimeline? t)
 
     void ApplyCorners()
     {
-        double r = _expanded ? 28 : NotchActive && !FlushNotch ? Math.Max(14, NotchLayout.BarHeightDip(_s.ClockFontSize) / 2) : 22;
+        double r = _expanded ? 28 : NotchActive && !FlushNotch ? CompactRadius() : 22;
         Pill.CornerRadius = FlushNotch ? new CornerRadius(0, 0, r, r) : new CornerRadius(r);
         ApplyGlassLook();
     }
 
-    /// <summary>Expanded notch: dark glass with a soft blue edge. Compact notch: plain black, like the hardware notch it imitates.</summary>
+    /// <summary>Half the pill's height (a capsule), but never more than 30: a tall, wrapped lyric becomes a rounded card, not a circle.</summary>
+    double CompactRadius()
+    {
+        double h = Pill.ActualHeight > 0 ? Pill.ActualHeight : NotchLayout.BarHeightDip(_s.ClockFontSize) + 6;
+        return Math.Clamp(h / 2, 14, 30);
+    }
+
+    void UpdateCompactRadius()
+    {
+        if (_expanded || !NotchActive || FlushNotch) return;
+        double r = CompactRadius();
+        if (Math.Abs(Pill.CornerRadius.TopLeft - r) > 0.5) Pill.CornerRadius = new CornerRadius(r);
+    }
+
+    /// <summary>Floating Island and expanded notch: dark navy glass with a soft blue edge, as in the concept. The flush compact notch stays plain black.</summary>
     void ApplyGlassLook()
     {
         bool highContrast = SystemParameters.HighContrast || _s.HighContrastOverride;
-        if (NotchActive && !highContrast && _expanded)
+        if (NotchActive && !highContrast && (_expanded || !FlushNotch))
         {
-            var fill = new LinearGradientBrush(Color.FromRgb(0, 0, 0), Color.FromRgb(0x0B, 0x14, 0x24), 90);
+            var fill = _expanded
+                ? new LinearGradientBrush(Color.FromRgb(0, 0, 0), Color.FromRgb(0x0B, 0x14, 0x24), 90)
+                : new LinearGradientBrush(Color.FromRgb(0x05, 0x08, 0x12), Color.FromRgb(0x0C, 0x16, 0x2C), 90);
             fill.Freeze();
             Pill.Background = fill;
             Pill.BorderThickness = FlushNotch ? new Thickness(1, 0, 1, 1) : new Thickness(1);
-            Pill.BorderBrush = Frozen(Color.FromArgb(0x66, 0x4C, 0x8D, 0xFF));
+            Pill.BorderBrush = Frozen(Color.FromArgb(_expanded ? (byte)0x66 : (byte)0x55, 0x4C, 0x8D, 0xFF));
         }
         else
         {
@@ -680,7 +739,9 @@ public void SetTimeline(NovaMediaTimeline? t)
 
     void UpdateNotchPadding()
     {
-        if (NotchActive) Pill.Padding = new Thickness(14, !FlushNotch && _expanded ? 8 : 0, 14, _expanded ? 8 : 0);
+        if (NotchActive)
+            Pill.Padding = FlushNotch ? new Thickness(14, 0, 14, _expanded ? 8 : 0)
+                                      : new Thickness(14, _expanded ? 8 : 4, 14, _expanded ? 8 : 4);
         else Pill.Padding = new Thickness(14, 5, 14, 5);
     }
 

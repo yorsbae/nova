@@ -110,3 +110,13 @@ Settings → "Use opaque windows" → restart NOVA → Island and dock are solid
 12. Taskbar is hidden; dock shows Start first. Click Start → Start menu opens. Open Notepad → it appears in the dock with a dot; click it while another window is in front → it comes forward; minimize it, click → restored. Close it → icon disappears within ~2 s.
 13. Right-click an open (unpinned) app → *Keep in dock* → it stays after closing. Pinned app already open: clicking switches instead of starting a second copy.
 14. Exit NOVA → taskbar visible again, work area back to normal. Kill NOVA with the taskbar hidden → restart Explorer from Task Manager recovers it.
+
+## S. v2.4 changes
+1. Music page: the Island has 7 pages; Musik is page 2; no "Sedang Diputar" page. With lyrics off, the *Aktifkan lirik* button shows on page 2.
+2. Play a song with lyrics on: a long lyric wraps onto 2-3 lines in the compact Island, the Island grows smoothly and shrinks on a short line; the corners stay rounded; no flicker or jump of position.
+3. Island sits at the top centre, 10 px from the edge, over the windows (a maximized browser goes under it, as in the concept).
+4. Rounded windows: open Notepad, File Explorer, a browser; corners are rounded; drag-resize in all 8 directions still works (the invisible border grabs); maximize removes the clip; restore re-applies it; switch the setting off and every window is square again; exit NOVA and the same.
+5. Auto-hide dock: Settings → Dock → Auto-hide; dock hides, bottom-edge hover reveals it, an open right-click menu keeps it visible.
+6. Auto-hide taskbar (dock replacement off): taskbar hides; switch off or exit and the original state returns. The taskbar is NOT hidden outright.
+7. Dock right-click on a running app: Quick access folders open in Explorer; Pin/Unpin; Close window; Exit program (try an app with unsaved work: it asks to save, then after 5 s NOVA asks before ending it). Right-click Start: Win+X menu. Right-click empty dock: Add app…, Task Manager.
+
