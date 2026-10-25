@@ -59,6 +59,7 @@ public partial class App : Application
         if (_safeMode)   // safe mode: only clock + dock, and NOVA touches nothing in Windows itself
         { _settings.ShowMedia = false; _settings.ShowSystemStatus = false; _settings.NotchMode = false; _settings.HideTaskbar = false; _settings.WindowsDarkMode = false; _settings.ShowRunningApps = false; _settings.DockReservesSpace = false; _settings.LyricsEnabled = false; }
         if (load.Warning is not null) FileLog.Write(load.Warning);
+        FileLog.Write($"Start: safe={_safeMode} notch={_settings.NotchMode} hideTaskbar={_settings.HideTaskbar} runningApps={_settings.ShowRunningApps} reserve={_settings.DockReservesSpace} media={_settings.ShowMedia}");
 
         // Started by Windows at sign-in (--startup): Explorer may not be ready yet, and the taskbar can only be hidden and the
         // screen space reserved once it is. So wait for it (at most 30 s) instead of racing it.

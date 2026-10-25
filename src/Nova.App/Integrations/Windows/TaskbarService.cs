@@ -32,11 +32,14 @@ public static class TaskbarService
         try
         {
             int cmd = hidden ? 0 /* SW_HIDE */ : 8 /* SW_SHOWNA */;
+            // ShowWindow alone is sometimes ignored on Windows 11, so also ask through SetWindowPos.
+            uint flags = NativeMethods.SWP_NOSIZE | NativeMethods.SWP_NOMOVE | NativeMethods.SWP_NOZORDER | NativeMethods.SWP_NOACTIVATE
+                         | (hidden ? 0x0080u /* SWP_HIDEWINDOW */ : 0x0040u /* SWP_SHOWWINDOW */);
             var main = NativeMethods.FindWindow("Shell_TrayWnd", null);
-            if (main != IntPtr.Zero) NativeMethods.ShowWindow(main, cmd);
+            if (main != IntPtr.Zero) { NativeMethods.ShowWindow(main, cmd); NativeMethods.SetWindowPos(main, IntPtr.Zero, 0, 0, 0, 0, flags); }
             var h = IntPtr.Zero;
             while ((h = NativeMethods.FindWindowEx(IntPtr.Zero, h, "Shell_SecondaryTrayWnd", null)) != IntPtr.Zero)
-                NativeMethods.ShowWindow(h, cmd);
+            { NativeMethods.ShowWindow(h, cmd); NativeMethods.SetWindowPos(h, IntPtr.Zero, 0, 0, 0, 0, flags); }
         }
         catch { }
     }

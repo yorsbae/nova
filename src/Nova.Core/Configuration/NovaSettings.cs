@@ -34,7 +34,7 @@ public sealed class LayoutProfile
 /// <summary>User settings. Every default here is the "known-good layout" used by Reset.</summary>
 public sealed class NovaSettings
 {
-    public int SchemaVersion { get; set; } = 3;
+    public int SchemaVersion { get; set; } = 4;
     public LayoutPreset Preset { get; set; } = LayoutPreset.Balanced;
     public ThemeMode Theme { get; set; } = ThemeMode.System;
     public string AccentColor { get; set; } = "#4C8DFF";

@@ -20,6 +20,19 @@ public static class SettingsValidator
         if (s.SchemaVersion < 3 && s.DockIconSize == 40 && s.DockSpacing == 8 && s.DockBottomOffset == 12)
         { s.DockIconSize = d.DockIconSize; s.DockSpacing = d.DockSpacing; s.DockBottomOffset = d.DockBottomOffset; }
 
+        // v3 -> v4: NOVA is meant to replace the taskbar. Settings files written by earlier versions can still carry the
+        // old "off" values (a saved file overrides new defaults), which left the taskbar on screen with the dock above it
+        // and no top bar. Move those files to the new behaviour once; after that every choice the user makes is kept.
+        if (s.SchemaVersion < 4)
+        {
+            s.NotchMode = true;
+            s.HideTaskbar = true;
+            s.ShowRunningApps = true;
+            s.DockReservesSpace = true;
+            s.ShowMedia = true;
+            s.ShowSystemStatus = true;
+        }
+
         s.SchemaVersion = d.SchemaVersion;
         s.Opacity = Clamp(s.Opacity, 0.7, 1.0, d.Opacity);
         s.ClockFontSize = Clamp(s.ClockFontSize, 12, 72, d.ClockFontSize);

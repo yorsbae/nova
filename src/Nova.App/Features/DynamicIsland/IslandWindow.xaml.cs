@@ -190,6 +190,9 @@ public void SetTimeline(NovaMediaTimeline? t)
 
         MediaCard.Visibility = hasMedia ? Visibility.Visible : Visibility.Collapsed;
         NoMusicText.Visibility = hasMedia ? Visibility.Collapsed : Visibility.Visible;
+        NoMusicText.Text = _s.ShowMedia
+            ? "Tidak ada musik yang diputar. Putar lagu di Spotify, browser, atau pemutar lain."
+            : "Kontrol musik dimatikan. Aktifkan “Media controls” di Settings NOVA.";
         UpdateDetailMedia();
         MiniArt.Visibility = hasMedia ? Visibility.Visible : Visibility.Collapsed;
         Eq.Visibility = playing ? Visibility.Visible : Visibility.Collapsed;

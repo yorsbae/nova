@@ -7,6 +7,20 @@ namespace Nova.Core.Tests;
 public class SettingsValidatorTests
 {
     [Fact]
+    public void Older_files_get_taskbar_replacement_and_notch_switched_on_once()
+    {
+        var old = new NovaSettings { SchemaVersion = 3, NotchMode = false, HideTaskbar = false, ShowRunningApps = false, DockReservesSpace = false, ShowMedia = false };
+        SettingsValidator.Normalize(old);
+        Assert.True(old.NotchMode && old.HideTaskbar && old.ShowRunningApps && old.DockReservesSpace && old.ShowMedia);
+        Assert.Equal(4, old.SchemaVersion);
+
+        // Once migrated, the user's own choice is kept.
+        old.HideTaskbar = false;
+        SettingsValidator.Normalize(old);
+        Assert.False(old.HideTaskbar);
+    }
+
+    [Fact]
     public void Clamps_out_of_range_values()
     {
         var s = new NovaSettings { Opacity = 0.1, DockIconSize = 500, ClockFontSize = double.NaN, DockSpacing = -5 };
