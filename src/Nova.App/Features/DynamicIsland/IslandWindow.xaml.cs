@@ -207,7 +207,6 @@ public void SetTimeline(NovaMediaTimeline? t)
         }
         else { SetLyricText(null, null); FillDetailLyrics(null, -1); }
         SetEqualizer(playing);
-        if (NotchActive) Pill.MinWidth = hasMedia ? 230 : 180;   // a bit wider while music plays
 
         bool hasWeather = _s.WeatherEnabled && !string.IsNullOrWhiteSpace(_weather);
         WeatherText.Visibility = hasWeather ? Visibility.Visible : Visibility.Collapsed;
@@ -293,7 +292,8 @@ public void SetTimeline(NovaMediaTimeline? t)
         bool showLyric = pomo is null && _lyricNow is not null && !_expanded && _media is { IsPlaying: true };
         bool small = pomo is not null || showLyric;
         TimeText.Text = pomo ?? (showLyric ? _lyricNow : _clockText);
-        TimeText.Width = small ? 240 : double.NaN;
+        TimeText.Width = double.NaN;      // hug the text: no empty room left and right of it
+        TimeText.MaxWidth = small ? 220 : 260;
         TimeText.FontSize = small ? Math.Max(12, _s.ClockFontSize * 0.75) : _s.ClockFontSize;
     }
 
@@ -646,8 +646,8 @@ public void SetTimeline(NovaMediaTimeline? t)
 
     void UpdateNotchPadding()
     {
-        if (NotchActive) Pill.Padding = new Thickness(18, 0, 18, _expanded || _noticeActive ? 12 : 0);
-        else Pill.Padding = new Thickness(18, 8, 18, 8);
+        if (NotchActive) Pill.Padding = new Thickness(14, 0, 14, _expanded || _noticeActive ? 8 : 0);
+        else Pill.Padding = new Thickness(14, 5, 14, 5);
     }
 
     static SolidColorBrush Frozen(Color c) { var b = new SolidColorBrush(c); b.Freeze(); return b; }
@@ -671,7 +671,9 @@ public void SetTimeline(NovaMediaTimeline? t)
     {
         var now = DateTime.Now;
         var c = CultureInfo.CurrentCulture;
-        _clockText = now.ToString(_s.ClockFormat == ClockFormat.H12 ? "h:mm tt" : "HH:mm", c) + "  ·  " + now.ToString("ddd, d MMM", c);
+        var time = now.ToString(_s.ClockFormat == ClockFormat.H12 ? "h:mm tt" : "HH:mm", c);
+        // In notch mode the top bar already shows the date, so the notch itself only needs the time.
+        _clockText = NotchActive ? time : time + " · " + now.ToString("ddd, d MMM", c);
         DateText.Text = now.ToString("dddd, d MMMM yyyy", c);
         HdrTime.Text = now.ToString(_s.ClockFormat == ClockFormat.H12 ? "h:mm tt" : "HH:mm", c);
         HdrDate.Text = now.ToString("ddd, d MMM", c);

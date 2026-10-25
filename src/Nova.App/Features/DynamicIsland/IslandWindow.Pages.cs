@@ -221,7 +221,7 @@ public partial class IslandWindow
             Grid.SetColumn(d, 3);
             g.Children.Add(d);
         }
-        var b = new Border { Child = g, CornerRadius = new CornerRadius(8), Padding = new Thickness(8, 3, 4, 3), Margin = new Thickness(0, 2, 0, 0) };
+        var b = new Border { Child = g, CornerRadius = new CornerRadius(10), Padding = new Thickness(10, 4, 4, 4), Margin = new Thickness(0, 3, 0, 0) };
         b.SetResourceReference(Border.BackgroundProperty, "NovaSurfaceAlt");
         if (onClick is not null) { b.Cursor = Cursors.Hand; b.MouseLeftButtonUp += (_, e) => { onClick(); e.Handled = true; }; }
         return b;
@@ -347,7 +347,7 @@ public partial class IslandWindow
     {
         NotesList.Children.Clear();
         foreach (var n in _data.Notes.Take(4).ToList())
-            NotesList.Children.Add(BuildRow(n.Text, n.CreatedUtc.ToLocalTime().ToString("HH:mm", CultureInfo.CurrentCulture),
+            NotesList.Children.Add(BuildRow(n.Text, n.CreatedUtc.ToLocalTime().ToString("HH:mm", CultureInfo.CurrentCulture), dot: (Brush)FindResource("NovaAccent"),
                 onDelete: () => { _data.Notes.Remove(n); SaveData(); RebuildNotes(); }, deleteName: "Hapus catatan"));
         if (_data.Notes.Count == 0) NotesList.Children.Add(Hint("Belum ada catatan. Ketik di atas lalu tekan Enter."));
     }
@@ -507,30 +507,42 @@ public partial class IslandWindow
         for (int i = 0; i < 7; i++)
         {
             var name = culture.DateTimeFormat.GetShortestDayName((DayOfWeek)(((int)first + i) % 7));
-            var h = new TextBlock { Text = name, FontSize = 11, Opacity = 0.6, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 2, 0, 2) };
+            var h = new TextBlock { Text = name, FontSize = 10, FontWeight = FontWeights.SemiBold, Opacity = 0.5, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 2, 0, 3) };
             h.SetResourceReference(TextBlock.ForegroundProperty, "NovaOnSurface");
             CalGrid.Children.Add(h);
         }
         int offset = ((int)_calMonth.DayOfWeek - (int)first + 7) % 7;
         int days = DateTime.DaysInMonth(_calMonth.Year, _calMonth.Month);
-        for (int i = 0; i < 42; i++)
+        int cells = (offset + days + 6) / 7 * 7;   // only as many weeks as the month needs
+        for (int i = 0; i < cells; i++)
         {
             int day = i - offset + 1;
-            if (day < 1 || day > days) { CalGrid.Children.Add(new Border { Height = 22 }); continue; }
+            if (day < 1 || day > days) { CalGrid.Children.Add(new Border { Height = 28 }); continue; }
             var date = new DateTime(_calMonth.Year, _calMonth.Month, day);
             bool hasEvent = _data.Events.Any(ev => ev.Start.Date == date);
-            var btn = new Button
+            bool isToday = date == DateTime.Today, isSelected = date == _calDay.Date;
+            var label = new TextBlock
             {
-                Style = (Style)FindResource("NovaBarButton"), Height = 22, Padding = new Thickness(0), Margin = new Thickness(0.5),
-                Content = new TextBlock
-                {
-                    Text = day.ToString(culture), FontSize = 11, HorizontalAlignment = HorizontalAlignment.Center,
-                    FontWeight = hasEvent ? FontWeights.Bold : FontWeights.Normal
-                }
+                Text = day.ToString(culture), FontSize = 12, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
+                FontWeight = isToday || isSelected ? FontWeights.SemiBold : FontWeights.Normal
             };
+            var circle = new Border { Width = 24, Height = 24, CornerRadius = new CornerRadius(12), VerticalAlignment = VerticalAlignment.Top, Child = label };
+            if (isToday) { circle.SetResourceReference(Border.BackgroundProperty, "NovaAccent"); label.Foreground = Brushes.White; }
+            else
+            {
+                label.SetResourceReference(TextBlock.ForegroundProperty, "NovaOnSurface");
+                if (isSelected) { circle.BorderThickness = new Thickness(1.5); circle.SetResourceReference(Border.BorderBrushProperty, "NovaAccent"); }
+            }
+            var cell = new Grid();
+            cell.Children.Add(circle);
+            if (hasEvent)
+            {
+                var mark = new Ellipse { Width = 4, Height = 4, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Bottom };
+                mark.SetResourceReference(Shape.FillProperty, "NovaAccent");
+                cell.Children.Add(mark);
+            }
+            var btn = new Button { Style = (Style)FindResource("NovaBarButton"), Height = 28, Padding = new Thickness(0), Margin = new Thickness(0), Content = cell };
             AutomationProperties.SetName(btn, date.ToString("D", culture) + (hasEvent ? ", ada acara" : ""));
-            if (date == _calDay.Date) btn.SetResourceReference(Control.BackgroundProperty, "NovaSurfaceAlt");
-            if (date == DateTime.Today) ((TextBlock)btn.Content).SetResourceReference(TextBlock.ForegroundProperty, "NovaAccent");
             btn.Click += (_, _) => { _calDay = date; RebuildCalendar(); RebuildAgenda(); };
             CalGrid.Children.Add(btn);
         }

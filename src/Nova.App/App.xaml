@@ -208,6 +208,40 @@
       </Setter>
     </Style>
 
+    <!-- Rounded text input with a placeholder (set Tag to the hint text) -->
+    <Style x:Key="NovaInput" TargetType="TextBox">
+      <Setter Property="Foreground" Value="{DynamicResource NovaOnSurface}"/>
+      <Setter Property="CaretBrush" Value="{DynamicResource NovaOnSurface}"/>
+      <Setter Property="SelectionBrush" Value="{DynamicResource NovaAccent}"/>
+      <Setter Property="FontSize" Value="13"/>
+      <Setter Property="Padding" Value="10,6"/>
+      <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="TextBox">
+            <Border x:Name="Bd" CornerRadius="10" Background="{DynamicResource NovaSurfaceAlt}" BorderBrush="Transparent"
+                    BorderThickness="1.5" Padding="{TemplateBinding Padding}">
+              <Grid>
+                <TextBlock x:Name="Ph" Text="{TemplateBinding Tag}" FontSize="{TemplateBinding FontSize}" Opacity="0.45"
+                           IsHitTestVisible="False" Visibility="Collapsed" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                           Foreground="{DynamicResource NovaOnSurface}"/>
+                <ScrollViewer x:Name="PART_ContentHost" VerticalAlignment="Center" Focusable="False"
+                              HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Hidden"/>
+              </Grid>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="Text" Value="">
+                <Setter TargetName="Ph" Property="Visibility" Value="Visible"/>
+              </Trigger>
+              <Trigger Property="IsKeyboardFocused" Value="True">
+                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource NovaAccent}"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
     <!-- Right-click menus: rounded, themed, no Windows icon column -->
     <Style TargetType="ContextMenu">
       <Setter Property="HasDropShadow" Value="True"/>

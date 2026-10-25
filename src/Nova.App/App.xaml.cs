@@ -36,6 +36,7 @@ public partial class App : Application
     readonly LyricsService _lyricsService = new();
     CancellationTokenSource? _lyricsCts;
     bool _safeMode;
+    readonly System.Windows.Threading.DispatcherTimer _taskbarGuard = new() { Interval = TimeSpan.FromSeconds(1) };
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -85,6 +86,12 @@ public partial class App : Application
     {
         var system = _system = new SystemChangesService();
         Guard("system", () => system.Apply(_settings));   // taskbar auto-hide / dark mode, only if switched on; restored on exit
+        Guard("taskbar-guard", () =>
+        {
+            // Explorer re-shows the taskbar after a restart, a display change or a hover on the screen edge: keep it hidden.
+            _taskbarGuard.Tick += (_, _) => { if (_settings.HideTaskbar && !_safeMode) _system?.KeepTaskbarHidden(); };
+            _taskbarGuard.Start();
+        });
 
         ThemeService.Apply(this, _settings);
         Microsoft.Win32.SystemEvents.UserPreferenceChanged += OnUserPreferenceChanged;
@@ -431,12 +438,13 @@ public partial class App : Application
             ThemeService.Apply(this, _settings);   // theme / high-contrast changes
             _island?.RefreshTheme();
             _dock?.RefreshTheme();
+            _system?.KeepTaskbarHidden();
             _island?.Relocate();                   // the work area changes when the taskbar auto-hides
             _dock?.Relocate();
         });
 
     void OnDisplaySettingsChanged(object? sender, EventArgs e)
-        => Dispatcher.InvokeAsync(() => { _topBar?.Relocate(); _island?.Relocate(); _dock?.Relocate(); });   // monitor plugged/unplugged, resolution or scale changed
+        => Dispatcher.InvokeAsync(() => { _system?.KeepTaskbarHidden(); _topBar?.Relocate(); _island?.Relocate(); _dock?.Relocate(); });   // monitor plugged/unplugged, resolution or scale changed
 
     static void Guard(string feature, Action a)
     {
@@ -445,6 +453,7 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        _taskbarGuard.Stop();
         StopActivity();
         _trimTimer.Stop();
         Microsoft.Win32.SystemEvents.UserPreferenceChanged -= OnUserPreferenceChanged;

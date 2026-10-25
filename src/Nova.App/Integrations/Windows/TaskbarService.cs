@@ -41,6 +41,27 @@ public static class TaskbarService
         catch { }
     }
 
+    /// <summary>True while any Windows taskbar window (main or on another monitor) is shown.</summary>
+    public static bool AnyVisible()
+    {
+        try
+        {
+            var main = NativeMethods.FindWindow("Shell_TrayWnd", null);
+            if (main != IntPtr.Zero && NativeMethods.IsWindowVisible(main)) return true;
+            var h = IntPtr.Zero;
+            while ((h = NativeMethods.FindWindowEx(IntPtr.Zero, h, "Shell_SecondaryTrayWnd", null)) != IntPtr.Zero)
+                if (NativeMethods.IsWindowVisible(h)) return true;
+        }
+        catch { }
+        return false;
+    }
+
+    /// <summary>Windows (Explorer restart, hover on the screen edge, a notification) can bring the taskbar back; hide it again.</summary>
+    public static void EnforceHidden()
+    {
+        if (AnyVisible()) SetHidden(true);
+    }
+
     public static bool SetAutoHide(bool autoHide)
     {
         try

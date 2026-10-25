@@ -6,7 +6,7 @@
         Topmost="True" ShowInTaskbar="False" ShowActivated="False" ResizeMode="NoResize"
         SizeToContent="WidthAndHeight" KeyDown="OnKeyDown" Deactivated="OnDeactivated"
         SourceInitialized="OnSourceInitialized" SizeChanged="OnSizeChanged">
-  <Border x:Name="Pill" CornerRadius="22" Padding="18,8" BorderThickness="1" ClipToBounds="True"
+  <Border x:Name="Pill" CornerRadius="22" Padding="14,5" BorderThickness="1" ClipToBounds="True"
           Background="{DynamicResource NovaSurface}" BorderBrush="{DynamicResource NovaBorder}"
           AllowDrop="True" MouseLeftButtonUp="OnPillClick" MouseEnter="OnPillEnter" MouseLeave="OnPillLeave"
           DragEnter="OnDragEnter" DragOver="OnDragOver" DragLeave="OnDragLeave" Drop="OnDrop">
@@ -19,13 +19,13 @@
           <ColumnDefinition Width="*"/>
           <ColumnDefinition Width="Auto"/>
         </Grid.ColumnDefinitions>
-        <Border x:Name="MiniArt" Grid.Column="0" Width="20" Height="20" Margin="0,0,12,0" VerticalAlignment="Center"
+        <Border x:Name="MiniArt" Grid.Column="0" Width="20" Height="20" Margin="0,0,8,0" VerticalAlignment="Center"
                 CornerRadius="5" Visibility="Collapsed" Background="{DynamicResource NovaSurfaceAlt}">
           <Image x:Name="MiniArtImage" Width="20" Height="20" Stretch="UniformToFill"/>
         </Border>
         <TextBlock x:Name="TimeText" Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center"
                    FontWeight="SemiBold" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource NovaOnSurface}"/>
-        <StackPanel x:Name="Eq" Grid.Column="2" Orientation="Horizontal" Margin="12,0,0,0" VerticalAlignment="Center"
+        <StackPanel x:Name="Eq" Grid.Column="2" Orientation="Horizontal" Margin="8,0,0,0" VerticalAlignment="Center"
                     Height="16" Visibility="Collapsed" AutomationProperties.Name="Playing">
           <Rectangle x:Name="Bar1" Width="3" Height="14" Margin="1,0" RadiusX="1.5" RadiusY="1.5" RenderTransformOrigin="0.5,0.5" Fill="{DynamicResource NovaAccent}"/>
           <Rectangle x:Name="Bar2" Width="3" Height="14" Margin="1,0" RadiusX="1.5" RadiusY="1.5" RenderTransformOrigin="0.5,0.5" Fill="{DynamicResource NovaAccent}"/>
@@ -35,18 +35,18 @@
       </Grid>
 
       <TextBlock x:Name="NoticeText" Visibility="Collapsed" HorizontalAlignment="Center" TextWrapping="Wrap"
-                 MaxWidth="440" Margin="0,4,0,0" Foreground="{DynamicResource NovaOnSurface}"
+                 MaxWidth="340" Margin="0,4,0,0" Foreground="{DynamicResource NovaOnSurface}"
                  AutomationProperties.LiveSetting="Polite" AutomationProperties.Name="NOVA notice"/>
 
       <!-- Expanded content: 8 pages, one at a time -->
-      <StackPanel x:Name="ExpandedPanel" Visibility="Collapsed" Width="440" Margin="0,10,0,0">
+      <StackPanel x:Name="ExpandedPanel" Visibility="Collapsed" Width="380" Margin="0,6,0,0">
 
         <!-- Header: page counter on the left, the time on the right (as in the concept) -->
-        <Grid Margin="0,0,0,8">
+        <Grid Margin="0,0,0,6">
           <Grid.ColumnDefinitions>
             <ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/>
           </Grid.ColumnDefinitions>
-          <Button x:Name="PageCounter" Style="{StaticResource NovaTab}" FontSize="20" Padding="8,2" Tag="on"
+          <Button x:Name="PageCounter" Style="{StaticResource NovaTab}" FontSize="13" Padding="8,2" Tag="on"
                   ToolTip="Pindah halaman" AutomationProperties.Name="Nomor halaman, klik untuk halaman berikutnya" Click="OnPageNext"/>
           <StackPanel Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center">
             <TextBlock x:Name="PageTitle" HorizontalAlignment="Center" FontSize="12" FontWeight="SemiBold" Opacity="0.85"
@@ -60,14 +60,14 @@
             </StackPanel>
           </StackPanel>
           <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Right" AutomationProperties.Name="Waktu">
-            <TextBlock x:Name="HdrTime" HorizontalAlignment="Right" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource NovaOnSurface}"/>
+            <TextBlock x:Name="HdrTime" HorizontalAlignment="Right" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource NovaOnSurface}"/>
             <TextBlock x:Name="HdrDate" HorizontalAlignment="Right" FontSize="10" Opacity="0.75" Foreground="{DynamicResource NovaOnSurface}"/>
           </StackPanel>
         </Grid>
 
-        <Border x:Name="PageCard" CornerRadius="18" Padding="12,10" BorderThickness="1"
+        <Border x:Name="PageCard" CornerRadius="18" Padding="10,8" BorderThickness="1"
                 Background="#14FFFFFF" BorderBrush="#554C8DFF">
-        <Grid x:Name="PageHost" MinHeight="150">
+        <Grid x:Name="PageHost">
 
           <!-- 1: Wi-Fi, sound, dll -->
           <StackPanel x:Name="PageQuick">
@@ -151,18 +151,20 @@
 
           <!-- 3: Notes + Clipboard (+ Shelf) -->
           <StackPanel x:Name="PageNotes" Visibility="Collapsed">
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-              <Button x:Name="SubNotes" Content="Catatan" Style="{StaticResource NovaTab}" Tag="on" Click="OnSubNotes" AutomationProperties.Name="Catatan"/>
-              <Button x:Name="SubClip" Content="Clipboard" Style="{StaticResource NovaTab}" Click="OnSubClip" AutomationProperties.Name="Riwayat clipboard"/>
-              <Button x:Name="SubShelf" Content="Rak file" Style="{StaticResource NovaTab}" Click="OnSubShelf" AutomationProperties.Name="Rak file sementara"/>
-            </StackPanel>
+            <Border CornerRadius="14" Padding="2" HorizontalAlignment="Center" Background="#14808080">
+              <StackPanel Orientation="Horizontal">
+                <Button x:Name="SubNotes" Content="Catatan" Style="{StaticResource NovaTab}" Tag="on" Click="OnSubNotes" AutomationProperties.Name="Catatan"/>
+                <Button x:Name="SubClip" Content="Clipboard" Style="{StaticResource NovaTab}" Click="OnSubClip" AutomationProperties.Name="Riwayat clipboard"/>
+                <Button x:Name="SubShelf" Content="Rak file" Style="{StaticResource NovaTab}" Click="OnSubShelf" AutomationProperties.Name="Rak file sementara"/>
+              </StackPanel>
+            </Border>
             <StackPanel x:Name="NotesView" Margin="0,8,0,0">
               <Grid>
                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                <TextBox x:Name="NoteInput" MaxLength="300" Padding="8,5" AutomationProperties.Name="Catatan baru" KeyDown="OnNoteKey"/>
-                <Button x:Name="NoteAdd" Grid.Column="1" Style="{StaticResource NovaIconButton}" Width="32" Height="32" Content="&#xE710;" ToolTip="Tambah catatan" AutomationProperties.Name="Tambah catatan" Click="OnNoteAdd"/>
+                <TextBox x:Name="NoteInput" Style="{StaticResource NovaInput}" Tag="Tulis catatan lalu tekan Enter…" MaxLength="300" AutomationProperties.Name="Catatan baru" KeyDown="OnNoteKey"/>
+                <Button x:Name="NoteAdd" Grid.Column="1" Style="{StaticResource NovaIconButton}" Margin="6,0,0,0" Width="32" Height="32" Content="&#xE710;" ToolTip="Tambah catatan" AutomationProperties.Name="Tambah catatan" Click="OnNoteAdd"/>
               </Grid>
-              <StackPanel x:Name="NotesList" Margin="0,6,0,0"/>
+              <StackPanel x:Name="NotesList" Margin="0,4,0,0"/>
             </StackPanel>
             <StackPanel x:Name="ClipView" Margin="0,8,0,0" Visibility="Collapsed">
               <TextBlock x:Name="ClipHint" TextWrapping="Wrap" TextAlignment="Center" Opacity="0.7" FontSize="12" Foreground="{DynamicResource NovaOnSurface}"/>
@@ -189,9 +191,9 @@
             <StackPanel x:Name="PlanList"/>
             <Grid Margin="0,6,0,0">
               <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="86"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-              <TextBox x:Name="PlanInput" MaxLength="100" Padding="8,5" AutomationProperties.Name="Tugas baru" KeyDown="OnPlanKey"/>
-              <TextBox x:Name="PlanTime" Grid.Column="1" MaxLength="20" Padding="8,5" Margin="6,0,0,0" ToolTip="Jam, misalnya 19:00" AutomationProperties.Name="Jam tugas" KeyDown="OnPlanKey"/>
-              <Button Grid.Column="2" Style="{StaticResource NovaIconButton}" Width="32" Height="32" Content="&#xE710;" ToolTip="Tambah tugas" AutomationProperties.Name="Tambah tugas" Click="OnPlanAdd"/>
+              <TextBox x:Name="PlanInput" Style="{StaticResource NovaInput}" Tag="Tugas baru (akhiri dengan ! = penting)" MaxLength="100" AutomationProperties.Name="Tugas baru" KeyDown="OnPlanKey"/>
+              <TextBox x:Name="PlanTime" Grid.Column="1" Style="{StaticResource NovaInput}" Tag="19:00" MaxLength="20" Margin="6,0,0,0" ToolTip="Jam, misalnya 19:00" AutomationProperties.Name="Jam tugas" KeyDown="OnPlanKey"/>
+              <Button Grid.Column="2" Style="{StaticResource NovaIconButton}" Margin="6,0,0,0" Width="32" Height="32" Content="&#xE710;" ToolTip="Tambah tugas" AutomationProperties.Name="Tambah tugas" Click="OnPlanAdd"/>
             </Grid>
           </StackPanel>
 
@@ -246,33 +248,35 @@
           <!-- 7: Calendar -->
           <StackPanel x:Name="PageCalendar" Visibility="Collapsed">
             <Grid>
-              <Grid.ColumnDefinitions><ColumnDefinition Width="64"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-              <Border CornerRadius="12" Background="#14808080" Padding="6,8" VerticalAlignment="Top" AutomationProperties.Name="Tanggal terpilih">
+              <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+              <StackPanel Width="196">
+                <Grid Margin="0,0,0,4">
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                  <Button Style="{StaticResource NovaIconButton}" Width="26" Height="26" FontSize="10" Margin="0" Content="&#xE76B;" AutomationProperties.Name="Bulan sebelumnya" Click="OnCalPrev"/>
+                  <TextBlock x:Name="CalTitle" Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource NovaOnSurface}"/>
+                  <Button Grid.Column="2" Style="{StaticResource NovaIconButton}" Width="26" Height="26" FontSize="10" Margin="0" Content="&#xE76C;" AutomationProperties.Name="Bulan berikutnya" Click="OnCalNext"/>
+                </Grid>
+                <UniformGrid x:Name="CalGrid" Columns="7"/>
+              </StackPanel>
+              <Border Grid.Column="1" Margin="12,0,0,0" Padding="10,8" CornerRadius="14" Background="#14808080" AutomationProperties.Name="Tanggal terpilih">
                 <StackPanel>
-                  <TextBlock x:Name="DayName" HorizontalAlignment="Center" FontSize="12" Opacity="0.8" Foreground="{DynamicResource NovaOnSurface}"/>
-                  <TextBlock x:Name="DayNumber" HorizontalAlignment="Center" FontSize="30" FontWeight="SemiBold" Foreground="{DynamicResource NovaOnSurface}"/>
-                  <TextBlock x:Name="DayMonth" HorizontalAlignment="Center" FontSize="12" Opacity="0.8" Foreground="{DynamicResource NovaOnSurface}"/>
+                  <StackPanel Orientation="Horizontal">
+                    <TextBlock x:Name="DayNumber" FontSize="30" FontWeight="SemiBold" Foreground="{DynamicResource NovaOnSurface}"/>
+                    <StackPanel Margin="8,0,0,0" VerticalAlignment="Center">
+                      <TextBlock x:Name="DayName" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource NovaAccent}"/>
+                      <TextBlock x:Name="DayMonth" FontSize="11" Opacity="0.7" Foreground="{DynamicResource NovaOnSurface}"/>
+                    </StackPanel>
+                  </StackPanel>
+                  <TextBlock x:Name="AgendaTitle" Visibility="Collapsed"/>
+                  <StackPanel x:Name="AgendaList" Margin="0,4,0,0"/>
                 </StackPanel>
               </Border>
-              <StackPanel Grid.Column="1" Margin="10,0,8,0">
-                <TextBlock x:Name="AgendaTitle" Visibility="Collapsed"/>
-                <StackPanel x:Name="AgendaList"/>
-              </StackPanel>
-              <StackPanel Grid.Column="2" Width="172">
-                <Grid>
-                  <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                  <Button Style="{StaticResource NovaIconButton}" Width="22" Height="22" FontSize="10" Margin="0" Content="&#xE76B;" AutomationProperties.Name="Bulan sebelumnya" Click="OnCalPrev"/>
-                  <TextBlock x:Name="CalTitle" Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource NovaOnSurface}"/>
-                  <Button Grid.Column="2" Style="{StaticResource NovaIconButton}" Width="22" Height="22" FontSize="10" Margin="0" Content="&#xE76C;" AutomationProperties.Name="Bulan berikutnya" Click="OnCalNext"/>
-                </Grid>
-                <UniformGrid x:Name="CalGrid" Columns="7" Margin="0,2,0,0"/>
-              </StackPanel>
             </Grid>
             <Grid Margin="0,8,0,0">
-              <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="72"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-              <TextBox x:Name="EventInput" MaxLength="100" Padding="8,5" AutomationProperties.Name="Acara baru" KeyDown="OnEventKey"/>
-              <TextBox x:Name="EventTime" Grid.Column="1" MaxLength="5" Padding="8,5" Margin="6,0,0,0" ToolTip="Jam, misalnya 14:30" AutomationProperties.Name="Jam acara" KeyDown="OnEventKey"/>
-              <Button Grid.Column="2" Style="{StaticResource NovaIconButton}" Width="32" Height="32" Content="&#xE710;" ToolTip="Tambah acara" AutomationProperties.Name="Tambah acara" Click="OnEventAdd"/>
+              <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="70"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+              <TextBox x:Name="EventInput" Style="{StaticResource NovaInput}" Tag="Acara baru" MaxLength="100" AutomationProperties.Name="Acara baru" KeyDown="OnEventKey"/>
+              <TextBox x:Name="EventTime" Grid.Column="1" Style="{StaticResource NovaInput}" Tag="14:30" MaxLength="5" Margin="6,0,0,0" ToolTip="Jam, misalnya 14:30" AutomationProperties.Name="Jam acara" KeyDown="OnEventKey"/>
+              <Button Grid.Column="2" Style="{StaticResource NovaIconButton}" Margin="6,0,0,0" Width="32" Height="32" Content="&#xE710;" ToolTip="Tambah acara" AutomationProperties.Name="Tambah acara" Click="OnEventAdd"/>
             </Grid>
           </StackPanel>
 
@@ -337,7 +341,7 @@
         </Border>
 
         <!-- Actions -->
-        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,10,0,0">
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,6,0,0">
           <Button x:Name="DockButton" Style="{StaticResource NovaIconButton}" Width="30" Height="30" Content="&#xE71D;"
                   ToolTip="Fokus ke dock (keyboard)" AutomationProperties.Name="Move keyboard focus to the app dock" Click="OnDockClick"/>
           <Button x:Name="ClipboardButton" Style="{StaticResource NovaIconButton}" Width="30" Height="30" Content="&#xE77F;" Visibility="Collapsed"

@@ -38,13 +38,16 @@ public sealed class SystemChangesService
         {
             if (s.HideTaskbar)
             {
-                if (!_state.TaskbarSaved && TaskbarService.GetAutoHide() is bool current)
+                if (!_state.TaskbarSaved)
                 {
+                    // Remember the original auto-hide state first. If it can't be read, assume "off" (Windows' default)
+                    // rather than leaving the taskbar on screen.
                     _state.TaskbarSaved = true;
-                    _state.TaskbarAutoHide = current;
+                    _state.TaskbarAutoHide = TaskbarService.GetAutoHide() ?? false;
                     Save();
                 }
-                if (_state.TaskbarSaved) { TaskbarService.SetAutoHide(true); TaskbarService.SetHidden(true); }
+                TaskbarService.SetAutoHide(true);
+                TaskbarService.SetHidden(true);
             }
             else RestoreTaskbar();
 
@@ -63,6 +66,16 @@ public sealed class SystemChangesService
             else RestoreTheme();
         }
         catch (Exception ex) { FileLog.Write($"System changes failed: {ex.GetType().Name}: {ex.Message}"); }
+    }
+
+    /// <summary>True while NOVA has the Windows taskbar hidden.</summary>
+    public bool TaskbarHiddenByNova => _state.TaskbarSaved;
+
+    /// <summary>Cheap check, called every second or so: if Windows brought the taskbar back, hide it again.</summary>
+    public void KeepTaskbarHidden()
+    {
+        try { if (_state.TaskbarSaved) TaskbarService.EnforceHidden(); }
+        catch { /* best effort */ }
     }
 
     /// <summary>Called on exit: leaves Windows exactly as NOVA found it.</summary>
