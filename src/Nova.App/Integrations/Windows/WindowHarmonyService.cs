@@ -25,7 +25,7 @@ public sealed class WindowHarmonyService : IDisposable
 
     readonly RunningAppsService _apps = new();
     readonly Dictionary<IntPtr, Original> _styled = new();
-    readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromSeconds(3) };
+    readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromSeconds(6) };
     bool _on, _dark;
 
     public WindowHarmonyService() => _timer.Tick += (_, _) => Sweep();

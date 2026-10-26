@@ -23,7 +23,7 @@ public partial class DockWindow : Window
     readonly Action<string, bool> _notify;
     readonly DispatcherTimer _hideTimer = new() { Interval = TimeSpan.FromMilliseconds(700) };
     readonly RunningAppsService _running = new();
-    readonly DispatcherTimer _runTimer = new() { Interval = TimeSpan.FromSeconds(2) };
+    readonly DispatcherTimer _runTimer = new() { Interval = TimeSpan.FromSeconds(4) };
     readonly DockReserveWindow _reserve = new();
     readonly WindowGenie _genie = new();
     readonly List<Tile> _tiles = new();

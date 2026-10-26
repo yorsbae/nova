@@ -24,10 +24,10 @@ public partial class IslandWindow
     static readonly string[] PageTitles =
     {
         "Wi-Fi, Suara & Pengaturan", "Musik", "Catatan & Clipboard",
-        "Pomodoro", "Kalender, Rencana & Alarm",
+        "Pomodoro", "Kalender & Tugas",
         "Minum Air", "Waktu Sholat"
     };
-    // Rencana (plan) and Alarm live inside the Kalender page as tabs, so there are 7 pages.
+    // Acara, tugas and alarm are ONE thing on the Kalender page (a task, with an optional time and alarm), so there are 7 pages.
     // The old "Sistem & Alat" page is gone: the RAM reading now sits on page 1.
     const int Quick = 0, Music = 1, Notes = 2, Pomo = 3, Calendar = 4, Water = 5, PrayerPage = 6;
 
@@ -702,19 +702,19 @@ public partial class IslandWindow
     int _calView;   // kept for older call sites; the page has no tabs
 
     /// <summary>
-    /// Plan and Alarm live INSIDE the calendar: one month view, one agenda for the chosen day that lists events, tasks and alarms together,
-    /// and one add row whose kind button cycles Acara → Tugas → Alarm (the weekday chips appear only for alarms).
+    /// Acara, tugas and alarm are one function: a task with an optional time. One month view, one agenda for the chosen day,
+    /// one add row: title, time, a bell (the alarm rings at that time) and optional weekday chips (repeat every week).
     /// </summary>
     void BuildCalendarTabs()
     {
         PageHost.Children.Remove(PagePlan);
         PagePlan.Visibility = Visibility.Collapsed;
         _alarmList = new StackPanel();   // not shown any more; alarms are listed in the agenda
-        _alarmDaysRow = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 6, 0, 0), Visibility = Visibility.Collapsed };
+        _alarmDaysRow = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 6, 0, 0) };
         for (int i = 0; i < 7; i++)
         {
             var btn = TabBtn(DayInitials[i], (sender, _) => { var b = (Button)sender; b.Tag = b.Tag as string == "on" ? null : "on"; }, "Ulangi setiap hari " + DayNames[i]);
-            btn.ToolTip = DayNames[i];
+            btn.ToolTip = "Ulangi tiap " + DayNames[i] + " (butuh jam)";
             _alarmDays[i] = btn;
             _alarmDaysRow.Children.Add(btn);
         }
@@ -809,9 +809,9 @@ public partial class IslandWindow
         foreach (var t in DayTasks(_calDay).ToList())
         {
             var task = t;
-            rows.Add((string.IsNullOrWhiteSpace(task.Time) ? "99:99" : task.Time, BuildRow((task.Priority > 0 ? "! " : "") + task.Title, task.Time,
-                onDelete: () => { _data.Tasks.Remove(task); SaveData(); RebuildAgenda(); RebuildCalendar(); }, deleteName: "Hapus tugas",
-                check: task.Done ? "\uE73A" : "\uE739", onCheck: () => { task.Done = !task.Done; SaveData(); RebuildAgenda(); },
+            rows.Add((string.IsNullOrWhiteSpace(task.Time) ? "99:99" : task.Time, BuildRow((task.Alarm ? "⏰ " : "") + (task.Priority > 0 ? "! " : "") + task.Title, task.Time,
+                onDelete: () => { _data.Tasks.Remove(task); SaveData(); UpdateExtraTimer(); RebuildAgenda(); RebuildCalendar(); }, deleteName: "Hapus tugas",
+                check: task.Done ? "\uE73A" : "\uE739", onCheck: () => { task.Done = !task.Done; SaveData(); UpdateExtraTimer(); RebuildAgenda(); },
                 strike: task.Done, accent: task.Priority > 0 && !task.Done)));
         }
         foreach (var a in _data.Alarms.Where(a => a.Days == 0 ? _calDay.Date == DateTime.Today : a.RepeatsOn(_calDay.DayOfWeek)).ToList())
@@ -825,62 +825,60 @@ public partial class IslandWindow
         }
         foreach (var r in rows.OrderBy(r => r.Key, StringComparer.Ordinal).Take(6)) AgendaList.Children.Add(r.Row);
         if (rows.Count > 6) AgendaList.Children.Add(Hint($"+{rows.Count - 6} lainnya"));
-        if (rows.Count == 0) AgendaList.Children.Add(Hint("Tidak ada acara, tugas, atau alarm."));
+        if (rows.Count == 0) AgendaList.Children.Add(Hint("Tidak ada tugas atau alarm."));
     }
 
-    int _addKind;   // 0 acara, 1 tugas, 2 alarm
-    static readonly string[] KindNames = { "Acara", "Tugas", "Alarm" };
+    bool _addAlarm = true;   // the bell: the new task rings at its time
 
+    /// <summary>The bell button: the new task rings (alarm) at its time, or not.</summary>
     void OnEventKind(object sender, RoutedEventArgs e)
     {
-        var from = CurrentSize();
-        _addKind = (_addKind + 1) % 3;
-        EventKind.Content = KindNames[_addKind];
-        EventInput.Tag = _addKind switch { 1 => "Tugas baru (akhiri dengan ! = penting)", 2 => "Nama alarm (boleh kosong)", _ => "Acara baru" };
-        EventTime.Tag = _addKind == 2 ? "06:30" : "14:30";
-        _alarmDaysRow.Visibility = _addKind == 2 ? Visibility.Visible : Visibility.Collapsed;
-        AutomationProperties.SetName(EventKind, "Jenis yang ditambah: " + KindNames[_addKind].ToLowerInvariant());
-        if (_expanded) Morph(from);
+        _addAlarm = !_addAlarm;
+        EventKind.Opacity = _addAlarm ? 1 : 0.4;
+        EventKind.ToolTip = _addAlarm ? "Alarm nyala: berbunyi pada jam tugas. Klik untuk mematikan." : "Alarm mati: hanya catatan tugas. Klik untuk menyalakan.";
+        AutomationProperties.SetName(EventKind, "Alarm untuk tugas ini: " + (_addAlarm ? "nyala" : "mati"));
     }
 
+    /// <summary>One add function. No time = a plain task for the chosen day. With a time = a task that rings then (bell on).
+    /// With weekday chips + a time = it repeats every week (listed as an alarm on those days).</summary>
     void OnEventAdd(object sender, RoutedEventArgs e)
     {
-        if (_addKind == 2)
+        var title = (EventInput.Text ?? "").Trim();
+        int priority = title.EndsWith('!') ? 1 : 0;
+        if (priority > 0) title = title.TrimEnd('!', ' ');
+        int mask = 0;
+        for (int i = 0; i < 7; i++) if (_alarmDays[i].Tag as string == "on") mask |= 1 << DayOrder[i];
+
+        var timeText = (EventTime.Text ?? "").Trim();
+        string time = "";
+        if (timeText.Length > 0)
         {
-            int mask = 0;
-            for (int i = 0; i < 7; i++) if (_alarmDays[i].Tag as string == "on") mask |= 1 << DayOrder[i];
-            if (!_data.AddAlarm(string.IsNullOrWhiteSpace(EventTime.Text) ? "06:00" : EventTime.Text, EventInput.Text ?? "", mask))
+            if (!TimeSpan.TryParse(timeText, CultureInfo.InvariantCulture, out var ts) || ts < TimeSpan.Zero || ts >= TimeSpan.FromDays(1))
             {
-                ShowNotice(_data.Alarms.Count >= UserData.MaxAlarms ? "Alarm sudah penuh." : "Jam tidak dikenali. Contoh: 06:30", important: true);
+                ShowNotice("Jam tidak dikenali. Contoh: 14:30", important: true);
                 return;
             }
-            EventInput.Clear(); EventTime.Clear();
-            if (mask == 0) { _calDay = DateTime.Today; _calMonth = new DateTime(_calDay.Year, _calDay.Month, 1); }   // a one-time alarm is listed under today
-            SaveData(); UpdateExtraTimer();
-            RebuildAgenda(); RebuildCalendar();
-            return;
+            time = $"{ts.Hours:00}:{ts.Minutes:00}";
         }
-        if (_addKind == 1)
+        if (mask != 0 && time.Length == 0) { ShowNotice("Isi jam dulu untuk mengulang tiap minggu. Contoh: 06:30", important: true); return; }
+        if (title.Length == 0 && time.Length == 0) return;
+
+        if (mask != 0)
         {
-            var title = (EventInput.Text ?? "").Trim();
-            int priority = title.EndsWith('!') ? 1 : 0;
-            if (priority > 0) title = title.TrimEnd('!', ' ');
-            if (!_data.AddTask(title, EventTime.Text, _calDay.Date, priority)) return;
-            EventInput.Clear(); EventTime.Clear();
-            SaveData();
-            RebuildAgenda(); RebuildCalendar();
-            return;
+            if (!_data.AddAlarm(time, title, mask)) { ShowNotice("Alarm sudah penuh.", important: true); return; }
         }
-        var timeText = string.IsNullOrWhiteSpace(EventTime.Text) ? "09:00" : EventTime.Text.Trim();
-        if (!TimeSpan.TryParse(timeText, CultureInfo.InvariantCulture, out var ts) || ts < TimeSpan.Zero || ts >= TimeSpan.FromDays(1))
+        else
         {
-            ShowNotice("Jam tidak dikenali. Contoh: 14:30", important: true);
-            return;
+            if (title.Length == 0) title = "Alarm";
+            if (!_data.AddTask(title, time, _calDay.Date, priority, alarm: _addAlarm && time.Length > 0))
+            {
+                ShowNotice("Daftar tugas sudah penuh.", important: true);
+                return;
+            }
         }
-        if (!_data.AddEvent(EventInput.Text, _calDay.Date + ts)) return;
         EventInput.Clear(); EventTime.Clear();
-        SaveData();
-        UpdateRemTimer();
+        for (int i = 0; i < 7; i++) _alarmDays[i].Tag = null;
+        SaveData(); UpdateExtraTimer();
         RebuildAgenda(); RebuildCalendar();
     }
 
@@ -904,11 +902,11 @@ public partial class IslandWindow
 
     // ---- page 1 tools: night light, brightness ----
 
-    /// <summary>Night light: one click switches it on or off. Only when this Windows build keeps the setting in an unknown layout does it open Settings instead.</summary>
+    /// <summary>Night light: one click switches it on or off (Windows' own setting, or NOVA's warm tint when Windows' layout is unknown). Never opens Settings.</summary>
     void OnToolNight(object sender, RoutedEventArgs e)
     {
         var now = SystemToggles.ToggleNightLight();
-        if (now is null) { OpenUri("ms-settings:nightlight"); return; }
+        if (now is null) { ShowNotice("Night light tidak bisa diubah di PC ini.", important: false, seconds: 4); return; }
         SetToggle(TglNight, now.Value);
         ShowNotice(now.Value ? "Night light nyala" : "Night light mati", important: false, seconds: 3);
     }

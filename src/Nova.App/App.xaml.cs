@@ -43,7 +43,7 @@ public partial class App : Application
     readonly LyricsService _lyricsService = new();
     CancellationTokenSource? _lyricsCts;
     bool _safeMode;
-    readonly System.Windows.Threading.DispatcherTimer _taskbarGuard = new() { Interval = TimeSpan.FromSeconds(1) };
+    readonly System.Windows.Threading.DispatcherTimer _taskbarGuard = new() { Interval = TimeSpan.FromSeconds(3) };
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -340,7 +340,7 @@ public partial class App : Application
 
     // ---- light on resources: low priority, efficiency mode, and giving idle memory back ----
 
-    readonly System.Windows.Threading.DispatcherTimer _trimTimer = new() { Interval = TimeSpan.FromSeconds(45) };
+    readonly System.Windows.Threading.DispatcherTimer _trimTimer = new() { Interval = TimeSpan.FromMinutes(3) };
     bool _trimHooked;
 
     void ApplyEco(NovaSettings s)
@@ -355,7 +355,7 @@ public partial class App : Application
             _trimTimer.Tick += (_, _) =>
             {
                 if (!_settings.EcoMode || (_island?.IsExpanded ?? false)) return;   // never while the user is using the Island
-                GC.Collect(2, GCCollectionMode.Forced, blocking: true, compacting: true);
+                GC.Collect(2, GCCollectionMode.Optimized, blocking: true, compacting: false);
                 NativeMethods.TrimWorkingSet();
             };
         }
@@ -566,6 +566,7 @@ public partial class App : Application
     void StartLocation()
     {
         if (_safeMode) return;
+        _locationTimer.Interval = TimeSpan.FromMinutes(60);   // a laptop rarely changes city within the hour: fewer wake-ups
         _locationTimer.Tick += (_, _) => _ = RefreshLocationAsync();
         _locationTimer.Start();
         _ = RefreshLocationAsync();
@@ -596,8 +597,14 @@ public partial class App : Application
             s.PrayerCity = PrayerPlaces.Custom;
             s.PrayerLatitude = fix.Latitude; s.PrayerLongitude = fix.Longitude;
             s.WeatherCity = "GPS";   // marker: the weather position comes from the GPS (no city to type)
-            s.WeatherPlace = "";
             s.WeatherLatitude = fix.Latitude; s.WeatherLongitude = fix.Longitude;
+            // Only ask for the place name when the person moved (or none is known yet): at most once per move.
+            if (moved || string.IsNullOrEmpty(s.PlaceName))
+            {
+                var name = await LocationService.PlaceNameAsync(fix.Latitude, fix.Longitude);
+                if (name is not null && name != s.PlaceName) { s.PlaceName = name; moved = true; }
+            }
+            s.WeatherPlace = s.PlaceName;
             if (moved)
             {
                 Persist(s);
@@ -665,6 +672,7 @@ public partial class App : Application
         _clipboard?.Dispose();
         _media?.Dispose();
         _locationTimer.Stop();
+        SystemToggles.RestoreTint();
         _weather?.Dispose();
         try { _mutex?.ReleaseMutex(); } catch { }
         _mutex?.Dispose();

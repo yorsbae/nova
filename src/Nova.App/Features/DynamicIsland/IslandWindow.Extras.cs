@@ -70,7 +70,7 @@ public partial class IslandWindow
     /// <summary>One timer for alarms, adzan and drink reminders: it runs only when one of them is switched on, or while the Island is open.</summary>
     void UpdateExtraTimer()
     {
-        bool needed = _data.Alarms.Any(a => a.Enabled) || _s.PrayerNotify || _s.HydrationEnabled || _expanded;
+        bool needed = _data.Alarms.Any(a => a.Enabled) || _data.HasPendingTaskAlarm || _s.PrayerNotify || _s.HydrationEnabled || _expanded;
         if (needed && !_extraTimer.IsEnabled) { _extraTimer.Start(); if (IsLoaded) ExtraTick(); }
         else if (!needed) _extraTimer.Stop();
     }
@@ -79,6 +79,8 @@ public partial class IslandWindow
     {
         var now = DateTime.Now;
         var rung = _data.TakeDueAlarms(now);
+        var tasksDue = _data.TakeDueTaskAlarms(now);   // a task with an alarm rings like an alarm
+        foreach (var t in tasksDue) if (t.TryStart(out var ts)) rung.Add(new AlarmItem { Time = $"{ts.Hours:00}:{ts.Minutes:00}", Label = t.Title });
         if (rung.Count > 0)
         {
             SaveData();
@@ -575,8 +577,9 @@ public partial class IslandWindow
     Button _prayerNotifyBtn = null!, _prayerSoundBtn = null!;
     readonly HashSet<string> _announced = new();
 
-    /// <summary>The laptop's GPS position (kept fresh by the app; the last known position, or Jakarta before the first fix).</summary>
-    (string Name, double Lat, double Lon) PrayerSpot() => ("Lokasi GPS", _s.PrayerLatitude, _s.PrayerLongitude);
+    /// <summary>The current place (kept fresh by the app): its name, e.g. "Sambong, Batang, Jawa Tengah", and the position; Jakarta before the first fix.</summary>
+    (string Name, double Lat, double Lon) PrayerSpot()
+        => (string.IsNullOrWhiteSpace(_s.PlaceName) ? "Lokasi saat ini" : _s.PlaceName, _s.PrayerLatitude, _s.PrayerLongitude);
 
     static double UtcOffset(DateTime day) => TimeZoneInfo.Local.GetUtcOffset(day).TotalHours;
 

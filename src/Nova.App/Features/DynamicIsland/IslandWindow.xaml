@@ -408,11 +408,11 @@
             </Grid>
             <Grid Margin="0,8,0,0">
               <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="70"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-              <Button x:Name="EventKind" Style="{StaticResource NovaTab}" Content="Acara" Margin="0,0,6,0" Click="OnEventKind"
-                      ToolTip="Ganti antara menambah acara dan menambah tugas untuk tanggal yang dipilih" AutomationProperties.Name="Jenis yang ditambah: acara"/>
-              <TextBox x:Name="EventInput" Grid.Column="1" Style="{StaticResource NovaInput}" Tag="Acara baru" MaxLength="100" AutomationProperties.Name="Judul baru" KeyDown="OnEventKey"/>
-              <TextBox x:Name="EventTime" Grid.Column="2" Style="{StaticResource NovaInput}" Tag="14:30" MaxLength="5" Margin="6,0,0,0" ToolTip="Jam, misalnya 14:30" AutomationProperties.Name="Jam" KeyDown="OnEventKey"/>
-              <Button Grid.Column="3" Style="{StaticResource NovaIconButton}" Margin="6,0,0,0" Width="32" Height="32" Content="&#xE710;" ToolTip="Tambah" AutomationProperties.Name="Tambah acara atau tugas" Click="OnEventAdd"/>
+              <Button x:Name="EventKind" Style="{StaticResource NovaTab}" Content="&#x23F0;" Margin="0,0,6,0" Click="OnEventKind"
+                      ToolTip="Alarm nyala: berbunyi pada jam tugas. Klik untuk mematikan." AutomationProperties.Name="Alarm untuk tugas ini: nyala"/>
+              <TextBox x:Name="EventInput" Grid.Column="1" Style="{StaticResource NovaInput}" Tag="Tugas baru (akhiri dengan ! = penting)" MaxLength="100" AutomationProperties.Name="Judul tugas" KeyDown="OnEventKey"/>
+              <TextBox x:Name="EventTime" Grid.Column="2" Style="{StaticResource NovaInput}" Tag="14:30" MaxLength="5" Margin="6,0,0,0" ToolTip="Jam tugas dan alarm, misalnya 14:30 (kosong = tugas tanpa jam)" AutomationProperties.Name="Jam" KeyDown="OnEventKey"/>
+              <Button Grid.Column="3" Style="{StaticResource NovaIconButton}" Margin="6,0,0,0" Width="32" Height="32" Content="&#xE710;" ToolTip="Tambah" AutomationProperties.Name="Tambah tugas" Click="OnEventAdd"/>
             </Grid>
           </StackPanel>
 

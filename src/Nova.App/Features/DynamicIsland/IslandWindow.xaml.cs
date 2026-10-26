@@ -32,7 +32,7 @@ public partial class IslandWindow : Window
     readonly DispatcherTimer _posTimer = new() { Interval = TimeSpan.FromMilliseconds(400) };
     readonly DispatcherTimer _hoverTimer = new() { Interval = TimeSpan.FromMilliseconds(280) };
     readonly DispatcherTimer _leaveTimer = new() { Interval = TimeSpan.FromMilliseconds(450) };
-    readonly DispatcherTimer _zTimer = new() { Interval = TimeSpan.FromSeconds(3) };
+    readonly DispatcherTimer _zTimer = new() { Interval = TimeSpan.FromSeconds(5) };
     readonly FileShelf _shelf = new();
     readonly ScaleTransform[] _bars = new ScaleTransform[4];
 
@@ -114,7 +114,7 @@ public partial class IslandWindow : Window
 
     public bool IsExpanded => _expanded;
     bool HiddenMode => _s.IslandBehavior == IslandBehavior.HiddenUntilInvoked;
-    bool ReducedMotion => _s.ReducedMotion || !SystemParameters.ClientAreaAnimation;
+    bool ReducedMotion => _s.ReducedMotion || !SystemParameters.ClientAreaAnimation || (_s.BatterySaver && PowerState.OnBattery);
 
     public void ApplySettings(NovaSettings s) { ApplyCore(s); EnsureVisibilityForMode(); }
 

@@ -1,3 +1,6 @@
+using System.Globalization;
+using System.Net.Http;
+using System.Text.Json;
 using Windows.Devices.Geolocation;
 using Nova.Core.Logging;
 
@@ -13,6 +16,44 @@ public static class LocationService
     public enum Status { Ok, Denied, Unavailable }
 
     public sealed record Fix(Status Status, double Latitude = double.NaN, double Longitude = double.NaN);
+
+    static readonly HttpClient Http = CreateClient();
+
+    static HttpClient CreateClient()
+    {
+        var c = new HttpClient { Timeout = TimeSpan.FromSeconds(10), MaxResponseContentBufferSize = 64 * 1024 };
+        c.DefaultRequestHeaders.UserAgent.ParseAdd("NOVA/1.0 (desktop companion)");   // required by the OpenStreetMap usage policy
+        return c;
+    }
+
+    /// <summary>
+    /// A readable place for a position: "Sambong, Batang, Jawa Tengah" (village, regency, province); when the village is unknown
+    /// "Batang, Jawa Tengah". Uses OpenStreetMap Nominatim; only the coordinates are sent, and only when the position changed.
+    /// Returns null when offline or unknown (the caller keeps showing "Lokasi saat ini").
+    /// </summary>
+    public static async Task<string?> PlaceNameAsync(double lat, double lon)
+    {
+        try
+        {
+            var url = string.Create(CultureInfo.InvariantCulture,
+                $"https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=14&addressdetails=1&accept-language=id&lat={lat:0.#####}&lon={lon:0.#####}");
+            using var doc = JsonDocument.Parse(await Http.GetStringAsync(url));
+            if (!doc.RootElement.TryGetProperty("address", out var a)) return null;
+            string Pick(params string[] keys)
+            {
+                foreach (var k in keys)
+                    if (a.TryGetProperty(k, out var v) && v.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(v.GetString()))
+                        return v.GetString()!.Trim();
+                return "";
+            }
+            var local = Pick("village", "suburb", "neighbourhood", "hamlet", "quarter", "city_district", "town");
+            var region = Pick("county", "city", "municipality", "regency", "state_district");
+            var state = Pick("state", "province");
+            var parts = new[] { local, region, state }.Where(x => x.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+            return parts.Length == 0 ? null : string.Join(", ", parts);
+        }
+        catch (Exception ex) { FileLog.Write($"Place name unavailable: {ex.GetType().Name}"); return null; }
+    }
 
     public static async Task<Fix> GetAsync()
     {

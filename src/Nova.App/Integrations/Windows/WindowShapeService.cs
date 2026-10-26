@@ -36,7 +36,7 @@ public sealed class WindowShapeService : IDisposable
     readonly RunningAppsService _apps = new();
     readonly Dictionary<IntPtr, Shaped> _shaped = new();
     readonly HashSet<IntPtr> _skipped = new();      // windows NOVA decided to leave alone (own shape, refused...), not retried every sweep
-    readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromSeconds(1.5) };
+    readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromSeconds(3) };
     readonly HashSet<IntPtr> _pending = new();
     WinEventProc? _proc;      // kept in a field so the garbage collector never frees the callback
     IntPtr _hook;

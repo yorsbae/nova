@@ -114,6 +114,8 @@ public sealed class NovaSettings
     public bool ActivityAlerts { get; set; } = true;
     /// <summary>Keeps NOVA light: lower CPU priority, Windows efficiency mode (EcoQoS) and trimming of unused memory after it has been idle.</summary>
     public bool EcoMode { get; set; } = true;
+    /// <summary>On battery power: no animations (like Reduce motion), so NOVA uses less CPU.</summary>
+    public bool BatterySaver { get; set; } = true;
 
 
     // --- v2.3: island-only top, Mac-style dock, app alerts, window harmony ---
@@ -173,6 +175,8 @@ public sealed class NovaSettings
     public string PrayerCity { get; set; } = "Jakarta";
     public double PrayerLatitude { get; set; } = -6.2088;
     public double PrayerLongitude { get; set; } = 106.8456;
+    /// <summary>Readable current place from the position, e.g. "Sambong, Batang, Jawa Tengah". Empty until it is known.</summary>
+    public string PlaceName { get; set; } = "";
     public bool PrayerSound { get; set; } = true;
     /// <summary>Optional sound file (wav/mp3) for the adzan; empty = a short system sound.</summary>
     public string PrayerSoundPath { get; set; } = "";

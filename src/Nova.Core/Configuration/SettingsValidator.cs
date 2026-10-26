@@ -87,6 +87,7 @@ public static class SettingsValidator
         s.PrayerLongitude = Clamp(s.PrayerLongitude, -180, 180, d.PrayerLongitude);
         s.PrayerCity = CleanText(s.PrayerCity, 40);
         if (s.PrayerCity.Length == 0 || (s.PrayerCity != PrayerPlaces.Custom && PrayerPlaces.Find(s.PrayerCity) is null)) s.PrayerCity = d.PrayerCity;
+        s.PlaceName = CleanText(s.PlaceName, 120);
         s.PrayerSoundPath = CleanText(s.PrayerSoundPath, 260);
         s.AlarmSoundPath = CleanText(s.AlarmSoundPath, 260);
         if (!Enum.IsDefined(s.IslandFaceMode)) s.IslandFaceMode = d.IslandFaceMode;

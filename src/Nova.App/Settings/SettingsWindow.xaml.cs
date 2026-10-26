@@ -19,6 +19,8 @@ public partial class SettingsWindow : Window
     NovaSettings _work;
     bool _liveWeather, _liveClipboard, _liveLyrics, _replaceDock;
     ComboBox? _profileBox;
+    StackPanel _cur = new();   // the page being built (one page per menu item)
+    readonly List<(RadioButton Nav, StackPanel Page)> _pages = new();
     TextBox? _profileName;
 
     public SettingsWindow(NovaSettings current, Func<NovaSettings, bool, bool> apply, Func<NovaSettings> resetAll)
@@ -28,30 +30,19 @@ public partial class SettingsWindow : Window
         InitializeComponent();
         BuildForm();
         Form.DataContext = _work;
+        if (_pages.Count > 0) _pages[0].Nav.IsChecked = true;
         RefreshProfiles();
     }
 
     // ---- form construction (code-built so every control gets an explicit accessible name) ----
     void BuildForm()
     {
+        Category("Tampilan", "🎨");
         Header("Layout");
         AddCombo<LayoutPreset>("Layout preset", nameof(NovaSettings.Preset));
         var applyPreset = SmallButton("Apply preset", "Apply the selected layout preset to the form");
         applyPreset.Click += (_, _) => { PresetApplier.Apply(_work, _work.Preset); Refresh(); Status($"Preset {_work.Preset} applied to the form. Press Apply to use it."); };
-        Form.Children.Add(applyPreset);
-
-        Header("Mac style");
-        AddCheck("Mac-style notch: dock a bar to the top of the screen (windows never go under it) and attach the Island to it", nameof(NovaSettings.NotchMode));
-        AddCheck("Replace the Windows taskbar and Start button with the dock (taskbar is hidden while NOVA runs and restored when it exits)", nameof(NovaSettings.HideTaskbar));
-        AddCheck("Show open apps in the dock, with a dot under them", nameof(NovaSettings.ShowRunningApps));
-        AddCheck("Use Windows dark mode while NOVA runs (restored when NOVA exits)", nameof(NovaSettings.WindowsDarkMode));
-        AddCheck("Show the full top bar with date, Wi-Fi, sound and battery icons (off = only the Island, floating at the top centre)", nameof(NovaSettings.ShowTopBar));
-        AddCheck("Island-only mode: keep maximized windows below the Island (off = the Island floats over the windows, like the concept)", nameof(NovaSettings.ReserveTopSpace));
-        AddCheck("Give other apps' windows one look: same title-bar colour, light/dark mode, round corners (Windows 11; undone when off or on exit)", nameof(NovaSettings.HarmonizeWindows));
-        AddCheck("Rounded-square app windows: large rounded corners on the programs you open (not maximized ones; edges are not anti-aliased; undone when off or on exit)", nameof(NovaSettings.RoundAppWindows));
-        AddSlider("Corner radius of app windows", nameof(NovaSettings.WindowCornerRadius), 6, 40, 1, "0");
-        AddCheck("Auto-hide the Windows taskbar (only when the dock does not replace it; restored when off or on exit)", nameof(NovaSettings.TaskbarAutoHide));
-        AddCheck("Chat alerts on the Island (WhatsApp, Telegram, Discord...). Reads only window titles on this PC, not message text", nameof(NovaSettings.AppAlerts));
+        _cur.Children.Add(applyPreset);
 
         Header("Appearance");
         AddCombo<ThemeMode>("Theme", nameof(NovaSettings.Theme));
@@ -66,6 +57,21 @@ public partial class SettingsWindow : Window
         AddCombo<ClockFormat>("Time format", nameof(NovaSettings.ClockFormat));
         AddSlider("Clock font size", nameof(NovaSettings.ClockFontSize), 12, 72, 1, "0");
 
+        Category("Gaya Mac", "🍎");
+        Header("Mac style");
+        AddCheck("Mac-style notch: dock a bar to the top of the screen (windows never go under it) and attach the Island to it", nameof(NovaSettings.NotchMode));
+        AddCheck("Replace the Windows taskbar and Start button with the dock (taskbar is hidden while NOVA runs and restored when it exits)", nameof(NovaSettings.HideTaskbar));
+        AddCheck("Show open apps in the dock, with a dot under them", nameof(NovaSettings.ShowRunningApps));
+        AddCheck("Use Windows dark mode while NOVA runs (restored when NOVA exits)", nameof(NovaSettings.WindowsDarkMode));
+        AddCheck("Show the full top bar with date, Wi-Fi, sound and battery icons (off = only the Island, floating at the top centre)", nameof(NovaSettings.ShowTopBar));
+        AddCheck("Island-only mode: keep maximized windows below the Island (off = the Island floats over the windows, like the concept)", nameof(NovaSettings.ReserveTopSpace));
+        AddCheck("Give other apps' windows one look: same title-bar colour, light/dark mode, round corners (Windows 11; undone when off or on exit)", nameof(NovaSettings.HarmonizeWindows));
+        AddCheck("Rounded-square app windows: large rounded corners on the programs you open (not maximized ones; edges are not anti-aliased; undone when off or on exit)", nameof(NovaSettings.RoundAppWindows));
+        AddSlider("Corner radius of app windows", nameof(NovaSettings.WindowCornerRadius), 6, 40, 1, "0");
+        AddCheck("Auto-hide the Windows taskbar (only when the dock does not replace it; restored when off or on exit)", nameof(NovaSettings.TaskbarAutoHide));
+        AddCheck("Chat alerts on the Island (WhatsApp, Telegram, Discord...). Reads only window titles on this PC, not message text", nameof(NovaSettings.AppAlerts));
+
+        Category("Island", "✨");
         Header("Island");
         AddCombo<IslandBehavior>("Island behavior", nameof(NovaSettings.IslandBehavior));
         AddMonitor("Island monitor", nameof(NovaSettings.IslandMonitor));
@@ -75,20 +81,20 @@ public partial class SettingsWindow : Window
         AddSlider("Sideways shift from the centre (negative = left, positive = right)", nameof(NovaSettings.IslandOffsetX), -2500, 2500, 1, "0");
         var resetIsland = SmallButton("Put the Island back at the top centre", "Reset the Island's position to the top centre of the screen");
         resetIsland.Click += (_, _) => { _work.IslandOffsetX = 0; _work.IslandTopOffset = new NovaSettings().IslandTopOffset; Refresh(); Status("Island position reset in the form. Press Apply to use it."); };
-        Form.Children.Add(resetIsland);
+        _cur.Children.Add(resetIsland);
         AddCombo<IslandFaceMode>("Compact (minimal) Island: clock only, clock and face taking turns, face only, or all modules taking turns (clock, face, water, prayer)", nameof(NovaSettings.IslandFaceMode));
         AddCombo<IslandFaceStyle>("Face style: Pet, Robot, Anime, Cat, Sleepy or Emoticon", nameof(NovaSettings.IslandFaceStyle));
         AddSlider("Seconds the clock stays before the face shows (clock-and-face mode)", nameof(NovaSettings.IslandFaceClockSeconds), 5, 120, 1, "0");
         AddSlider("Seconds the face stays before the clock returns", nameof(NovaSettings.IslandFaceShowSeconds), 3, 60, 1, "0");
         AddCheck("Show CPU and RAM use under the clock in the compact Island (read every 3 seconds while it is shown)", nameof(NovaSettings.IslandShowUsage));
         AddCheck("Live activities: show volume changes, charger, low battery and Bluetooth / Wi-Fi connecting on the Island", nameof(NovaSettings.ActivityAlerts));
-        AddCheck("Eco mode: lower priority, Windows efficiency mode and memory trimming when idle (lightest on RAM and CPU)", nameof(NovaSettings.EcoMode));
         AddCheck("Expand the Island when the pointer rests on it, and fold it again when the pointer leaves", nameof(NovaSettings.IslandHoverExpand));
         AddCheck("File shelf: drop files on the Island to hold them for a moment, drag them out later", nameof(NovaSettings.ShelfEnabled));
         AddCheck("Show temporary notices (including 'now playing' in Adaptive mode)", nameof(NovaSettings.TemporaryNotices));
         AddText("Keyboard shortcut (e.g. Ctrl+Alt+N)", nameof(NovaSettings.Hotkey));
         AddText("Page shortcuts: this prefix + 1…7 opens the Island on that page (Ctrl+Alt → Ctrl+Alt+1 … Ctrl+Alt+7; empty = off)", nameof(NovaSettings.PageHotkeyPrefix));
 
+        Category("Dock", "🧲");
         Header("Dock");
         AddCheck("Auto-hide the dock: it slides away and comes back when the pointer touches the bottom edge of the screen", nameof(NovaSettings.DockAutoHide));
         AddMonitor("Dock monitor", nameof(NovaSettings.DockMonitor));
@@ -104,37 +110,44 @@ public partial class SettingsWindow : Window
         AddCheck("Media controls for the app that is playing", nameof(NovaSettings.ShowMedia));
         AddCheck("System status: CPU, memory, battery (updates only while expanded)", nameof(NovaSettings.ShowSystemStatus));
 
-        Header("Drink reminder (Island page 7)");
+        Category("Pengingat", "🔔");
+        Header("Drink reminder (Island page 6)");
         AddCheck("Remind me to drink water with a notice on the Island", nameof(NovaSettings.HydrationEnabled));
         AddSlider("Minutes between reminders", nameof(NovaSettings.HydrationIntervalMinutes), 15, 240, 5, "0");
         AddSlider("Daily goal (glasses)", nameof(NovaSettings.HydrationGoalGlasses), 1, 20, 1, "0");
         AddSlider("Remind from (hour)", nameof(NovaSettings.HydrationFromHour), 0, 23, 1, "0");
         AddSlider("Remind until (hour)", nameof(NovaSettings.HydrationToHour), 0, 24, 1, "0");
 
-        Header("Prayer times and adzan (Island page 8, worked out on this PC, no internet)");
+        Header("Prayer times and adzan (Island page 7, worked out on this PC, no internet)");
         AddCheck("Show a notice (and play a sound) at each prayer time", nameof(NovaSettings.PrayerNotify));
         AddCheck("Play a sound with the adzan notice", nameof(NovaSettings.PrayerSound));
-        Row("Location", new TextBlock { Text = "Automatic, from the laptop GPS (Windows Settings > Privacy & security > Location must be on). Times follow the Kemenag method: Fajr 20, Isha 18 degrees.", TextWrapping = TextWrapping.Wrap, Opacity = 0.75 });
+        Row("Location", new TextBlock { Text = "Automatic: your current place (shown as village, regency, province), read from Windows Location (Settings > Privacy & security > Location must be on). Times follow the Kemenag method: Fajr 20, Isha 18 degrees.", TextWrapping = TextWrapping.Wrap, Opacity = 0.75 });
         AddText("Adzan sound file (wav or mp3, empty = system sound)", nameof(NovaSettings.PrayerSoundPath));
 
-        Header("Alarms (Calendar page, Alarm tab)");
+        Header("Tugas & alarm (Island page 5)");
         AddText("Alarm sound file (wav or mp3, empty = system sound)", nameof(NovaSettings.AlarmSoundPath));
 
+        Category("Online & Data", "🌐");
         Header("Lyrics (optional, uses the internet)");
         AddCheck("Show synced lyrics. Sends the artist and song title (and length) of what is playing to lrclib.net", nameof(NovaSettings.LyricsEnabled));
 
         Header("Weather (optional, uses the internet)");
-        AddCheck("Show weather for where this laptop is (GPS). Sends its coordinates (every 30 min) to open-meteo.com", nameof(NovaSettings.WeatherEnabled));
+        AddCheck("Show weather for your current location. Sends its coordinates (every 30 min) to open-meteo.com", nameof(NovaSettings.WeatherEnabled));
         AddCheck("Use Fahrenheit", nameof(NovaSettings.WeatherFahrenheit));
 
         Header("Clipboard history (optional, private)");
         AddCheck("Keep clipboard history. Text, pictures and copied files; memory only, never saved to disk", nameof(NovaSettings.ClipboardHistoryEnabled));
         AddSlider("Items to keep", nameof(NovaSettings.ClipboardMaxItems), 5, 50, 1, "0");
 
+        Category("Hemat daya", "⚡");
+        Header("Battery and memory");
+        AddCheck("Eco mode: lower priority, Windows efficiency mode and memory trimming when idle (lightest on RAM and CPU)", nameof(NovaSettings.EcoMode));
+        AddCheck("Battery saver: while the laptop runs on battery, turn off animations (the face, slides) so NOVA uses less CPU", nameof(NovaSettings.BatterySaver));
         Header("Motion and startup");
         AddCheck("Reduce motion", nameof(NovaSettings.ReducedMotion));
         AddCheck("Start NOVA when I sign in to Windows", nameof(NovaSettings.StartWithWindows));
 
+        Category("Cadangan", "💾");
         Header("Layout profiles");
         _profileBox = new ComboBox { MinWidth = 200 };
         Row("Saved profiles", _profileBox);
@@ -148,7 +161,7 @@ public partial class SettingsWindow : Window
         load.Click += (_, _) => LoadProfile();
         del.Click += (_, _) => DeleteProfile();
         foreach (var b in new[] { save, load, del }) { b.Margin = new Thickness(0, 4, 8, 0); profileButtons.Children.Add(b); }
-        Form.Children.Add(profileButtons);
+        _cur.Children.Add(profileButtons);
 
         Header("Backup and restore");
         var backupButtons = new WrapPanel();
@@ -157,7 +170,7 @@ public partial class SettingsWindow : Window
         export.Click += (_, _) => ExportSettings();
         import.Click += (_, _) => ImportSettings();
         foreach (var b in new[] { export, import }) { b.Margin = new Thickness(0, 4, 8, 0); backupButtons.Children.Add(b); }
-        Form.Children.Add(backupButtons);
+        _cur.Children.Add(backupButtons);
     }
 
     Button SmallButton(string text, string accessibleName)
@@ -167,25 +180,41 @@ public partial class SettingsWindow : Window
         return b;
     }
 
+    /// <summary>Starts a new page with its own button in the left menu.</summary>
+    void Category(string title, string icon)
+    {
+        var page = new StackPanel { Margin = new Thickness(0, 0, 8, 12) };
+        var big = new TextBlock { Text = title, FontSize = 20, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 6) };
+        big.SetResourceReference(TextBlock.ForegroundProperty, "NovaOnSurface");
+        AutomationProperties.SetName(big, title);
+        page.Children.Add(big);
+        var nav = new RadioButton { GroupName = "SettingsMenu", Style = (Style)FindResource("NavItem"), Content = $"{icon}  {title}" };
+        AutomationProperties.SetName(nav, title);
+        nav.Checked += (_, _) => { Form.Content = page; PageScroll.ScrollToTop(); };
+        Nav.Children.Add(nav);
+        _pages.Add((nav, page));
+        _cur = page;
+    }
+
     void Header(string text)
     {
-        var tb = new TextBlock { Text = text, FontSize = 16, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 14, 0, 4) };
+        var tb = new TextBlock { Text = text, FontSize = 14, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 16, 0, 4), Opacity = 0.85 };
         tb.SetResourceReference(TextBlock.ForegroundProperty, "NovaOnSurface");
         AutomationProperties.SetName(tb, text);
-        Form.Children.Add(tb);
+        _cur.Children.Add(tb);
     }
 
     void Row(string label, UIElement control)
     {
         var g = new Grid { Margin = new Thickness(0, 4, 0, 4) };
-        g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(230) });
+        g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(210) });
         g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         var tb = new TextBlock { Text = label, VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 8, 0) };
         tb.SetResourceReference(TextBlock.ForegroundProperty, "NovaOnSurface");
         Grid.SetColumn(control, 1);
         g.Children.Add(tb); g.Children.Add(control);
         AutomationProperties.SetName(control, label);
-        Form.Children.Add(g);
+        _cur.Children.Add(g);
     }
 
     void AddCombo<T>(string label, string prop) where T : struct, Enum
@@ -215,7 +244,7 @@ public partial class SettingsWindow : Window
         c.SetResourceReference(Control.ForegroundProperty, "NovaOnSurface");
         c.SetBinding(ToggleButton.IsCheckedProperty, new Binding(prop) { Mode = BindingMode.TwoWay });
         AutomationProperties.SetName(c, label);
-        Form.Children.Add(c);
+        _cur.Children.Add(c);
     }
 
     void AddSlider(string label, string prop, double min, double max, double step, string format)
@@ -313,7 +342,7 @@ public partial class SettingsWindow : Window
         // Explicit consent for the two privacy-relevant features, asked when they are first switched on.
         if (_work.WeatherEnabled && !_liveWeather)
         {
-            if (!Confirm("Weather uses the free open-meteo.com service.\n\nNOVA will read the laptop GPS position and send its coordinates (about every 30 minutes). Nothing else is sent.\n\nTurn on weather?"))
+            if (!Confirm("Weather uses the free open-meteo.com service.\n\nNOVA will read your current location and send its coordinates (about every 30 minutes). Nothing else is sent.\n\nTurn on weather?"))
             { _work.WeatherEnabled = false; Refresh(); }
         }
         if (_work.LyricsEnabled && !_liveLyrics)

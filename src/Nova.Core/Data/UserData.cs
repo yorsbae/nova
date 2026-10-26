@@ -19,6 +19,18 @@ public sealed class PlanTask
     public bool Done { get; set; }
     /// <summary>The day this task is for (time of day ignored). Null = just "today's list", as before.</summary>
     public DateTime? Due { get; set; }
+    /// <summary>true = the task also rings (alarm) at its time on its day. Task and alarm are one thing.</summary>
+    public bool Alarm { get; set; }
+    /// <summary>true once the alarm of this task has rung.</summary>
+    public bool Rang { get; set; }
+
+    /// <summary>The first "HH:mm" in <see cref="Time"/> ("07:00 - 16:15" gives 07:00).</summary>
+    public bool TryStart(out TimeSpan t)
+    {
+        t = default;
+        var first = (Time ?? "").Split(new[] { ' ', '-', '–' }, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "";
+        return TimeSpan.TryParse(first, System.Globalization.CultureInfo.InvariantCulture, out t) && t >= TimeSpan.Zero && t < TimeSpan.FromDays(1);
+    }
 }
 
 /// <summary>An alarm: a time of day, optionally repeating on some weekdays (no days = rings once, then switches itself off).</summary>
@@ -114,10 +126,12 @@ public sealed class UserData
         return true;
     }
 
-    public bool AddTask(string? title, string? time, DateTime due, int priority = 0)
+    public bool AddTask(string? title, string? time, DateTime due, int priority = 0, bool alarm = false)
     {
         if (!AddTask(title, time, priority)) return false;
-        Tasks[^1].Due = due.Date;
+        var t = Tasks[^1];
+        t.Due = due.Date;
+        t.Alarm = alarm && t.TryStart(out _);   // an alarm needs a time
         return true;
     }
 
@@ -166,6 +180,24 @@ public sealed class UserData
             a.LastRang = now.Date;
             if (a.Days == 0) a.Enabled = false;
             due.Add(a);
+        }
+        return due;
+    }
+
+    /// <summary>True while at least one task still has an alarm waiting (so the timer knows it must run).</summary>
+    public bool HasPendingTaskAlarm => Tasks.Any(t => t.Alarm && !t.Done && !t.Rang);
+
+    /// <summary>Tasks whose alarm should ring now: alarm on, not done, not rung, due today and the time came (within the last 2 minutes). Marks them as rung.</summary>
+    public List<PlanTask> TakeDueTaskAlarms(DateTime now)
+    {
+        var due = new List<PlanTask>();
+        foreach (var t in Tasks)
+        {
+            if (!t.Alarm || t.Done || t.Rang || t.Due?.Date != now.Date || !t.TryStart(out var ts)) continue;
+            var at = now.Date + ts;
+            if (now < at) continue;
+            t.Rang = true;                        // also marks missed ones (PC was off) so they never ring late
+            if (now <= at.AddMinutes(2)) due.Add(t);
         }
         return due;
     }
