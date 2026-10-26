@@ -114,7 +114,7 @@ public partial class IslandWindow
             return;
         }
         BuildFace();
-        _faceSec = 0;
+        _faceSec = 0; _slot = 0; _slotSec = 0; _moduleText = null;
         _faceVisible = _s.IslandFaceMode == IslandFaceMode.FaceOnly;
         if (!_faceTimer.IsEnabled) _faceTimer.Start();
     }
@@ -123,7 +123,17 @@ public partial class IslandWindow
     {
         _faceSec++;
         bool was = _faceVisible;
-        if (_s.IslandFaceMode == IslandFaceMode.FaceOnly) _faceVisible = true;
+        string? wasModule = _moduleText;
+        if (_s.IslandFaceMode == IslandFaceMode.FaceOnly) { _faceVisible = true; _moduleText = null; }
+        else if (_s.IslandFaceMode == IslandFaceMode.AllModules)
+        {
+            // Minimal mode "all modules": clock → face → water → prayer, each for a few seconds (only the ones that are switched on).
+            int clock = Math.Max(5, _s.IslandFaceClockSeconds), show = Math.Max(3, _s.IslandFaceShowSeconds);
+            if (++_slotSec >= (_slot == 0 ? clock : show)) { _slotSec = 0; _slot = NextSlot(_slot); }
+            _faceVisible = _slot == 1;
+            _moduleText = _slot == 2 ? WaterCompactText() : _slot == 3 ? PrayerCompactText() : null;
+            if (_moduleText is null && _slot >= 2) { _slot = 0; _slotSec = 0; }
+        }
         else
         {
             int clock = Math.Max(5, _s.IslandFaceClockSeconds), show = Math.Max(3, _s.IslandFaceShowSeconds);
@@ -131,7 +141,43 @@ public partial class IslandWindow
         }
         if (_faceVisible && _emoticon is not null && _faceSec % 4 == 0)
             _emoticon.Text = Emoticons[(_faceSec / 4) % Emoticons.Length];
-        if (was != _faceVisible) UpdateCompactText();
+        if (was != _faceVisible || wasModule != _moduleText) UpdateCompactText();
+    }
+
+    int _slot, _slotSec;
+    string? _moduleText;
+
+    /// <summary>Next compact slot after <paramref name="slot"/>: 0 clock, 1 face, 2 water (if reminders are on), 3 next prayer.</summary>
+    int NextSlot(int slot)
+    {
+        for (int i = 1; i <= 4; i++)
+        {
+            int s = (slot + i) % 4;
+            if (s == 2 && !_s.HydrationEnabled) continue;
+            return s;
+        }
+        return 0;
+    }
+
+    string? WaterCompactText()
+    {
+        if (!_s.HydrationEnabled) return null;
+        return $"💧 {_data.WaterOn(DateTime.Today)}/{_s.HydrationGoalGlasses} gelas";
+    }
+
+    string? PrayerCompactText()
+    {
+        try
+        {
+            var (_, lat, lon) = PrayerSpot();
+            var now = DateTime.Now;
+            var next = PrayerCalculator.Next(now, lat, lon, UtcOffset);
+            if (next is null) return null;
+            var left = next.Time - now;
+            string span = left.TotalHours >= 1 ? $"{(int)left.TotalHours}:{left.Minutes:00}" : $"{Math.Max(0, left.Minutes)} m";
+            return $"🕌 {next.Name} {span}";
+        }
+        catch { return null; }
     }
 
     void ShowFace(bool show)

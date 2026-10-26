@@ -101,11 +101,11 @@
       <Setter Property="Width" Value="76"/>
       <Setter Property="Height" Value="62"/>
       <Setter Property="Margin" Value="3"/>
-      <Setter Property="Background" Value="#18808080"/>
+      <Setter Property="Background" Value="#1F4C8DFF"/>
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="Button">
-            <Border x:Name="Bd" CornerRadius="14" Background="{TemplateBinding Background}" BorderThickness="1" BorderBrush="Transparent">
+            <Border x:Name="Bd" CornerRadius="14" Background="{TemplateBinding Background}" BorderThickness="1" BorderBrush="#334C8DFF">
               <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
             </Border>
             <ControlTemplate.Triggers>
@@ -164,12 +164,13 @@
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="Button">
-            <Border x:Name="Bd" CornerRadius="12" Background="Transparent" Padding="{TemplateBinding Padding}" Opacity="0.65">
+            <Border x:Name="Bd" CornerRadius="12" Background="Transparent" BorderThickness="1" BorderBrush="Transparent" Padding="{TemplateBinding Padding}" Opacity="0.65">
               <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
             </Border>
             <ControlTemplate.Triggers>
               <Trigger Property="Tag" Value="on">
                 <Setter TargetName="Bd" Property="Background" Value="{DynamicResource NovaSurfaceAlt}"/>
+                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource NovaAccent}"/>
                 <Setter TargetName="Bd" Property="Opacity" Value="1"/>
               </Trigger>
               <Trigger Property="IsMouseOver" Value="True">

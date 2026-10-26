@@ -6,7 +6,7 @@ public enum IslandBehavior { AlwaysCompact, HiddenUntilInvoked, Adaptive }
 public enum DockVisibility { AlwaysVisible, RevealOnEdgeHover }
 public enum LayoutPreset { Minimal, Balanced, Custom }
 /// <summary>What the compact Island shows when nothing else (music, timer, alert) is using it.</summary>
-public enum IslandFaceMode { ClockOnly, Alternate, FaceOnly }
+public enum IslandFaceMode { ClockOnly, Alternate, FaceOnly, AllModules }
 public enum IslandFaceStyle { Pet, Robot, Anime, Cat, Sleepy, Emoticon }
 
 public sealed class DockItem
@@ -60,7 +60,7 @@ public sealed class NovaSettings
     /// <summary>Windows device name such as \\.\DISPLAY2. Empty = primary monitor.</summary>
     public string IslandMonitor { get; set; } = "";
 
-    public DockVisibility DockVisibility { get; set; } = DockVisibility.AlwaysVisible;
+    public DockVisibility DockVisibility { get; set; } = DockVisibility.RevealOnEdgeHover;
     public double DockBottomOffset { get; set; } = 6;
     public double DockIconSize { get; set; } = 26;
     public double DockSpacing { get; set; } = 6;
@@ -123,7 +123,7 @@ public sealed class NovaSettings
     /// <summary>Dock icons are small and grow towards the pointer, like the macOS Dock.</summary>
     public bool DockMagnify { get; set; } = true;
     /// <summary>How big the icon under the pointer gets, as a multiple of its resting size.</summary>
-    public double DockMagnifyScale { get; set; } = 1.7;
+    public double DockMagnifyScale { get; set; } = 2.0;
     /// <summary>Shows "new message" alerts on the Island for chat apps (WhatsApp, Telegram, Discord...). Reads only window titles and
     /// taskbar-flash signals on this PC; Windows does not let NOVA read the message text.</summary>
     public bool AppAlerts { get; set; } = true;

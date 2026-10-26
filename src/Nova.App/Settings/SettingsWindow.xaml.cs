@@ -74,7 +74,7 @@ public partial class SettingsWindow : Window
         var resetIsland = SmallButton("Put the Island back at the top centre", "Reset the Island's position to the top centre of the screen");
         resetIsland.Click += (_, _) => { _work.IslandOffsetX = 0; _work.IslandTopOffset = new NovaSettings().IslandTopOffset; Refresh(); Status("Island position reset in the form. Press Apply to use it."); };
         Form.Children.Add(resetIsland);
-        AddCombo<IslandFaceMode>("Compact Island: clock only, clock and a little face taking turns, or the face only", nameof(NovaSettings.IslandFaceMode));
+        AddCombo<IslandFaceMode>("Compact (minimal) Island: clock only, clock and face taking turns, face only, or all modules taking turns (clock, face, water, prayer)", nameof(NovaSettings.IslandFaceMode));
         AddCombo<IslandFaceStyle>("Face style: Pet, Robot, Anime, Cat, Sleepy or Emoticon", nameof(NovaSettings.IslandFaceStyle));
         AddSlider("Seconds the clock stays before the face shows (clock-and-face mode)", nameof(NovaSettings.IslandFaceClockSeconds), 5, 120, 1, "0");
         AddSlider("Seconds the face stays before the clock returns", nameof(NovaSettings.IslandFaceShowSeconds), 3, 60, 1, "0");

@@ -22,14 +22,14 @@ public static class ThemeService
         }
 
         bool dark = s.Theme switch { ThemeMode.Dark => true, ThemeMode.Light => false, _ => !SystemUsesLightApps() };
-        var window = dark ? Color.FromRgb(0x1B, 0x1B, 0x1F) : Color.FromRgb(0xF6, 0xF6, 0xF8);
+        var window = dark ? Color.FromRgb(0x0B, 0x14, 0x26) : Color.FromRgb(0xF6, 0xF6, 0xF8);
         var surface = window;
         surface.A = (byte)Math.Round(255 * s.Opacity);
         Set(app, "NovaSurface", surface);
         Set(app, "NovaWindow", window);
-        Set(app, "NovaSurfaceAlt", dark ? Color.FromRgb(0x2A, 0x2A, 0x30) : Color.FromRgb(0xE4, 0xE4, 0xEA));
+        Set(app, "NovaSurfaceAlt", dark ? Color.FromRgb(0x15, 0x24, 0x40) : Color.FromRgb(0xE4, 0xE4, 0xEA));
         Set(app, "NovaOnSurface", dark ? Colors.White : Color.FromRgb(0x14, 0x14, 0x18));
-        Set(app, "NovaBorder", dark ? Color.FromRgb(0x8A, 0x8A, 0x94) : Color.FromRgb(0x60, 0x60, 0x6A));
+        Set(app, "NovaBorder", dark ? Color.FromRgb(0x2F, 0x4F, 0x86) : Color.FromRgb(0x60, 0x60, 0x6A));
         Set(app, "NovaAccent", ParseAccent(s.AccentColor));
     }
 

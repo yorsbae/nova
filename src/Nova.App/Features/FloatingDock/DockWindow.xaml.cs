@@ -33,6 +33,10 @@ public partial class DockWindow : Window
     readonly List<Tile> _tiles = new();
     double _restPanelHeight = 40, _baseItemsWidth, _sigma = 40, _icon = 26;
     bool _magHooked;
+    // The dock rests slightly smaller and dimmer, and swells to full size while the pointer is on it.
+    readonly ScaleTransform _panelScale = new(1, 1);
+    double _swell = 1;
+    const double RestShrink = 0.86, RestOpacity = 0.78;
     IReadOnlyList<RunningApp> _apps = Array.Empty<RunningApp>();
     string _appsKey = "";
     NovaSettings _s;
@@ -44,6 +48,8 @@ public partial class DockWindow : Window
         InitializeComponent();
         OverlayChrome.Configure(this, opaque);
         SizeChanged += (_, _) => ClipSolidWindow();
+        Panel.RenderTransformOrigin = new Point(0.5, 1);
+        Panel.RenderTransform = _panelScale;
         _hideTimer.Tick += (_, _) => { _hideTimer.Stop(); TryHide(); };
         _runTimer.Tick += (_, _) => PollRunning();
         _edgeTimer.Tick += (_, _) => PollEdge();
@@ -106,6 +112,7 @@ public partial class DockWindow : Window
         else { _runTimer.Stop(); _apps = Array.Empty<RunningApp>(); _appsKey = ""; }
         ApplyGlass();
         if (!MagnifyOn) ResetZoom();
+        RestSwell();
         Rebuild();
         _edgeTicks = _awayTicks = 0;
         if (RevealMode) _edgeTimer.Start(); else _edgeTimer.Stop();
@@ -213,7 +220,7 @@ public partial class DockWindow : Window
         {
             _awayTicks = 0;
             var bounds = MonitorService.Resolve(_s.DockMonitor).Bounds;
-            bool atEdge = cx >= bounds.Left && cx < bounds.Right && cy >= bounds.Bottom - 2 && cy <= bounds.Bottom;
+            bool atEdge = cx >= bounds.Left && cx < bounds.Right && cy >= bounds.Bottom - 6 && cy <= bounds.Bottom;
             if (atEdge && !NativeMethods.LeftButtonDown())
             {
                 if (++_edgeTicks >= 2) { _edgeTicks = 0; _hideTimer.Stop(); SetRevealed(true); }
@@ -712,7 +719,19 @@ public partial class DockWindow : Window
     void ResetZoom()
     {
         foreach (var t in _tiles) { t.Scale = 1; t.Zoom.ScaleX = 1; t.Zoom.ScaleY = 1; }
+        RestSwell();
         StopZoomLoop();
+    }
+
+    /// <summary>Puts the dock panel back to its resting size: small when the zoom is on, full size when it is off.</summary>
+    void RestSwell() => ApplySwell(MagnifyOn ? 0 : 1);
+
+    void ApplySwell(double s)
+    {
+        _swell = s;
+        double k = RestShrink + (1 - RestShrink) * s;
+        _panelScale.ScaleX = k; _panelScale.ScaleY = k;
+        Panel.Opacity = RestOpacity + (1 - RestOpacity) * s;
     }
 
     void OnZoomFrame(object? sender, EventArgs e)
@@ -735,6 +754,9 @@ public partial class DockWindow : Window
             if (next != t.Scale) { t.Scale = next; t.Zoom.ScaleX = next; t.Zoom.ScaleY = next; }
             if (next != 1) resting = false;
         }
+        double nextSwell = DockMagnify.Approach(_swell, inside ? 1 : 0, 0.22);
+        if (nextSwell != _swell) ApplySwell(nextSwell);
+        if (nextSwell != 0) resting = false;
         if (!inside && resting) StopZoomLoop();
     }
 

@@ -338,7 +338,7 @@ public void SetTimeline(NovaMediaTimeline? t)
             TimeText.Text = _media!.Title.Trim();
             sub = _media.Artist.Trim();
         }
-        else TimeText.Text = _clockText;
+        else TimeText.Text = _s.IslandFaceMode == IslandFaceMode.AllModules && !_expanded && _moduleText is not null ? _moduleText : _clockText;
 
         bool left = showLyric || showTrack;
         TimeText.Width = double.NaN;      // hug the text: no empty room left and right of it

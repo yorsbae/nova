@@ -135,7 +135,7 @@ public class Rev23SettingsTests
     {
         Assert.Equal(2.2, SettingsValidator.Normalize(new NovaSettings { DockMagnifyScale = 9 }).DockMagnifyScale);
         Assert.Equal(1.0, SettingsValidator.Normalize(new NovaSettings { DockMagnifyScale = 0.2 }).DockMagnifyScale);
-        Assert.Equal(1.7, SettingsValidator.Normalize(new NovaSettings { DockMagnifyScale = double.NaN }).DockMagnifyScale);
+        Assert.Equal(2.0, SettingsValidator.Normalize(new NovaSettings { DockMagnifyScale = double.NaN }).DockMagnifyScale);
     }
 
     [Fact]
@@ -149,7 +149,7 @@ public class Rev24Tests
     public void Dock_auto_hide_switch_maps_to_dock_visibility()
     {
         var s = new NovaSettings();
-        Assert.False(s.DockAutoHide);
+        Assert.True(s.DockAutoHide);   // v2.7: auto-hide is the default
         s.DockAutoHide = true;
         Assert.Equal(DockVisibility.RevealOnEdgeHover, s.DockVisibility);
         s.DockAutoHide = false;

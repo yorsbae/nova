@@ -31,6 +31,11 @@ Package (portable zip + Inno Setup installer): `.\build\publish.ps1` (add `-Self
 
 On exit NOVA gives the screen space back, and puts the taskbar (and the Windows theme, if you used it) back exactly as it found them. If NOVA was force-killed and the taskbar stays hidden: start NOVA again and exit normally. Or press `Ctrl+Shift+Esc` → Task Manager → *Windows Explorer* → *Restart*, which brings the taskbar back immediately.
 
+## New in v2.7
+- **Dock like before:** auto-hide is on by default (touch the bottom edge, a 6 px strip, to bring it up). The dock rests slightly smaller and dimmer and swells to full size, with the icon zoom (now 2.0x), when the pointer is on it.
+- **Minimal Island, all modules:** Settings → Island → *all modules* takes turns between clock, face, water progress and the next prayer (water only when reminders are on).
+- **Revitalised look:** deep-navy glass, soft blue borders, accent-outlined tabs. Calendar, Plan and Alarm stay together as tabs on one page.
+
 ## New in v2.6
 - **A face for the Island.** When nothing else is using the compact Island, the clock and a small animated face take turns (Settings → Island: *clock only*, *clock and face*, or *face only*). Six styles: Pet, Robot, Anime, Cat, Sleepy, Emoticon; they blink and look around (still when reduced motion is on). You choose how many seconds each stays.
 - **New Island pages (8 in all):** **Minum Air** (glass counter, goal, a notice every 15–240 minutes between two hours), **Waktu Sholat** (the five prayers and sunrise worked out on the PC without internet, Kemenag method, 25 Indonesian cities or your own coordinates, optional adzan notice and sound) . **Plan and Alarm now live inside the Kalender page** as tabs (*Kalender · Rencana · Alarm*), so calendar, today's plan and alarms are one page. Alarms: one-shot or repeating on chosen weekdays, own sound file optional; click the notice to silence it.
