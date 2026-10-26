@@ -837,8 +837,7 @@ public partial class IslandWindow
         AutomationProperties.SetName(EventKind, "Alarm untuk tugas ini: " + (_addAlarm ? "nyala" : "mati"));
     }
 
-    /// <summary>One add function. No time = a plain task for the chosen day. With a time = a task that rings then (bell on).
-    </summary>
+    /// <summary>One add function. No time = a plain task for the chosen day. With a time = a task that rings then (bell on).</summary>
     void OnEventAdd(object sender, RoutedEventArgs e)
     {
         var title = (EventInput.Text ?? "").Trim();

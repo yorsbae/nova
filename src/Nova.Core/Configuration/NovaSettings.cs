@@ -7,8 +7,8 @@ public enum DockVisibility { AlwaysVisible, RevealOnEdgeHover }
 public enum LayoutPreset { Minimal, Balanced, Custom }
 /// <summary>What the compact Island shows when nothing else (music, timer, alert) is using it.</summary>
 public enum IslandFaceMode { ClockOnly, Alternate, FaceOnly, AllModules }
-/// <summary>Pet and the three anime characters are eyes; Orbit, Wave, Heartbeat and Spark are different moving shapes (no eyes).</summary>
-public enum IslandFaceStyle { Pet, AnimeA, AnimeB, AnimeC, Orbit, Wave, Heartbeat, Spark }
+/// <summary>Eyes for the compact Island: Pet, three anime characters, and special eyes (each with its own animation; Zone and ShadowMonarch crackle with lightning).</summary>
+public enum IslandFaceStyle { Pet, AnimeA, AnimeB, AnimeC, Sharingan, Rinnegan, Ghoul, Void, Alchemy, Web, Cat, Galaxy, Zone, ShadowMonarch }
 
 public sealed class DockItem
 {
