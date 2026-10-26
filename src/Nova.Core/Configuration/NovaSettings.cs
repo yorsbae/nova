@@ -183,6 +183,8 @@ public sealed class NovaSettings
     public bool HighContrastOverride { get; set; } = false;
     public bool StartWithWindows { get; set; } = false;
     public string Hotkey { get; set; } = "Ctrl+Alt+N";
+    /// <summary>v2.12: a second global shortcut that opens the Island straight on page 3 (notes, clipboard, shelf). Empty = off.</summary>
+    public string NotesHotkey { get; set; } = "Ctrl+Alt+3";
 
     /// <summary>Deep copy, so a settings dialog can edit without touching live state.</summary>
     public NovaSettings Clone()

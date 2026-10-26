@@ -87,6 +87,7 @@ public partial class SettingsWindow : Window
         AddCheck("File shelf: drop files on the Island to hold them for a moment, drag them out later", nameof(NovaSettings.ShelfEnabled));
         AddCheck("Show temporary notices (including 'now playing' in Adaptive mode)", nameof(NovaSettings.TemporaryNotices));
         AddText("Keyboard shortcut (e.g. Ctrl+Alt+N)", nameof(NovaSettings.Hotkey));
+        AddText("Shortcut that opens the Island straight on page 3: notes, clipboard (e.g. Ctrl+Alt+3; empty = off)", nameof(NovaSettings.NotesHotkey));
 
         Header("Dock");
         AddCheck("Auto-hide the dock: it slides away and comes back when the pointer touches the bottom edge of the screen", nameof(NovaSettings.DockAutoHide));

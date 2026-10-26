@@ -397,6 +397,24 @@ public void SetTimeline(NovaMediaTimeline? t)
         Toggle();
     }
 
+    int? _forcePage;
+
+    /// <summary>Shortcut entry point: opens the Island straight on <paramref name="page"/> (0-based); pressing it again on that page closes it.</summary>
+    public void InvokePage(int page)
+    {
+        if (!IsVisible) { Reposition(); Show(); }
+        if (_expanded)
+        {
+            if (_pageIndex == page) { Collapse(); return; }
+            NativeMethods.SetOverlayStyle(this, noActivate: false);
+            Activate();
+            GoToPage(page);
+        }
+        else { _forcePage = page; Expand(focus: true); }
+        if (page == Notes)
+            Dispatcher.BeginInvoke(new Action(() => { if (_expanded && _pageIndex == Notes && _sub == 0 && NoteInput.IsVisible) NoteInput.Focus(); }), DispatcherPriority.Input);
+    }
+
     public void Toggle() { if (_expanded) Collapse(); else Expand(focus: true); }
 
     /// <summary>

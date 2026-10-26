@@ -360,7 +360,7 @@
               <Ellipse Width="98" Height="98" StrokeThickness="8" Stroke="{DynamicResource NovaSurfaceAlt}"/>
               <Path x:Name="PomoArc" Stroke="#FFE5484D" StrokeThickness="8" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
                     HorizontalAlignment="Left" VerticalAlignment="Top" AutomationProperties.Name="Sisa waktu sesi"/>
-              <Button x:Name="PomoToggle" Style="{StaticResource NovaIconButton}" Width="44" Height="44" FontSize="20" Content="&#xE768;"
+              <Button x:Name="PomoToggle" Style="{StaticResource NovaIconButton}" Width="28" Height="28" FontSize="13" Content="&#xE768;"
                       ToolTip="Mulai / jeda" AutomationProperties.Name="Mulai atau jeda timer" Click="OnPomoToggle"/>
             </Grid>
             <StackPanel Grid.Column="1" VerticalAlignment="Center">

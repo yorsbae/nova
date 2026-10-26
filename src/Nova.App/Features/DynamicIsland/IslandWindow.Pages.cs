@@ -123,7 +123,8 @@ public partial class IslandWindow
     /// <summary>The page that matters most right now: the running timer, else the music, else the quick settings.</summary>
     void OpenAdaptivePage()
     {
-        int target = _pomo.Running ? Pomo : _s.ShowMedia && _media is { HasTrack: true, IsPlaying: true } ? Music : Quick;
+        int target = _forcePage ?? (_pomo.Running ? Pomo : _s.ShowMedia && _media is { HasTrack: true, IsPlaying: true } ? Music : Quick);
+        _forcePage = null;
         GoToPage(target, morph: false);
     }
 
@@ -181,6 +182,9 @@ public partial class IslandWindow
     bool HandlePageKey(KeyEventArgs e)
     {
         if (!_expanded || Keyboard.FocusedElement is TextBoxBase || Keyboard.FocusedElement is Slider) return false;
+        // 1–7 jump straight to that page
+        int digit = e.Key >= Key.D1 && e.Key <= Key.D7 ? e.Key - Key.D1 : e.Key >= Key.NumPad1 && e.Key <= Key.NumPad7 ? e.Key - Key.NumPad1 : -1;
+        if (digit >= 0 && Keyboard.Modifiers == ModifierKeys.None && digit < _pages.Length) { GoToPage(digit); return true; }
         if (e.Key == Key.Left) { GoToPage(_pageIndex - 1); return true; }
         if (e.Key == Key.Right) { GoToPage(_pageIndex + 1); return true; }
         return false;

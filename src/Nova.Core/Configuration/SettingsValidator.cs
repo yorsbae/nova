@@ -101,6 +101,8 @@ public static class SettingsValidator
 
         if (!IsHexColor(s.AccentColor)) s.AccentColor = DefaultAccent;
         if (!HotkeyParser.TryParse(s.Hotkey, out _)) s.Hotkey = d.Hotkey;
+        s.NotesHotkey = (s.NotesHotkey ?? "").Trim();
+        if (s.NotesHotkey.Length > 0 && (!HotkeyParser.TryParse(s.NotesHotkey, out _) || string.Equals(s.NotesHotkey, s.Hotkey, StringComparison.OrdinalIgnoreCase))) s.NotesHotkey = d.NotesHotkey;
 
         s.IslandMonitor = CleanText(s.IslandMonitor, 64);
         s.DockMonitor = CleanText(s.DockMonitor, 64);

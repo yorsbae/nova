@@ -14,10 +14,12 @@ public sealed class HotkeyService : IDisposable
 
     readonly Window _host;
     readonly Action _onPressed;
+    readonly int _id;
     HwndSource? _source;
     bool _registered;
 
-    public HotkeyService(Window host, Action onPressed) { _host = host; _onPressed = onPressed; }
+    /// <param name="id">Each shortcut of the app needs its own id.</param>
+    public HotkeyService(Window host, Action onPressed, int id = Id) { _host = host; _onPressed = onPressed; _id = id; }
 
     /// <summary>Maps text such as "N", "F12" or "5" to a WPF Key. Rejects raw numbers and unknown names.</summary>
     public static bool TryResolveKey(string text, out Key key)
@@ -39,7 +41,7 @@ public sealed class HotkeyService : IDisposable
         var handle = new WindowInteropHelper(_host).EnsureHandle();
         _source = HwndSource.FromHwnd(handle);
         _source?.AddHook(Hook);
-        _registered = NativeMethods.RegisterHotKey(handle, Id, (uint)g.Modifiers | MOD_NOREPEAT, (uint)KeyInterop.VirtualKeyFromKey(key));
+        _registered = NativeMethods.RegisterHotKey(handle, _id, (uint)g.Modifiers | MOD_NOREPEAT, (uint)KeyInterop.VirtualKeyFromKey(key));
         if (!_registered) FileLog.Write($"Hotkey '{gestureText}' could not be registered (likely in use).");
         return _registered;
     }
@@ -47,14 +49,14 @@ public sealed class HotkeyService : IDisposable
     void Unregister()
     {
         var handle = new WindowInteropHelper(_host).Handle;
-        if (_registered && handle != IntPtr.Zero) NativeMethods.UnregisterHotKey(handle, Id);
+        if (_registered && handle != IntPtr.Zero) NativeMethods.UnregisterHotKey(handle, _id);
         _source?.RemoveHook(Hook);
         _source = null; _registered = false;
     }
 
     IntPtr Hook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
-        if (msg == WM_HOTKEY && wParam.ToInt32() == Id) { _onPressed(); handled = true; }
+        if (msg == WM_HOTKEY && wParam.ToInt32() == _id) { _onPressed(); handled = true; }
         return IntPtr.Zero;
     }
 

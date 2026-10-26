@@ -29,7 +29,7 @@ public partial class App : Application
     WindowHarmonyService? _harmony;
     WindowShapeService? _shape;
     SystemChangesService? _system;
-    HotkeyService? _hotkey;
+    HotkeyService? _hotkey, _notesHotkey;
     TrayService? _tray;
     SettingsWindow? _settingsWindow;
     ClipboardWindow? _clipboardWindow;
@@ -151,6 +151,9 @@ public partial class App : Application
             _hotkey = new HotkeyService(_island, () => _island.Invoke());
             if (!_hotkey.Register(_settings.Hotkey))
                 Notify($"Shortcut {_settings.Hotkey} is unavailable. Use the tray icon, or change it in Settings.", true);
+            _notesHotkey = new HotkeyService(_island, () => _island.InvokePage(2), 0x4E51);
+            if (_settings.NotesHotkey.Length > 0 && !_notesHotkey.Register(_settings.NotesHotkey))
+                Notify($"Shortcut {_settings.NotesHotkey} is unavailable. Change it in Settings.", true);
         });
         Guard("tray", () => _tray = new TrayService(
             () => _island?.Invoke(), () => _dock?.FocusFirst(), OpenClipboard, OpenSettings, ResetLayout, () => Shutdown()));
@@ -367,6 +370,7 @@ public partial class App : Application
         _dock?.ApplySettings(s);
         _system?.Apply(s);
         var hotkeyOk = _hotkey?.Register(s.Hotkey) ?? true;
+        if (_notesHotkey is not null) { if (s.NotesHotkey.Length > 0) hotkeyOk &= _notesHotkey.Register(s.NotesHotkey); else _notesHotkey.Register(""); }
 
         ApplyMedia(s);
         ApplyClipboard(s);
@@ -594,6 +598,7 @@ public partial class App : Application
         Microsoft.Win32.SystemEvents.DisplaySettingsChanged -= OnDisplaySettingsChanged;
         _tray?.Dispose();
         _hotkey?.Dispose();
+        _notesHotkey?.Dispose();
         _statusPoll.Stop();
         _alerts?.Dispose();
         _harmony?.Dispose();   // puts every window's title bar back as it was
