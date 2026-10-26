@@ -293,23 +293,18 @@ public partial class IslandWindow
         return h;
     }
 
-    /// <summary>Every page except page 1 is exactly as tall as page 1, so the Island never changes size when you swipe. A taller page scrolls inside.</summary>
+    /// <summary>
+    /// Every page takes only the room its own content needs: no forced height and no minimum, so a short page leaves no empty space.
+    /// (Long lists have their own maximum height and scroll inside it.)
+    /// </summary>
     void FitToQuickPage(int index)
     {
-        double h = MeasureQuickHeight();
-        if (h <= 40) return;
-        h = Math.Ceiling(h);
-        PageHost.MinHeight = index == Water || index == PrayerPage ? 0 : h;   // the short pages are allowed to be shorter than page 1
-        for (int i = 0; i < _pages.Length; i++)
+        PageHost.ClearValue(FrameworkElement.MinHeightProperty);
+        foreach (var p in _pages)
         {
-            if (i == Quick || _pages[i] is not FrameworkElement page) continue;
-            if (i == Water || i == PrayerPage)
-            {
-                // Drink and prayer are short: they take only the room their content needs (and scroll if it ever outgrows page 1).
-                page.ClearValue(FrameworkElement.HeightProperty);
-                page.MaxHeight = h;
-            }
-            else if (Math.Abs(page.Height - h) > 0.5) page.Height = h;   // the others match page 1
+            if (p is not FrameworkElement page) continue;
+            page.ClearValue(FrameworkElement.HeightProperty);
+            page.ClearValue(FrameworkElement.MaxHeightProperty);
         }
     }
 
