@@ -101,6 +101,7 @@ No telemetry or analytics. Logs are local, contain no content, and record only e
 Windows 10 2004+ and 11 x64 · Island default always-compact · Dock default always-visible · top-centre / bottom-centre on primary monitor · weather is the only online feature, opt-in · Inno Setup per-user installer + portable zip.
 
 ## Changelog
+- **2026-10-26 (v2.13)** — Page shortcuts: Ctrl+Alt+1 … Ctrl+Alt+7 open the Island straight on page 1 … 7 (press again on the same page to close). The prefix is `PageHotkeyPrefix` (Settings → Island; empty = off). Replaces the single `NotesHotkey` of v2.12. **Written without a compiler.**
 - **2026-10-26 (v2.12)** — Pomodoro play button smaller (28 px). New global shortcut `NotesHotkey` (default Ctrl+Alt+3, empty = off, Settings → Island) opens the Island straight on page 3; pressing it again closes it. Keys 1–7 inside the open Island jump to that page. **Written without a compiler.**
 - **2026-10-26 (v2.11)** — Pages 2–7 no longer take page 1's height: each sizes to its own content, so there is no empty space (long lists keep their own maximum height and scroll). **Written without a compiler.**
 - **2026-10-26 (v2.10)** — Island/dock transparency slider now sets the fill's real opacity (100% = solid black; it used to stay at ~80–90% because the glass had its own alpha). Drink and prayer pages size to their content instead of page 1's height. **Written without a compiler.**
