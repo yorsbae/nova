@@ -33,6 +33,8 @@ public partial class DockWindow : Window
     string _appsKey = "";
     NovaSettings _s;
     bool _revealed = true, _modal, _fullscreen;
+    readonly HashSet<string> _knownTiles = new();
+    bool _firstBuild = true;
 
     public DockWindow(NovaSettings settings, bool opaque, Action<NovaSettings> persist, Action<string, bool> notify)
     {
@@ -108,18 +110,15 @@ public partial class DockWindow : Window
     /// <summary>Re-reads theme colors (Windows light/dark or high-contrast change).</summary>
     public void RefreshTheme() => ApplyGlass();
 
-    /// <summary>Glass look: a see-through strip, so the Start button and app icons float over the wallpaper. High contrast always uses solid system colors.</summary>
+    /// <summary>Glass look shared with the Island: a rounded dark glass panel with a thin light edge (high contrast uses solid system colors).</summary>
     void ApplyGlass()
     {
         bool highContrast = SystemParameters.HighContrast || _s.HighContrastOverride;
         if (_s.DockGlass && AllowsTransparency && !highContrast)
         {
-            var c = (Application.Current.Resources["NovaWindow"] as SolidColorBrush)?.Color ?? Colors.Black;
-            c.A = 0x59;
-            var fill = new SolidColorBrush(c); fill.Freeze();
-            var edge = new SolidColorBrush(Color.FromArgb(0x38, 0xFF, 0xFF, 0xFF)); edge.Freeze();
-            Panel.Background = fill;
-            Panel.BorderBrush = edge;
+            Panel.CornerRadius = new CornerRadius(Nova.App.Themes.GlassLook.Radius);
+            Panel.Background = Nova.App.Themes.GlassLook.Fill(0xB8);
+            Panel.BorderBrush = Nova.App.Themes.GlassLook.Edge();
         }
         else
         {
@@ -263,6 +262,33 @@ public partial class DockWindow : Window
             Items.Children.Add(btn);
         }
         MeasureRest();
+        PopInNewTiles();
+    }
+
+    /// <summary>An app that has just opened grows into the dock (scale + fade) instead of appearing at once. Not on the first build, and not with reduced motion.</summary>
+    void PopInNewTiles()
+    {
+        var current = new HashSet<string>();
+        foreach (var t in _tiles)
+        {
+            var key = t.Exe is { Length: > 0 } ? "x:" + System.IO.Path.GetFileNameWithoutExtension(t.Exe).ToLowerInvariant() : "h:" + t.Hwnd.ToInt64();
+            current.Add(key);
+            if (_firstBuild || MotionOff || _knownTiles.Contains(key)) continue;
+            var b = t.Button;
+            var grow = new ScaleTransform(0.2, 0.2);
+            b.RenderTransformOrigin = new Point(0.5, 1);
+            b.RenderTransform = grow;
+            var ease = new BackEase { EasingMode = EasingMode.EaseOut, Amplitude = 0.6 };
+            var dur = TimeSpan.FromMilliseconds(320);
+            var sx = new DoubleAnimation(0.2, 1, dur) { EasingFunction = ease };
+            sx.Completed += (_, _) => b.RenderTransform = Transform.Identity;
+            grow.BeginAnimation(ScaleTransform.ScaleXProperty, sx);
+            grow.BeginAnimation(ScaleTransform.ScaleYProperty, new DoubleAnimation(0.2, 1, dur) { EasingFunction = ease });
+            b.BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(220)));
+        }
+        _knownTiles.Clear();
+        foreach (var k in current) _knownTiles.Add(k);
+        _firstBuild = false;
     }
 
     /// <summary>Measures the dock at rest (no zoom): its height, its width, and where each icon's centre is. The zoom is computed against these.</summary>
@@ -386,15 +412,32 @@ public partial class DockWindow : Window
         {
             menu.Items.Add(new Separator());
             var close = new MenuItem { Header = "Close window" };
-            close.Click += (_, _) => AppControl.CloseWindow(open.Hwnd);
+            close.Click += (_, _) => CloseWithAnimation(owner, open.Hwnd, () => AppControl.CloseWindow(open.Hwnd));
             var exit = new MenuItem { Header = "Exit program" };
-            exit.Click += (_, _) => AppControl.ExitProgram(open.Hwnd, open.IsHostedApp, ConfirmEnd);
+            exit.Click += (_, _) => CloseWithAnimation(owner, open.Hwnd, () => AppControl.ExitProgram(open.Hwnd, open.IsHostedApp, ConfirmEnd));
             menu.Items.Add(close); menu.Items.Add(exit);
         }
 
         menu.Opened += (_, _) => _modal = true;
         menu.Closed += (_, _) => { _modal = false; if (RevealMode) _hideTimer.Start(); };
         return menu;
+    }
+
+    /// <summary>
+    /// Closing an app: its window shrinks into its dock icon (the same flight as minimizing), then the real close or exit follows.
+    /// Without animation, or if the window is already minimized or busy, it closes at once.
+    /// </summary>
+    void CloseWithAnimation(Button tile, IntPtr hwnd, Action close)
+    {
+        if (MotionOff || _genie.Busy || !NativeMethods.IsWindow(hwnd) || RunningAppsService.IsMinimized(hwnd)) { close(); return; }
+        var dpi = VisualTreeHelper.GetDpi(this).DpiScaleX;
+        if (dpi <= 0) dpi = 1;
+        var centre = tile.PointToScreen(new Point(tile.ActualWidth / 2, tile.ActualHeight / 2));
+        double iconPx = Math.Max(16, _icon * dpi);
+        _genie.Minimize(hwnd, centre, iconPx, true);
+        var wait = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(420) };
+        wait.Tick += (_, _) => { wait.Stop(); try { close(); } catch (Exception ex) { FileLog.Write($"Dock close failed: {ex.GetType().Name}"); } };
+        wait.Start();
     }
 
     static bool IsExplorer(string? exe, string label)

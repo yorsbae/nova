@@ -236,8 +236,8 @@ public void SetTimeline(NovaMediaTimeline? t)
         SetEqualizer(playing);
 
         bool hasWeather = _s.WeatherEnabled && !string.IsNullOrWhiteSpace(_weather);
-        WeatherText.Visibility = hasWeather ? Visibility.Visible : Visibility.Collapsed;
-        if (hasWeather) WeatherText.Text = _weather;
+        WeatherText.Text = hasWeather ? _weather : _s.WeatherEnabled ? "Cuaca: memuat…" : "Cuaca nonaktif · aktifkan di Pengaturan";
+        WeatherText.Opacity = hasWeather ? 1 : 0.6;
 
         ClipboardButton.Visibility = _s.ClipboardHistoryEnabled ? Visibility.Visible : Visibility.Collapsed;
         if (_expanded) StartStatus();
@@ -714,7 +714,7 @@ public void SetTimeline(NovaMediaTimeline? t)
 
     void ApplyCorners()
     {
-        double r = _expanded ? 28 : NotchActive && !FlushNotch ? CompactRadius() : 22;
+        double r = _expanded ? 28 : NotchActive && !FlushNotch ? CompactRadius() : Nova.App.Themes.GlassLook.Radius;
         Pill.CornerRadius = FlushNotch ? new CornerRadius(0, 0, r, r) : new CornerRadius(r);
         ApplyGlassLook();
     }
@@ -755,13 +755,10 @@ public void SetTimeline(NovaMediaTimeline? t)
         }
         if (NotchActive && !highContrast && (_expanded || !FlushNotch))
         {
-            var fill = _expanded
-                ? new LinearGradientBrush(Color.FromRgb(0, 0, 0), Color.FromRgb(0x0B, 0x14, 0x24), 90)
-                : new LinearGradientBrush(Color.FromRgb(0x05, 0x08, 0x12), Color.FromRgb(0x0C, 0x16, 0x2C), 90);
-            fill.Freeze();
-            Pill.Background = Fade(fill, k);
+            // The same glass as the dock: dark translucent fill, thin light edge.
+            Pill.Background = Fade(Nova.App.Themes.GlassLook.Fill(_expanded ? (byte)0xE6 : (byte)0xCC), k);
             Pill.BorderThickness = FlushNotch ? new Thickness(1, 0, 1, 1) : new Thickness(1);
-            Pill.BorderBrush = Frozen(Color.FromArgb(_expanded ? (byte)0x66 : (byte)0x55, 0x4C, 0x8D, 0xFF));
+            Pill.BorderBrush = Nova.App.Themes.GlassLook.Edge();
         }
         else
         {

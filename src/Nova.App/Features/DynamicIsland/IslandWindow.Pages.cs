@@ -65,8 +65,16 @@ public partial class IslandWindow
     void InitPages()
     {
         BuildCalendarTabs();
-        _pages = new UIElement[] { PageQuick, PageMusic, PageNotes, PagePomo, PageCalendar, BuildWaterPage(), BuildPrayerPage() };
-        foreach (var extra in _pages.Skip(5)) { extra.Visibility = Visibility.Collapsed; PageHost.Children.Add(extra); }
+        var water = BuildWaterPage();
+        var prayer = BuildPrayerPage();
+        water.Visibility = Visibility.Collapsed; prayer.Visibility = Visibility.Collapsed;
+        PageHost.Children.Add(water);
+        PageHost.Children.Add(prayer);
+        _pages = new UIElement[]
+        {
+            PageQuick, WrapScrolling(PageMusic), WrapScrolling(PageNotes), WrapScrolling(PagePomo),
+            WrapScrolling(PageCalendar), water, prayer
+        };
         for (int i = 0; i < _dots.Length; i++)
         {
             var d = new Ellipse { Width = 5, Height = 5, Margin = new Thickness(2, 0, 2, 0), Opacity = 0.3 };
@@ -251,17 +259,26 @@ public partial class IslandWindow
 
     QuickStatus? _quick;
 
-    /// <summary>The only system reading left on page 1: just the words "RAM 48%".</summary>
+    /// <summary>CPU, memory, disk and network speed on page 1 (read every few seconds, only while page 1 is open).</summary>
     void RefreshRam()
     {
         if (!_expanded || _pageIndex != Quick || MetricsProvider is null) return;
         try
         {
             var m = MetricsProvider();
-            RamText.Text = m.Memory is double ram ? "RAM " + ram.ToString("0", CultureInfo.CurrentCulture) + "%" : "";
-            RamText.Visibility = RamText.Text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+            SetMeter(CpuVal, CpuBar, m.Cpu);
+            SetMeter(RamVal, RamBar, m.Memory);
+            SetMeter(DiskVal, DiskBar, m.Disk);
+            NetDown.Text = "↓ " + Nova.Core.Status.RateFormatter.Format(m.DownBytesPerSecond);
+            NetUp.Text = "↑ " + Nova.Core.Status.RateFormatter.Format(m.UpBytesPerSecond);
         }
-        catch { RamText.Visibility = Visibility.Collapsed; }
+        catch { /* a reading that fails is skipped; the tiles keep their last value */ }
+    }
+
+    static void SetMeter(TextBlock value, Border bar, double? percent)
+    {
+        value.Text = percent is double p ? p.ToString("0", CultureInfo.CurrentCulture) + "%" : "–";
+        if (bar.RenderTransform is ScaleTransform st) st.ScaleX = percent is double q ? Math.Clamp(q, 0, 100) / 100 : 0;
     }
 
     /// <summary>Height of page 1 as it rests (without the brightness slider), measured even while another page is showing.</summary>
@@ -276,12 +293,28 @@ public partial class IslandWindow
         return h;
     }
 
-    /// <summary>Drink and prayer pages (6 and 7) are exactly as tall as page 1, so the Island does not change size when you swipe to them.</summary>
+    /// <summary>Every page except page 1 is exactly as tall as page 1, so the Island never changes size when you swipe. A taller page scrolls inside.</summary>
     void FitToQuickPage(int index)
     {
-        if (index != Water && index != PrayerPage) return;
+        if (index == Quick) return;
         double h = MeasureQuickHeight();
         if (h > 40 && _pages[index] is FrameworkElement page) page.Height = Math.Ceiling(h);
+    }
+
+    /// <summary>Puts a page in a scroll viewer (no visible bar until needed) so a fixed height never cuts its content off.</summary>
+    ScrollViewer WrapScrolling(FrameworkElement page)
+    {
+        int at = PageHost.Children.IndexOf(page);
+        if (at >= 0) PageHost.Children.RemoveAt(at);
+        page.Visibility = Visibility.Visible;
+        var sv = new ScrollViewer
+        {
+            Content = page, Visibility = Visibility.Collapsed, Focusable = false,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+            VerticalAlignment = VerticalAlignment.Top
+        };
+        if (at >= 0) PageHost.Children.Insert(at, sv); else PageHost.Children.Add(sv);
+        return sv;
     }
 
     async void RefreshQuick()
