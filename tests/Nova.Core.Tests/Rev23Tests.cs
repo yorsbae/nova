@@ -115,7 +115,7 @@ public class Rev23SettingsTests
         Assert.False(s.ShowTopBar);
         Assert.False(s.ReserveTopSpace);   // v2.4: the Island floats above the windows, no strip kept free
         Assert.True(s.DockMagnify);
-        Assert.Equal(24, s.DockIconSize);
+        Assert.Equal(26, s.DockIconSize);   // v2.4 dock look is the default again
         Assert.False(s.LyricsEnabled);   // sends data off the PC: stays opt-in
     }
 
@@ -123,7 +123,7 @@ public class Rev23SettingsTests
     public void Old_default_icon_size_shrinks_once_but_chosen_sizes_stay()
     {
         var old = SettingsValidator.Normalize(new NovaSettings { SchemaVersion = 4, DockIconSize = 32, DockSpacing = 6 });
-        Assert.Equal(24, old.DockIconSize);
+        Assert.Equal(26, old.DockIconSize);
         var custom = SettingsValidator.Normalize(new NovaSettings { SchemaVersion = 4, DockIconSize = 40, DockSpacing = 6 });
         Assert.Equal(40, custom.DockIconSize);
         var chosenLater = SettingsValidator.Normalize(new NovaSettings { SchemaVersion = 7, DockIconSize = 32, DockSpacing = 6 });
@@ -135,7 +135,7 @@ public class Rev23SettingsTests
     {
         Assert.Equal(2.2, SettingsValidator.Normalize(new NovaSettings { DockMagnifyScale = 9 }).DockMagnifyScale);
         Assert.Equal(1.0, SettingsValidator.Normalize(new NovaSettings { DockMagnifyScale = 0.2 }).DockMagnifyScale);
-        Assert.Equal(2.0, SettingsValidator.Normalize(new NovaSettings { DockMagnifyScale = double.NaN }).DockMagnifyScale);
+        Assert.Equal(1.7, SettingsValidator.Normalize(new NovaSettings { DockMagnifyScale = double.NaN }).DockMagnifyScale);
     }
 
     [Fact]
@@ -149,7 +149,7 @@ public class Rev24Tests
     public void Dock_auto_hide_switch_maps_to_dock_visibility()
     {
         var s = new NovaSettings();
-        Assert.True(s.DockAutoHide);   // v2.7: auto-hide is the default
+        Assert.False(s.DockAutoHide);   // v2.4 look: the dock is always visible by default
         s.DockAutoHide = true;
         Assert.Equal(DockVisibility.RevealOnEdgeHover, s.DockVisibility);
         s.DockAutoHide = false;
@@ -188,15 +188,17 @@ public class Rev24Tests
 public class MacDockMigrationTests
 {
     [Fact]
-    public void Old_dock_look_moves_once_to_the_small_auto_hide_dock_but_chosen_sizes_stay()
+    public void Mac_style_dock_values_move_back_once_to_the_v24_look_but_chosen_sizes_stay()
     {
-        var old = SettingsValidator.Normalize(new NovaSettings { SchemaVersion = 6, DockIconSize = 26, DockSpacing = 6, DockVisibility = DockVisibility.AlwaysVisible });
-        Assert.Equal(24, old.DockIconSize);
-        Assert.Equal(3, old.DockSpacing);
-        Assert.True(old.DockAutoHide);
-        var custom = SettingsValidator.Normalize(new NovaSettings { SchemaVersion = 6, DockIconSize = 48 });
+        var mac = SettingsValidator.Normalize(new NovaSettings { SchemaVersion = 7, DockIconSize = 24, DockSpacing = 3, DockBottomOffset = 5, DockMagnifyScale = 2.0, DockVisibility = DockVisibility.RevealOnEdgeHover });
+        Assert.Equal(26, mac.DockIconSize);
+        Assert.Equal(6, mac.DockSpacing);
+        Assert.Equal(6, mac.DockBottomOffset);
+        Assert.Equal(1.7, mac.DockMagnifyScale);
+        Assert.False(mac.DockAutoHide);
+        var custom = SettingsValidator.Normalize(new NovaSettings { SchemaVersion = 7, DockIconSize = 48 });
         Assert.Equal(48, custom.DockIconSize);
-        var later = SettingsValidator.Normalize(new NovaSettings { SchemaVersion = 7, DockVisibility = DockVisibility.AlwaysVisible });
-        Assert.False(later.DockAutoHide);
+        var later = SettingsValidator.Normalize(new NovaSettings { SchemaVersion = 8, DockVisibility = DockVisibility.RevealOnEdgeHover });
+        Assert.True(later.DockAutoHide);
     }
 }

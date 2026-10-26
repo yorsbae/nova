@@ -50,13 +50,19 @@ public static class SettingsValidator
         // because a saved value overrides a new default, so move them once; sizes the user picked on purpose are kept.
         if (s.SchemaVersion < 7)
         {
-            if (s.DockIconSize == 26 || s.DockIconSize == 32) s.DockIconSize = d.DockIconSize;
-            if (s.DockSpacing == 6) s.DockSpacing = d.DockSpacing;
-            if (s.DockBottomOffset == 6) s.DockBottomOffset = d.DockBottomOffset;
-            s.DockVisibility = DockVisibility.RevealOnEdgeHover;
             s.DockMagnify = true;
             s.DockGlass = true;
-            if (s.DockMagnifyScale < 1.95) s.DockMagnifyScale = d.DockMagnifyScale;
+        }
+
+        // v7 -> v8: back to the v2.4 dock look (26 px icons, 6 px apart, always visible, zoom x1.7). Files saved with the v2.7-v2.9
+        // Mac-style defaults are moved back once; sizes the user picked on purpose are kept.
+        if (s.SchemaVersion < 8)
+        {
+            if (s.DockIconSize == 24) s.DockIconSize = d.DockIconSize;
+            if (s.DockSpacing == 3) s.DockSpacing = d.DockSpacing;
+            if (s.DockBottomOffset == 5) s.DockBottomOffset = d.DockBottomOffset;
+            if (s.DockMagnifyScale >= 1.95) s.DockMagnifyScale = d.DockMagnifyScale;
+            s.DockVisibility = DockVisibility.AlwaysVisible;
         }
 
         s.SchemaVersion = d.SchemaVersion;

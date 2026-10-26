@@ -240,7 +240,6 @@ public void SetTimeline(NovaMediaTimeline? t)
         if (hasWeather) WeatherText.Text = _weather;
 
         ClipboardButton.Visibility = _s.ClipboardHistoryEnabled ? Visibility.Visible : Visibility.Collapsed;
-        if (!_s.ShowSystemStatus) StatusText.Visibility = Visibility.Collapsed;
         if (_expanded) StartStatus();
 
         SyncPosition();
@@ -367,15 +366,7 @@ public void SetTimeline(NovaMediaTimeline? t)
 
     void StartStatus() { UpdateStatus(); _statusTimer.Start(); }
 
-    void UpdateStatus()
-    {
-        RefreshUsage();
-        if (!_s.ShowSystemStatus || StatusProvider is null) { StatusText.Visibility = Visibility.Collapsed; return; }
-        string text;
-        try { text = StatusProvider(); } catch { text = ""; }
-        StatusText.Text = text;
-        StatusText.Visibility = text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
-    }
+    void UpdateStatus() => RefreshRam();
 
     // ---- visibility / expansion ----
 

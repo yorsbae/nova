@@ -69,7 +69,6 @@ public partial class SettingsWindow : Window
         AddMonitor("Island monitor", nameof(NovaSettings.IslandMonitor));
         AddSlider("Island transparency: how much of the windows behind it shows through (100% = solid, only the background fades)", nameof(NovaSettings.IslandOpacity), 0.2, 1.0, 0.05, "P0");
         AddCheck("Dynamic Island opacity: keep the open Island readable (at least 60% solid); the compact Island follows the slider. Tip: hold Ctrl and scroll over the Island to change transparency", nameof(NovaSettings.IslandDynamicOpacity));
-        AddSlider("Dock transparency: 20% = almost clear glass, 100% = solid (the see-through look needs transparent windows, not the solid fallback)", nameof(NovaSettings.DockOpacity), 0.2, 1.0, 0.05, "P0");
         AddSlider("Distance from top of screen (Island-only mode and classic floating mode; you can also drag the Island with the mouse)", nameof(NovaSettings.IslandTopOffset), 0, 2200, 1, "0");
         AddSlider("Sideways shift from the centre (negative = left, positive = right)", nameof(NovaSettings.IslandOffsetX), -2500, 2500, 1, "0");
         var resetIsland = SmallButton("Put the Island back at the top centre", "Reset the Island's position to the top centre of the screen");

@@ -24,14 +24,15 @@ public partial class IslandWindow
     static readonly string[] PageTitles =
     {
         "Wi-Fi, Suara & Pengaturan", "Musik", "Catatan & Clipboard",
-        "Pomodoro", "Kalender, Rencana & Alarm", "Sistem & Alat",
+        "Pomodoro", "Kalender, Rencana & Alarm",
         "Minum Air", "Waktu Sholat"
     };
-    // Rencana (plan) and Alarm live inside the Kalender page as tabs, so there are 8 pages.
-    const int Quick = 0, Music = 1, Notes = 2, Pomo = 3, Calendar = 4, SystemPage = 5, Water = 6, PrayerPage = 7;
+    // Rencana (plan) and Alarm live inside the Kalender page as tabs, so there are 7 pages.
+    // The old "Sistem & Alat" page is gone: the RAM reading now sits on page 1.
+    const int Quick = 0, Music = 1, Notes = 2, Pomo = 3, Calendar = 4, Water = 5, PrayerPage = 6;
 
     UIElement[] _pages = Array.Empty<UIElement>();
-    readonly Ellipse[] _dots = new Ellipse[8];
+    readonly Ellipse[] _dots = new Ellipse[7];
     int _pageIndex, _sub;
     Point _swipeStart; bool _swipeArmed;
 
@@ -64,9 +65,8 @@ public partial class IslandWindow
     void InitPages()
     {
         BuildCalendarTabs();
-        _pages = new UIElement[] { PageQuick, PageMusic, PageNotes, PagePomo, PageCalendar, PageSystem, BuildWaterPage(), BuildPrayerPage() };
-        foreach (var extra in _pages.Skip(6)) { extra.Visibility = Visibility.Collapsed; PageHost.Children.Add(extra); }
-        BuildUsagePanel();
+        _pages = new UIElement[] { PageQuick, PageMusic, PageNotes, PagePomo, PageCalendar, BuildWaterPage(), BuildPrayerPage() };
+        foreach (var extra in _pages.Skip(5)) { extra.Visibility = Visibility.Collapsed; PageHost.Children.Add(extra); }
         for (int i = 0; i < _dots.Length; i++)
         {
             var d = new Ellipse { Width = 5, Height = 5, Margin = new Thickness(2, 0, 2, 0), Opacity = 0.3 };
@@ -97,6 +97,7 @@ public partial class IslandWindow
         index = (index % _pages.Length + _pages.Length) % _pages.Length;
         if (_radioOpen && index != Quick) CloseRadio(morph: false);
         var from = CurrentSize();
+        FitToQuickPage(index);
         _pageIndex = index;
         for (int i = 0; i < _pages.Length; i++)
         {
@@ -122,11 +123,10 @@ public partial class IslandWindow
     {
         switch (_pageIndex)
         {
-            case Quick: ApplyQuickBasics(); RefreshQuick(); break;
+            case Quick: ApplyQuickBasics(); RefreshQuick(); RefreshRam(); break;
             case Notes: SetSub(_sub, morph: false); break;
             case Pomo: UpdatePomoUi(); break;
             case Calendar: SetCalView(_calView, morph: false); break;
-            case SystemPage: UpdateStatus(); LoadBrightness(); BuildShortcuts(); break;
             case Water: RefreshWater(); break;
             case PrayerPage: RefreshPrayer(); break;
         }
@@ -251,6 +251,39 @@ public partial class IslandWindow
 
     QuickStatus? _quick;
 
+    /// <summary>The only system reading left on page 1: just the words "RAM 48%".</summary>
+    void RefreshRam()
+    {
+        if (!_expanded || _pageIndex != Quick || MetricsProvider is null) return;
+        try
+        {
+            var m = MetricsProvider();
+            RamText.Text = m.Memory is double ram ? "RAM " + ram.ToString("0", CultureInfo.CurrentCulture) + "%" : "";
+            RamText.Visibility = RamText.Text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+        }
+        catch { RamText.Visibility = Visibility.Collapsed; }
+    }
+
+    /// <summary>Height of page 1 as it rests (without the brightness slider), measured even while another page is showing.</summary>
+    double MeasureQuickHeight()
+    {
+        var bright = BrightRow.Visibility;
+        BrightRow.Visibility = Visibility.Collapsed;
+        double width = PageHost.ActualWidth > 0 ? PageHost.ActualWidth : 356;
+        QuickMain.Measure(new Size(width, double.PositiveInfinity));
+        double h = QuickMain.DesiredSize.Height;
+        BrightRow.Visibility = bright;
+        return h;
+    }
+
+    /// <summary>Drink and prayer pages (6 and 7) are exactly as tall as page 1, so the Island does not change size when you swipe to them.</summary>
+    void FitToQuickPage(int index)
+    {
+        if (index != Water && index != PrayerPage) return;
+        double h = MeasureQuickHeight();
+        if (h > 40 && _pages[index] is FrameworkElement page) page.Height = Math.Ceiling(h);
+    }
+
     async void RefreshQuick()
     {
         if (_quickBusy || !_expanded) return;
@@ -279,6 +312,7 @@ public partial class IslandWindow
                 _volSetting = false;
                 ShowVolume(v, q.Muted);
             }
+            RefreshRam();
         }
         catch (Exception ex) { FileLog.Write($"Quick page status failed: {ex.GetType().Name}"); }
         finally { _quickBusy = false; }
@@ -797,57 +831,20 @@ public partial class IslandWindow
         ShowNotice("Pengingat: " + text, important: true, seconds: 12);
     }
 
-    // ---- 8: system and tools ----
-
-    void OnToolShot(object sender, RoutedEventArgs e)
-    {
-        Collapse();
-        var t = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
-        t.Tick += (_, _) => { t.Stop(); NativeMethods.PressWinShiftS(); };   // after the Island has folded away
-        t.Start();
-    }
+    // ---- page 1 tools: night light, brightness ----
 
     void OnToolNight(object sender, RoutedEventArgs e) => OpenUri("ms-settings:nightlight");
 
-    void OnToolBright(object sender, RoutedEventArgs e)
+    /// <summary>The brightness button: shows or hides the slider right on page 1 (laptops), or opens Windows display settings when the screen has no software brightness.</summary>
+    async void OnToolBright(object sender, RoutedEventArgs e)
     {
-        if (_pageIndex != SystemPage) { GoToPage(SystemPage); return; }
-        if (_brightSupported) BrightSlider.Focus(); else OpenUri("ms-settings:display");
-    }
-
-    void OnToolDark(object sender, RoutedEventArgs e)
-    {
-        var (apps, _) = WindowsThemeService.Read();
-        bool toDark = apps != 0;   // currently light (or unknown) -> dark
-        WindowsThemeService.SetDark(toDark);
-        ShowNotice(toDark ? "Mode gelap aktif" : "Mode terang aktif", important: false);
-    }
-
-    /// <summary>The first apps pinned in the dock, as launchers right in the Island.</summary>
-    void BuildShortcuts()
-    {
-        AppShortcuts.Children.Clear();
-        var items = _s.DockItems.Take(8).ToList();
-        ShortcutsLabel.Visibility = items.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
-        foreach (var item in items)
-        {
-            var it = item;
-            var btn = new Button
-            {
-                Style = (Style)FindResource("NovaIconButton"), Width = 40, Height = 40, ToolTip = it.Name,
-                Content = new System.Windows.Controls.Image { Width = 24, Height = 24, Source = IconLoader.Load(it.Path) }
-            };
-            AutomationProperties.SetName(btn, "Buka " + it.Name);
-            btn.Click += (_, _) => LaunchShortcut(it);
-            AppShortcuts.Children.Add(btn);
-        }
-    }
-
-    void LaunchShortcut(DockItem item)
-    {
-        if (!LaunchValidator.TryValidate(item.Path, out var err)) { ShowNotice($"Tidak bisa membuka {item.Name}: {err}", important: true); return; }
-        try { Process.Start(new ProcessStartInfo(item.Path) { UseShellExecute = true }); Collapse(); }
-        catch (Exception ex) { FileLog.Write($"Island launch failed: {ex.GetType().Name}"); ShowNotice($"Gagal membuka {item.Name}.", important: true); }
+        _brightProbe ??= ProbeBrightness();
+        await _brightProbe;
+        if (!_brightSupported) { OpenUri("ms-settings:display"); return; }
+        var from = CurrentSize();
+        BrightRow.Visibility = BrightRow.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible;
+        if (BrightRow.Visibility == Visibility.Visible) BrightSlider.Focus();
+        if (_expanded) Morph(from);
     }
 
     // ---- music visualizer: the real output level of the speakers, drawn as a moving waveform ----
@@ -893,9 +890,6 @@ public partial class IslandWindow
         _waveLevels[WaveBars - 1] = _meter.Peak();
         for (int i = 0; i < WaveBars; i++) _waveRects[i].Height = 3 + _waveLevels[i] * 28;
     }
-    void OnToolSettings(object sender, RoutedEventArgs e) => OpenUri("ms-settings:");
-    void OnToolTaskMgr(object sender, RoutedEventArgs e) => OpenUri("taskmgr.exe");
-    void OnToolCalc(object sender, RoutedEventArgs e) => OpenUri("calc.exe");
 
     static string? RunPowerShell(string command)
     {
@@ -912,17 +906,17 @@ public partial class IslandWindow
         catch { return null; }
     }
 
-    /// <summary>Screen brightness exists only on laptops and tablets with a built-in display; elsewhere the slider stays hidden.</summary>
-    async void LoadBrightness()
+    Task? _brightProbe;
+
+    /// <summary>Screen brightness exists only on laptops and tablets with a built-in display; elsewhere the button opens Windows display settings.</summary>
+    async Task ProbeBrightness()
     {
-        if (_brightChecked) { BrightRow.Visibility = _brightSupported ? Visibility.Visible : Visibility.Collapsed; return; }
         _brightChecked = true;
         var text = await Task.Run(() => RunPowerShell("(Get-CimInstance -Namespace root/WMI -ClassName WmiMonitorBrightness).CurrentBrightness"));
         if (int.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out var value) && value is >= 0 and <= 100)
         {
             _brightSupported = true;
             BrightSlider.Value = Math.Max(5, value);
-            BrightRow.Visibility = Visibility.Visible;
         }
     }
 

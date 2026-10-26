@@ -57,7 +57,7 @@
                    AutomationProperties.LiveSetting="Polite" AutomationProperties.Name="NOVA notice"/>
       </StackPanel>
 
-      <!-- Expanded content: 10 pages, one at a time (the last three are built in IslandWindow.Extras.cs) -->
+      <!-- Expanded content: 7 pages, one at a time (the last three are built in IslandWindow.Extras.cs) -->
       <StackPanel x:Name="ExpandedPanel" Visibility="Collapsed" Width="380" Margin="0,6,0,0">
 
         <!-- Header: page counter on the left, the time on the right (as in the concept) -->
@@ -125,6 +125,14 @@
               <Button x:Name="TglNight" Style="{StaticResource NovaIconButton}" Content="&#xE708;" ToolTip="Night light" AutomationProperties.Name="Buka pengaturan Night light" Click="OnToolNight"/>
               <Button x:Name="TglMore" Style="{StaticResource NovaIconButton}" Content="&#xE76C;" ToolTip="Halaman berikutnya" AutomationProperties.Name="Halaman berikutnya" Click="OnPageNext"/>
             </UniformGrid>
+            <Grid x:Name="BrightRow" Visibility="Collapsed" Margin="6,8,6,0">
+              <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+              <TextBlock Style="{StaticResource NovaGlyph}" FontSize="16" Margin="0,0,12,0" Text="&#xE706;"/>
+              <Slider x:Name="BrightSlider" Grid.Column="1" Minimum="5" Maximum="100" VerticalAlignment="Center"
+                      AutomationProperties.Name="Kecerahan layar" PreviewMouseLeftButtonUp="OnBrightCommit" PreviewKeyUp="OnBrightKeyCommit"/>
+            </Grid>
+            <TextBlock x:Name="RamText" HorizontalAlignment="Center" Margin="0,8,0,0" FontSize="12" Opacity="0.75"
+                       Foreground="{DynamicResource NovaOnSurface}" AutomationProperties.Name="Pemakaian RAM"/>
             <TextBlock x:Name="WeatherText" Visibility="Collapsed" HorizontalAlignment="Center" TextWrapping="Wrap"
                        Margin="0,8,0,0" FontSize="12" Foreground="{DynamicResource NovaOnSurface}" AutomationProperties.Name="Cuaca"/>
           </StackPanel>   <!-- /QuickMain -->
@@ -363,63 +371,6 @@
             </Grid>
           </StackPanel>
 
-          <!-- 7: System + tools -->
-          <StackPanel x:Name="PageSystem" Visibility="Collapsed">
-            <TextBlock x:Name="StatusText" Visibility="Collapsed" HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center"
-                       FontSize="12" Opacity="0.85" Margin="0,0,0,6" Foreground="{DynamicResource NovaOnSurface}" AutomationProperties.Name="Status sistem"/>
-            <WrapPanel HorizontalAlignment="Center">
-              <Button x:Name="ToolBright" Style="{StaticResource NovaTile}" ToolTip="Kecerahan layar" AutomationProperties.Name="Kecerahan layar" Click="OnToolBright">
-                <StackPanel>
-                  <TextBlock Style="{StaticResource NovaGlyph}" FontSize="19" HorizontalAlignment="Center" Text="&#xE706;"/>
-                  <TextBlock Text="Kecerahan" FontSize="11" HorizontalAlignment="Center" Margin="0,5,0,0" Foreground="{DynamicResource NovaOnSurface}"/>
-                </StackPanel>
-              </Button>
-              <Button x:Name="ToolNight" Style="{StaticResource NovaTile}" ToolTip="Pengaturan Night light" AutomationProperties.Name="Pengaturan Night light" Click="OnToolNight">
-                <StackPanel>
-                  <TextBlock Style="{StaticResource NovaGlyph}" FontSize="19" HorizontalAlignment="Center" Text="&#xE708;"/>
-                  <TextBlock Text="Night Light" FontSize="11" HorizontalAlignment="Center" Margin="0,5,0,0" Foreground="{DynamicResource NovaOnSurface}"/>
-                </StackPanel>
-              </Button>
-              <Button x:Name="ToolDark" Style="{StaticResource NovaTile}" ToolTip="Ganti mode terang / gelap Windows" AutomationProperties.Name="Ganti mode terang / gelap Windows" Click="OnToolDark">
-                <StackPanel>
-                  <TextBlock Style="{StaticResource NovaGlyph}" FontSize="19" HorizontalAlignment="Center" Text="&#xE790;"/>
-                  <TextBlock Text="Mode Gelap" FontSize="11" HorizontalAlignment="Center" Margin="0,5,0,0" Foreground="{DynamicResource NovaOnSurface}"/>
-                </StackPanel>
-              </Button>
-              <Button x:Name="ToolSettings" Style="{StaticResource NovaTile}" ToolTip="Pengaturan Windows" AutomationProperties.Name="Pengaturan Windows" Click="OnToolSettings">
-                <StackPanel>
-                  <TextBlock Style="{StaticResource NovaGlyph}" FontSize="19" HorizontalAlignment="Center" Text="&#xE713;"/>
-                  <TextBlock Text="Pengaturan" FontSize="11" HorizontalAlignment="Center" Margin="0,5,0,0" Foreground="{DynamicResource NovaOnSurface}"/>
-                </StackPanel>
-              </Button>
-              <Button x:Name="ToolShot" Style="{StaticResource NovaTile}" ToolTip="Ambil screenshot (Win+Shift+S)" AutomationProperties.Name="Ambil screenshot (Win+Shift+S)" Click="OnToolShot">
-                <StackPanel>
-                  <TextBlock Style="{StaticResource NovaGlyph}" FontSize="19" HorizontalAlignment="Center" Text="&#xE722;"/>
-                  <TextBlock Text="Screenshot" FontSize="11" HorizontalAlignment="Center" Margin="0,5,0,0" Foreground="{DynamicResource NovaOnSurface}"/>
-                </StackPanel>
-              </Button>
-              <Button x:Name="ToolTaskMgr" Style="{StaticResource NovaTile}" ToolTip="Buka Task Manager" AutomationProperties.Name="Buka Task Manager" Click="OnToolTaskMgr">
-                <StackPanel>
-                  <TextBlock Style="{StaticResource NovaGlyph}" FontSize="19" HorizontalAlignment="Center" Text="&#xE9D9;"/>
-                  <TextBlock Text="Task Mgr" FontSize="11" HorizontalAlignment="Center" Margin="0,5,0,0" Foreground="{DynamicResource NovaOnSurface}"/>
-                </StackPanel>
-              </Button>
-              <Button x:Name="ToolCalc" Style="{StaticResource NovaTile}" ToolTip="Buka Kalkulator" AutomationProperties.Name="Buka Kalkulator" Click="OnToolCalc">
-                <StackPanel>
-                  <TextBlock Style="{StaticResource NovaGlyph}" FontSize="19" HorizontalAlignment="Center" Text="&#xE8EF;"/>
-                  <TextBlock Text="Kalkulator" FontSize="11" HorizontalAlignment="Center" Margin="0,5,0,0" Foreground="{DynamicResource NovaOnSurface}"/>
-                </StackPanel>
-              </Button>
-            </WrapPanel>
-            <Grid x:Name="BrightRow" Visibility="Collapsed" Margin="6,8,6,0">
-              <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-              <TextBlock Style="{StaticResource NovaGlyph}" FontSize="16" Margin="0,0,12,0" Text="&#xE706;"/>
-              <Slider x:Name="BrightSlider" Grid.Column="1" Minimum="5" Maximum="100" VerticalAlignment="Center"
-                      AutomationProperties.Name="Kecerahan layar" PreviewMouseLeftButtonUp="OnBrightCommit" PreviewKeyUp="OnBrightKeyCommit"/>
-            </Grid>
-            <TextBlock x:Name="ShortcutsLabel" Text="Aplikasi" FontSize="11" Opacity="0.6" Margin="6,10,0,2" Visibility="Collapsed" Foreground="{DynamicResource NovaOnSurface}"/>
-            <WrapPanel x:Name="AppShortcuts" HorizontalAlignment="Left"/>
-          </StackPanel>
         </Grid>
         </Border>
 

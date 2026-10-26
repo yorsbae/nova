@@ -22,10 +22,6 @@ public partial class DockWindow : Window
     readonly Action<NovaSettings> _persist;
     readonly Action<string, bool> _notify;
     readonly DispatcherTimer _hideTimer = new() { Interval = TimeSpan.FromMilliseconds(700) };
-    // Auto-hide does not rely on WPF mouse events (they miss a pointer that glides across the see-through part of this wide window):
-    // while auto-hide is on, the pointer's real position is checked a few times a second.
-    readonly DispatcherTimer _edgeTimer = new() { Interval = TimeSpan.FromMilliseconds(80) };
-    int _edgeTicks, _awayTicks;
     readonly RunningAppsService _running = new();
     readonly DispatcherTimer _runTimer = new() { Interval = TimeSpan.FromSeconds(2) };
     readonly DockReserveWindow _reserve = new();
@@ -33,9 +29,6 @@ public partial class DockWindow : Window
     readonly List<Tile> _tiles = new();
     double _restPanelHeight = 40, _baseItemsWidth, _sigma = 40, _icon = 26;
     bool _magHooked;
-    // Auto-hide animation: the dock slides down and fades out, and slides back up and fades in (like the Mac Dock).
-    readonly TranslateTransform _slide = new();
-    int _slideVersion;
     IReadOnlyList<RunningApp> _apps = Array.Empty<RunningApp>();
     string _appsKey = "";
     NovaSettings _s;
@@ -46,14 +39,11 @@ public partial class DockWindow : Window
         _s = settings; _persist = persist; _notify = notify;
         InitializeComponent();
         OverlayChrome.Configure(this, opaque);
-        SizeChanged += (_, _) => ClipSolidWindow();
-        Panel.RenderTransform = _slide;
         _hideTimer.Tick += (_, _) => { _hideTimer.Stop(); TryHide(); };
         _runTimer.Tick += (_, _) => PollRunning();
-        _edgeTimer.Tick += (_, _) => PollEdge();
         _reserve.FullscreenChanged += SetFullscreen;
         _reserve.Repositioned += () => { if (!_placing) Reposition(); };
-        Closed += (_, _) => { _hideTimer.Stop(); _runTimer.Stop(); _edgeTimer.Stop(); StopZoomLoop(); _reserve.Close(); };
+        Closed += (_, _) => { _hideTimer.Stop(); _runTimer.Stop(); StopZoomLoop(); _reserve.Close(); };
         // The zoom follows the pointer over the dock; the loop also runs for a moment after it leaves, to shrink the icons back.
         Panel.MouseEnter += (_, _) => StartZoomLoop();
         Panel.MouseMove += OnPanelMouseMove;
@@ -111,8 +101,6 @@ public partial class DockWindow : Window
         ApplyGlass();
         if (!MagnifyOn) ResetZoom();
         Rebuild();
-        _edgeTicks = _awayTicks = 0;
-        if (RevealMode) _edgeTimer.Start(); else _edgeTimer.Stop();
         SetRevealed(!RevealMode);
         Reposition();
     }
@@ -126,31 +114,18 @@ public partial class DockWindow : Window
         bool highContrast = SystemParameters.HighContrast || _s.HighContrastOverride;
         if (_s.DockGlass && AllowsTransparency && !highContrast)
         {
-            // Frosted glass like the Mac Dock: a light, see-through tint with a brighter top edge. DockOpacity sets how strong the tint is.
-            double k = Math.Clamp(_s.DockOpacity, 0.2, 1.0);
-            byte top = (byte)Math.Round(255 * Math.Min(1, k * 0.62)), bottom = (byte)Math.Round(255 * Math.Min(1, k * 0.34));
-            var fill = new LinearGradientBrush(Color.FromArgb(top, 0xFF, 0xFF, 0xFF), Color.FromArgb(bottom, 0xE6, 0xEE, 0xFF), 90); fill.Freeze();
-            // A bright rim along the top that fades towards the bottom: the "glass shelf" edge of the Mac Dock.
-            var edge = new LinearGradientBrush(Color.FromArgb(0xA0, 0xFF, 0xFF, 0xFF), Color.FromArgb(0x30, 0xFF, 0xFF, 0xFF), 90); edge.Freeze();
-            Shelf.Background = fill;
-            Shelf.BorderBrush = edge;
+            var c = (Application.Current.Resources["NovaWindow"] as SolidColorBrush)?.Color ?? Colors.Black;
+            c.A = 0x59;
+            var fill = new SolidColorBrush(c); fill.Freeze();
+            var edge = new SolidColorBrush(Color.FromArgb(0x38, 0xFF, 0xFF, 0xFF)); edge.Freeze();
+            Panel.Background = fill;
+            Panel.BorderBrush = edge;
         }
         else
         {
-            Shelf.SetResourceReference(Border.BackgroundProperty, "NovaSurface");
-            Shelf.SetResourceReference(Border.BorderBrushProperty, "NovaBorder");
+            Panel.SetResourceReference(Border.BackgroundProperty, "NovaSurface");
+            Panel.SetResourceReference(Border.BorderBrushProperty, "NovaBorder");
         }
-        if (!AllowsTransparency)
-        {
-            // Solid-window fallback: the window fades a little (icons included) and is clipped to the dock's rounded shape.
-            NativeMethods.SetWindowAlpha(this, 0.5 + 0.5 * Math.Clamp(_s.DockOpacity, 0.2, 1.0));
-            ClipSolidWindow();
-        }
-    }
-
-    void ClipSolidWindow()
-    {
-        if (!AllowsTransparency) NativeMethods.ApplyRoundShape(this, Panel.CornerRadius.TopLeft);
     }
 
     /// <summary>A full-screen app or game started or stopped: the dock steps aside so it never covers it.</summary>
@@ -178,92 +153,17 @@ public partial class DockWindow : Window
 
     void SetRevealed(bool revealed)
     {
-        bool was = _revealed;
         _revealed = revealed || !RevealMode;
         if (!_revealed) ResetZoom();
-        int version = ++_slideVersion;
-        double dist = _restPanelHeight + _s.DockBottomOffset + 10;
-        bool animate = RevealMode && was != _revealed && IsVisible && IsLoaded && !MotionOff;
-
-        if (!animate)
-        {
-            // Instant: first layout, settings change, reduced motion.
-            Panel.BeginAnimation(OpacityProperty, null); _slide.BeginAnimation(TranslateTransform.YProperty, null);
-            Panel.Opacity = 1; _slide.Y = 0;
-            Panel.Visibility = _revealed ? Visibility.Visible : Visibility.Collapsed;
-            Reposition();
-            return;
-        }
-
-        var ease = new CubicEase { EasingMode = _revealed ? EasingMode.EaseOut : EasingMode.EaseIn };
-        if (_revealed)
-        {
-            if (Panel.Visibility != Visibility.Visible) { Panel.Opacity = 0; _slide.Y = dist; Panel.Visibility = Visibility.Visible; }
-            Reposition();
-            _slide.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(0, TimeSpan.FromMilliseconds(260)) { EasingFunction = ease });
-            Panel.BeginAnimation(OpacityProperty, new DoubleAnimation(1, TimeSpan.FromMilliseconds(200)));
-        }
-        else
-        {
-            var slide = new DoubleAnimation(dist, TimeSpan.FromMilliseconds(220)) { EasingFunction = ease };
-            slide.Completed += (_, _) =>
-            {
-                if (version != _slideVersion || _revealed) return;   // reopened in the meantime
-                Panel.BeginAnimation(OpacityProperty, null); _slide.BeginAnimation(TranslateTransform.YProperty, null);
-                Panel.Visibility = Visibility.Collapsed; Panel.Opacity = 1; _slide.Y = 0;
-                Reposition();
-            };
-            _slide.BeginAnimation(TranslateTransform.YProperty, slide);
-            Panel.BeginAnimation(OpacityProperty, new DoubleAnimation(0, TimeSpan.FromMilliseconds(200)));
-        }
+        Panel.Visibility = _revealed ? Visibility.Visible : Visibility.Collapsed;
+        Handle.Visibility = !_revealed ? Visibility.Visible : Visibility.Collapsed;
+        Reposition();
     }
 
     void TryHide()
     {
-        if (!RevealMode || _modal || (IsKeyboardFocusWithin && IsActive) || IsMouseOver) return;
-        if (NativeMethods.TryGetCursor(out var cx, out var cy) && CursorNearDock(cx, cy)) return;
+        if (!RevealMode || _modal || IsKeyboardFocusWithin || IsMouseOver) return;
         SetRevealed(false);
-    }
-
-    /// <summary>True while the pointer (physical pixels) is on the dock, in the room above it that zoomed icons grow into, or just beside it.</summary>
-    bool CursorNearDock(int cx, int cy)
-    {
-        if (Panel.Visibility != Visibility.Visible || !Panel.IsLoaded) return false;
-        double dpi = VisualTreeHelper.GetDpi(this).DpiScaleX;
-        if (dpi <= 0) dpi = 1;
-        var topLeft = Panel.PointToScreen(new Point(0, 0));
-        double left = topLeft.X - 24 * dpi, right = topLeft.X + (Panel.ActualWidth + 24) * dpi;
-        double top = topLeft.Y - (Headroom + 12) * dpi;
-        double bottom = MonitorService.Resolve(_s.DockMonitor).Bounds.Bottom + 4;
-        return cx >= left && cx <= right && cy >= top && cy <= bottom;
-    }
-
-    /// <summary>
-    /// Auto-hide, driven by the pointer's real position: touching the bottom edge anywhere along the screen brings the dock up
-    /// (not while a mouse button is held, so dragging a window to the bottom does not pop it up); leaving it for about
-    /// two thirds of a second puts it away, unless a menu is open or the dock is being used from the keyboard.
-    /// </summary>
-    void PollEdge()
-    {
-        if (!RevealMode || !IsVisible || _fullscreen) { _edgeTicks = _awayTicks = 0; return; }
-        if (!NativeMethods.TryGetCursor(out var cx, out var cy)) return;
-
-        if (!_revealed)
-        {
-            _awayTicks = 0;
-            var bounds = MonitorService.Resolve(_s.DockMonitor).Bounds;
-            bool atEdge = cx >= bounds.Left && cx < bounds.Right && cy >= bounds.Bottom - 6 && cy <= bounds.Bottom;
-            if (atEdge && !NativeMethods.LeftButtonDown())
-            {
-                if (++_edgeTicks >= 2) { _edgeTicks = 0; _hideTimer.Stop(); SetRevealed(true); }
-            }
-            else _edgeTicks = 0;
-            return;
-        }
-
-        _edgeTicks = 0;
-        if (_modal || (IsKeyboardFocusWithin && IsActive) || CursorNearDock(cx, cy)) { _awayTicks = 0; return; }
-        if (++_awayTicks >= 8) { _awayTicks = 0; SetRevealed(false); }
     }
 
     static string AppsKey(IEnumerable<RunningApp> apps) => string.Join("|", apps.Select(a => a.Hwnd.ToInt64()));
@@ -379,8 +279,7 @@ public partial class DockWindow : Window
         }
         _baseItemsWidth = x;
         // Worked out from the icons, not from the panel, so it is right even while the panel is hidden (reveal mode).
-        _restPanelHeight = Math.Max(1, Items.DesiredSize.Height + Items.Margin.Top + Items.Margin.Bottom + 2);
-        Shelf.Height = _restPanelHeight;   // the shelf never grows with the zoom: the icons rise out of it, like the Mac Dock
+        _restPanelHeight = Math.Max(1, Items.DesiredSize.Height + Panel.Padding.Top + Panel.Padding.Bottom + Panel.BorderThickness.Top + Panel.BorderThickness.Bottom);
     }
 
     /// <summary>One dock tile: just the icon (the name is in the tooltip), with a dot underneath when the app is open. Its content can be zoomed.</summary>

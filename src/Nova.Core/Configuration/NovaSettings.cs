@@ -27,9 +27,9 @@ public sealed class LayoutProfile
     public IslandBehavior IslandBehavior { get; set; } = IslandBehavior.AlwaysCompact;
     public double IslandTopOffset { get; set; } = 8;
     public DockVisibility DockVisibility { get; set; } = DockVisibility.AlwaysVisible;
-    public double DockBottomOffset { get; set; } = 5;
-    public double DockIconSize { get; set; } = 24;
-    public double DockSpacing { get; set; } = 3;
+    public double DockBottomOffset { get; set; } = 6;
+    public double DockIconSize { get; set; } = 26;
+    public double DockSpacing { get; set; } = 6;
     public string IslandMonitor { get; set; } = "";
     public string DockMonitor { get; set; } = "";
 }
@@ -37,7 +37,7 @@ public sealed class LayoutProfile
 /// <summary>User settings. Every default here is the "known-good layout" used by Reset.</summary>
 public sealed class NovaSettings
 {
-    public int SchemaVersion { get; set; } = 7;
+    public int SchemaVersion { get; set; } = 8;
     public LayoutPreset Preset { get; set; } = LayoutPreset.Balanced;
     public ThemeMode Theme { get; set; } = ThemeMode.System;
     public string AccentColor { get; set; } = "#4C8DFF";
@@ -62,10 +62,10 @@ public sealed class NovaSettings
     /// <summary>Windows device name such as \\.\DISPLAY2. Empty = primary monitor.</summary>
     public string IslandMonitor { get; set; } = "";
 
-    public DockVisibility DockVisibility { get; set; } = DockVisibility.RevealOnEdgeHover;
-    public double DockBottomOffset { get; set; } = 5;
-    public double DockIconSize { get; set; } = 24;
-    public double DockSpacing { get; set; } = 3;
+    public DockVisibility DockVisibility { get; set; } = DockVisibility.AlwaysVisible;
+    public double DockBottomOffset { get; set; } = 6;
+    public double DockIconSize { get; set; } = 26;
+    public double DockSpacing { get; set; } = 6;
     public string DockMonitor { get; set; } = "";
     /// <summary>Reserves the strip the dock occupies (like the taskbar does), so maximized windows such as the browser stop above it instead of going under it.</summary>
     public bool DockReservesSpace { get; set; } = true;
@@ -125,7 +125,7 @@ public sealed class NovaSettings
     /// <summary>Dock icons are small and grow towards the pointer, like the macOS Dock.</summary>
     public bool DockMagnify { get; set; } = true;
     /// <summary>How big the icon under the pointer gets, as a multiple of its resting size.</summary>
-    public double DockMagnifyScale { get; set; } = 2.0;
+    public double DockMagnifyScale { get; set; } = 1.7;
     /// <summary>Shows "new message" alerts on the Island for chat apps (WhatsApp, Telegram, Discord...). Reads only window titles and
     /// taskbar-flash signals on this PC; Windows does not let NOVA read the message text.</summary>
     public bool AppAlerts { get; set; } = true;

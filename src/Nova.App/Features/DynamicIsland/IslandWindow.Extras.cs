@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
@@ -399,9 +400,6 @@ public partial class IslandWindow
     // ================= CPU / RAM indicators =================
 
     string _usageText = "";
-    StackPanel? _usagePanel;
-    TextBlock _netText = null!;
-    readonly Dictionary<string, (ProgressBar Bar, TextBlock Value, FrameworkElement Row)> _usage = new();
 
     /// <summary>The small "CPU 12% · RAM 48%" line in the compact Island is read every 3 s, and only while it is shown.</summary>
     void UpdateUsageTimer()
@@ -427,92 +425,93 @@ public partial class IslandWindow
         catch { /* a reading that fails is skipped */ }
     }
 
-    void BuildUsagePanel()
-    {
-        _usagePanel = new StackPanel { Margin = new Thickness(6, 0, 6, 8) };
-        foreach (var (key, label) in new[] { ("cpu", "CPU"), ("mem", "RAM"), ("disk", "Disk"), ("bat", "Baterai") })
-        {
-            var grid = new Grid { Margin = new Thickness(0, 2, 0, 2) };
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(58) });
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(46) });
-            var name = Lbl(label, 12, 0.8);
-            var bar = new ProgressBar { Style = (Style)FindResource("NovaThinProgress"), Height = 6, VerticalAlignment = VerticalAlignment.Center };
-            var value = Lbl("", 12, 1, align: TextAlignment.Right);
-            Grid.SetColumn(bar, 1); Grid.SetColumn(value, 2);
-            grid.Children.Add(name); grid.Children.Add(bar); grid.Children.Add(value);
-            AutomationProperties.SetName(grid, label);
-            _usagePanel.Children.Add(grid);
-            _usage[key] = (bar, value, grid);
-        }
-        _netText = Lbl("", 12, 0.8, align: TextAlignment.Left);
-        _netText.Margin = new Thickness(0, 4, 0, 0);
-        AutomationProperties.SetName(_netText, "Kecepatan jaringan");
-        _usagePanel.Children.Add(_netText);
-        PageSystem.Children.Insert(0, _usagePanel);
-    }
-
-    void RefreshUsage()
-    {
-        if (_usagePanel is null || !_expanded || _pageIndex != SystemPage || MetricsProvider is null) return;
-        SystemMetrics m;
-        try { m = MetricsProvider(); } catch { return; }
-        SetUsage("cpu", m.Cpu);
-        SetUsage("mem", m.Memory);
-        SetUsage("disk", m.Disk);
-        SetUsage("bat", m.Battery?.Percent, lowIsBad: true, suffix: m.Battery is { Charging: true } ? " ⚡" : "");
-        _netText.Text = $"↓ {RateFormatter.Format(m.DownBytesPerSecond)}    ↑ {RateFormatter.Format(m.UpBytesPerSecond)}";
-    }
-
-    void SetUsage(string key, double? value, bool lowIsBad = false, string suffix = "")
-    {
-        var (bar, text, row) = _usage[key];
-        row.Visibility = value is null ? Visibility.Collapsed : Visibility.Visible;
-        if (value is null) return;
-        bar.Value = Math.Clamp(value.Value / 100.0, 0, 1);
-        text.Text = value.Value.ToString("0", CultureInfo.CurrentCulture) + "%" + suffix;
-        bool hot = lowIsBad ? value.Value < 20 : value.Value >= 85;
-        if (hot) bar.Foreground = Solid("#FFE5484D"); else bar.SetResourceReference(Control.ForegroundProperty, "NovaAccent");
-    }
-
     // ================= drink reminder =================
 
+    // Pages 6 (drink) and 7 (prayer) are drawn compact so they fit in the same space as page 1.
     TextBlock _waterCount = null!, _waterSub = null!;
-    WrapPanel _waterDrops = null!;
     ProgressBar _waterBar = null!;
     Button _waterToggle = null!;
     readonly List<Button> _waterIntervals = new();
     DateTime? _waterNext;
     static readonly int[] WaterIntervals = { 30, 45, 60, 90, 120 };
 
+    /// <summary>A round icon button, the same style as the rest of the Island.</summary>
+    Button IconBtn(string glyph, RoutedEventHandler click, string accessibleName, double size = 30)
+    {
+        var b = new Button { Style = (Style)FindResource("NovaIconButton"), Width = size, Height = size, Margin = new Thickness(2, 0, 2, 0), Content = glyph, ToolTip = accessibleName };
+        AutomationProperties.SetName(b, accessibleName);
+        b.Click += click;
+        return b;
+    }
+
+    /// <summary>Soft accent colour used to mark "on" and "next".</summary>
+    Brush AccentTint(byte alpha)
+    {
+        var c = (Application.Current.Resources["NovaAccent"] as SolidColorBrush)?.Color ?? Color.FromRgb(0x4C, 0x8D, 0xFF);
+        c.A = alpha;
+        var br = new SolidColorBrush(c); br.Freeze();
+        return br;
+    }
+
+    /// <summary>Wraps a page so it can be given a fixed height (page 1's): the content sits in the middle and scrolls only if it ever gets taller.</summary>
+    ScrollViewer FixedHeightPage(FrameworkElement content)
+    {
+        content.VerticalAlignment = VerticalAlignment.Center;
+        var inner = new Grid();
+        inner.Children.Add(content);
+        var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, Focusable = false, Content = inner };
+        inner.SetBinding(FrameworkElement.MinHeightProperty, new System.Windows.Data.Binding(nameof(ScrollViewer.ViewportHeight)) { Source = scroll });
+        return scroll;
+    }
+
     UIElement BuildWaterPage()
     {
+        // [drop  3 / 8 gelas            - +]
+        // [progress bar]
+        // [bell | every  30 45 60 90 120 min]
+        // [one line of info]
         var page = new StackPanel();
-        _waterCount = Lbl("", 26, 1, bold: true, align: TextAlignment.Center);
+        var head = new Grid();
+        head.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        head.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        head.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        var drop = new TextBlock { Text = "\U0001F4A7", FontSize = 22, Margin = new Thickness(2, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center };
+        AutomationProperties.SetName(drop, "Minum air");
+        _waterCount = Lbl("", 17, 1, bold: true);
+        _waterCount.TextWrapping = TextWrapping.NoWrap;
+        _waterCount.VerticalAlignment = VerticalAlignment.Center;
         AutomationProperties.SetName(_waterCount, "Jumlah gelas air hari ini");
-        _waterBar = new ProgressBar { Style = (Style)FindResource("NovaThinProgress"), Margin = new Thickness(24, 6, 24, 8) };
+        var buttons = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+        buttons.Children.Add(IconBtn("\uE738", (_, _) => AddWater(-1), "Kurangi satu gelas"));
+        buttons.Children.Add(IconBtn("\uE710", (_, _) => AddWater(1), "Tambah satu gelas"));
+        Grid.SetColumn(_waterCount, 1); Grid.SetColumn(buttons, 2);
+        head.Children.Add(drop); head.Children.Add(_waterCount); head.Children.Add(buttons);
+
+        _waterBar = new ProgressBar { Style = (Style)FindResource("NovaThinProgress"), Margin = new Thickness(2, 4, 2, 8) };
         AutomationProperties.SetName(_waterBar, "Progres minum hari ini");
-        _waterDrops = new WrapPanel { HorizontalAlignment = HorizontalAlignment.Center };
-        _waterSub = Lbl("", 11, 0.7, align: TextAlignment.Center);
-        _waterSub.Margin = new Thickness(0, 8, 0, 6);
 
-        var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 4, 0, 0) };
-        buttons.Children.Add(TabBtn("+ 1 gelas", (_, _) => AddWater(1), "Tambah satu gelas"));
-        buttons.Children.Add(TabBtn("− 1", (_, _) => AddWater(-1), "Kurangi satu gelas"));
-        _waterToggle = TabBtn("", OnWaterToggle, "Nyalakan atau matikan pengingat minum");
-        buttons.Children.Add(_waterToggle);
-
-        var chips = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 8, 0, 0) };
-        chips.Children.Add(Lbl("Ingatkan tiap", 11, 0.7));
+        var chips = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center };
+        _waterToggle = IconBtn("\uE7ED", OnWaterToggle, "Nyalakan atau matikan pengingat minum", 28);
+        chips.Children.Add(_waterToggle);
+        var every = Lbl("tiap", 11, 0.7);
+        every.VerticalAlignment = VerticalAlignment.Center; every.Margin = new Thickness(6, 0, 4, 0);
+        chips.Children.Add(every);
         foreach (var minutes in WaterIntervals)
         {
             int m = minutes;
-            var chip = TabBtn(m + " mnt", (_, _) => SetWaterInterval(m), $"Ingatkan setiap {m} menit");
+            var chip = TabBtn(m.ToString(CultureInfo.InvariantCulture), (_, _) => SetWaterInterval(m), $"Ingatkan setiap {m} menit");
+            chip.Padding = new Thickness(8, 3, 8, 3);
             _waterIntervals.Add(chip);
             chips.Children.Add(chip);
         }
-        foreach (var child in new UIElement[] { _waterCount, _waterBar, _waterDrops, _waterSub, buttons, chips }) page.Children.Add(child);
-        return page;
+        var unit = Lbl("mnt", 11, 0.7);
+        unit.VerticalAlignment = VerticalAlignment.Center; unit.Margin = new Thickness(4, 0, 0, 0);
+        chips.Children.Add(unit);
+
+        _waterSub = Lbl("", 10, 0.65, align: TextAlignment.Center);
+        _waterSub.Margin = new Thickness(0, 6, 0, 0);
+        foreach (var child in new UIElement[] { head, _waterBar, chips, _waterSub }) page.Children.Add(child);
+        return FixedHeightPage(page);
     }
 
     void RefreshWater()
@@ -520,20 +519,13 @@ public partial class IslandWindow
         int goal = _s.HydrationGoalGlasses, n = _data.WaterOn(DateTime.Today);
         _waterCount.Text = $"{n} / {goal} gelas";
         _waterBar.Value = Math.Clamp((double)n / goal, 0, 1);
-        _waterDrops.Children.Clear();
-        for (int i = 0; i < Math.Min(Math.Max(goal, n), 24); i++)
-        {
-            var drop = new Ellipse { Width = 14, Height = 14, Margin = new Thickness(3), StrokeThickness = 1.5 };
-            if (i < n) { drop.Fill = Solid("#FF3DA5FF"); drop.Stroke = Solid("#FF3DA5FF"); }
-            else { drop.Fill = Brushes.Transparent; drop.SetResourceReference(Shape.StrokeProperty, "NovaBorder"); }
-            _waterDrops.Children.Add(drop);
-        }
-        _waterToggle.Content = _s.HydrationEnabled ? "Pengingat: Aktif" : "Pengingat: Mati";
-        _waterToggle.Tag = _s.HydrationEnabled ? "on" : null;
+        SetToggle(_waterToggle, _s.HydrationEnabled);
+        AutomationProperties.SetName(_waterToggle, _s.HydrationEnabled ? "Pengingat minum aktif, klik untuk mematikan" : "Pengingat minum mati, klik untuk menyalakan");
+        _waterToggle.ToolTip = _s.HydrationEnabled ? "Pengingat aktif" : "Pengingat mati";
         for (int i = 0; i < _waterIntervals.Count; i++) _waterIntervals[i].Tag = WaterIntervals[i] == _s.HydrationIntervalMinutes ? "on" : null;
         _waterSub.Text = !_s.HydrationEnabled
-            ? "Pengingat mati. Nyalakan agar NOVA mengingatkan Anda minum."
-            : $"Pengingat tiap {_s.HydrationIntervalMinutes} menit, {_s.HydrationFromHour:00}.00–{_s.HydrationToHour:00}.00" +
+            ? "Pengingat mati. Ketuk lonceng untuk menyalakan."
+            : $"{_s.HydrationFromHour:00}.00–{_s.HydrationToHour:00}.00" +
               (_waterNext is { } next ? $" · berikutnya {next:HH:mm}" : "");
     }
 
@@ -579,7 +571,7 @@ public partial class IslandWindow
     // ================= prayer times =================
 
     TextBlock _prayerHead = null!, _prayerNext = null!;
-    StackPanel _prayerList = null!;
+    UniformGrid _prayerList = null!;
     Button _prayerNotifyBtn = null!, _prayerSoundBtn = null!;
     readonly HashSet<string> _announced = new();
 
@@ -593,21 +585,37 @@ public partial class IslandWindow
 
     UIElement BuildPrayerPage()
     {
+        // [mosque  Dzuhur 12:03 · dalam 2 j 5 m         bell speaker]
+        // [ Subuh | Terbit | Dzuhur | Ashar | Maghrib | Isya ]
         var page = new StackPanel();
-        _prayerHead = Lbl("", 12, 0.8, align: TextAlignment.Center);
-        _prayerNext = Lbl("", 15, 1, bold: true, align: TextAlignment.Center);
-        _prayerNext.Margin = new Thickness(0, 2, 0, 6);
+        var head = new Grid();
+        head.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        head.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        head.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        var mosque = new TextBlock { Text = "\U0001F54C", FontSize = 22, Margin = new Thickness(2, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center };
+        AutomationProperties.SetName(mosque, "Waktu sholat");
+        _prayerNext = Lbl("", 14, 1, bold: true);
+        _prayerNext.TextWrapping = TextWrapping.NoWrap;
+        _prayerNext.TextTrimming = TextTrimming.CharacterEllipsis;
         _prayerNext.SetResourceReference(TextBlock.ForegroundProperty, "NovaAccent");
         AutomationProperties.SetName(_prayerNext, "Waktu sholat berikutnya");
-        _prayerList = new StackPanel();
-        var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 8, 0, 0) };
-        _prayerNotifyBtn = TabBtn("", OnPrayerNotify, "Nyalakan atau matikan pemberitahuan adzan");
-        _prayerSoundBtn = TabBtn("", OnPrayerSound, "Nyalakan atau matikan suara adzan");
+        _prayerHead = Lbl("", 10, 0.65);
+        _prayerHead.TextWrapping = TextWrapping.NoWrap;
+        _prayerHead.TextTrimming = TextTrimming.CharacterEllipsis;
+        _prayerHead.ToolTip = "Dihitung di PC ini (tanpa internet), metode Kemenag. Ganti kota di Settings → Waktu sholat.";
+        var text = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+        text.Children.Add(_prayerNext); text.Children.Add(_prayerHead);
+        _prayerNotifyBtn = IconBtn("\uE7ED", OnPrayerNotify, "Nyalakan atau matikan pemberitahuan adzan");
+        _prayerSoundBtn = IconBtn("\uE767", OnPrayerSound, "Nyalakan atau matikan suara adzan");
+        var buttons = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
         buttons.Children.Add(_prayerNotifyBtn); buttons.Children.Add(_prayerSoundBtn);
-        var tip = Lbl("Dihitung di PC ini (tanpa internet), metode Kemenag. Ganti kota di Settings → Waktu sholat.", 10, 0.55, align: TextAlignment.Center);
-        tip.Margin = new Thickness(0, 6, 0, 0);
-        foreach (var child in new UIElement[] { _prayerHead, _prayerNext, _prayerList, buttons, tip }) page.Children.Add(child);
-        return page;
+        Grid.SetColumn(text, 1); Grid.SetColumn(buttons, 2);
+        head.Children.Add(mosque); head.Children.Add(text); head.Children.Add(buttons);
+
+        _prayerList = new UniformGrid { Rows = 1, Margin = new Thickness(0, 8, 0, 0) };
+        AutomationProperties.SetName(_prayerList, "Jadwal sholat hari ini");
+        page.Children.Add(head); page.Children.Add(_prayerList);
+        return FixedHeightPage(page);
     }
 
     void RefreshPrayer()
@@ -618,7 +626,7 @@ public partial class IslandWindow
         _prayerHead.Text = $"{place} · {now.ToString("dddd, d MMMM", CultureInfo.CurrentCulture)}";
 
         var next = PrayerCalculator.Next(now, lat, lon, UtcOffset);
-        if (next is null) _prayerNext.Text = "Waktu sholat tidak bisa dihitung untuk lokasi ini.";
+        if (next is null) _prayerNext.Text = "Tidak bisa dihitung untuk lokasi ini";
         else
         {
             var left = next.Time - now;
@@ -630,15 +638,23 @@ public partial class IslandWindow
         foreach (var e in today)
         {
             bool isNext = next is not null && next.Prayer == e.Prayer && next.Time.Date == e.Time.Date;
-            var row = BuildRow(e.Name, e.Time.ToString("HH:mm", CultureInfo.CurrentCulture), accent: isNext);
-            if (e.Time <= now) row.Opacity = 0.5;
-            if (!e.HasAdzan) row.Opacity = Math.Min(row.Opacity, 0.7);
-            _prayerList.Children.Add(row);
+            var name = Lbl(e.Name, 10, 0.8, align: TextAlignment.Center);
+            name.TextWrapping = TextWrapping.NoWrap;
+            var time = Lbl(e.Time.ToString("HH:mm", CultureInfo.CurrentCulture), 12, 1, bold: true, align: TextAlignment.Center);
+            var col = new StackPanel();
+            col.Children.Add(name); col.Children.Add(time);
+            var cell = new Border { Child = col, CornerRadius = new CornerRadius(10), Padding = new Thickness(0, 4, 0, 4), Margin = new Thickness(2, 0, 2, 0) };
+            if (isNext) cell.Background = AccentTint(0x55); else cell.SetResourceReference(Border.BackgroundProperty, "NovaSurfaceAlt");
+            if (e.Time <= now) cell.Opacity = 0.5;
+            if (!e.HasAdzan) cell.Opacity = Math.Min(cell.Opacity, 0.7);
+            AutomationProperties.SetName(cell, $"{e.Name} {e.Time:HH:mm}");
+            _prayerList.Children.Add(cell);
         }
-        _prayerNotifyBtn.Content = _s.PrayerNotify ? "Adzan: Aktif" : "Adzan: Mati";
-        _prayerNotifyBtn.Tag = _s.PrayerNotify ? "on" : null;
-        _prayerSoundBtn.Content = _s.PrayerSound ? "Suara: Ya" : "Suara: Tidak";
-        _prayerSoundBtn.Tag = _s.PrayerSound ? "on" : null;
+        SetToggle(_prayerNotifyBtn, _s.PrayerNotify);
+        _prayerNotifyBtn.ToolTip = _s.PrayerNotify ? "Adzan: aktif" : "Adzan: mati";
+        _prayerSoundBtn.Content = _s.PrayerSound ? "\uE767" : "\uE74F";
+        SetToggle(_prayerSoundBtn, _s.PrayerSound);
+        _prayerSoundBtn.ToolTip = _s.PrayerSound ? "Suara: ya" : "Suara: tidak";
     }
 
     void OnPrayerNotify(object sender, RoutedEventArgs e)
