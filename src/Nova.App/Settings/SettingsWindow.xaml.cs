@@ -60,6 +60,8 @@ public partial class SettingsWindow : Window
         AddCheck("Increase contrast (use Windows system colors)", nameof(NovaSettings.HighContrastOverride));
         AddCheck("Use opaque windows if transparency looks wrong (restart NOVA to apply)", nameof(NovaSettings.OpaqueFallback));
 
+        AddSlider("Dock transparency: how solid the dock background is (100% = solid, 20% = very see-through; icons stay sharp)", nameof(NovaSettings.DockOpacity), 0.2, 1.0, 0.05, "P0");
+
         Header("Clock");
         AddCombo<ClockFormat>("Time format", nameof(NovaSettings.ClockFormat));
         AddSlider("Clock font size", nameof(NovaSettings.ClockFontSize), 12, 72, 1, "0");

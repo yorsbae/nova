@@ -926,6 +926,7 @@ public void SetTimeline(NovaMediaTimeline? t)
     void OnPillDragDown(object sender, MouseButtonEventArgs e)
     {
         _winDragArmed = false;
+        if (_expanded && _hoverOpened) PinOpen();   // the first press makes the open panel accept typing, so a note box can take focus at once
         if (FlushNotch || _busy || _dragOver) return;   // the bar notch is part of the bar: it stays put
         if (IsInteractive(e.OriginalSource as DependencyObject, Pill)) return;
         var handle = new System.Windows.Interop.WindowInteropHelper(this).Handle;
@@ -1012,7 +1013,19 @@ public void SetTimeline(NovaMediaTimeline? t)
         }
         if (!_expanded) Expand(focus: true);
         else if (_hoverOpened) PinOpen();
+        else if (IsWithin(e.OriginalSource as DependencyObject, PageCard)) return;   // a click on a note box, list or empty space of a page must not close the Island
         else Collapse();
+    }
+
+    /// <summary>True when <paramref name="d"/> is <paramref name="root"/> or sits somewhere inside it.</summary>
+    static bool IsWithin(DependencyObject? d, DependencyObject root)
+    {
+        while (d is not null)
+        {
+            if (ReferenceEquals(d, root)) return true;
+            d = d is Visual or System.Windows.Media.Media3D.Visual3D ? VisualTreeHelper.GetParent(d) : LogicalTreeHelper.GetParent(d);
+        }
+        return false;
     }
 
     void OnKeyDown(object sender, KeyEventArgs e)

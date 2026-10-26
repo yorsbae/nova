@@ -117,7 +117,7 @@ public partial class DockWindow : Window
         if (_s.DockGlass && AllowsTransparency && !highContrast)
         {
             Panel.CornerRadius = new CornerRadius(Nova.App.Themes.GlassLook.Radius);
-            Panel.Background = Nova.App.Themes.GlassLook.Fill(0xB8);
+            Panel.Background = Nova.App.Themes.GlassLook.Fill((byte)Math.Round(255 * Math.Clamp(_s.DockOpacity, 0.2, 1.0)));
             Panel.BorderBrush = Nova.App.Themes.GlassLook.Edge();
         }
         else

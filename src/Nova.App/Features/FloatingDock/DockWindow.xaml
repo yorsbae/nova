@@ -14,8 +14,7 @@
     <!-- Edge handle, shown only in "reveal on edge hover" mode while the dock is hidden -->
     <Border x:Name="Handle" Visibility="Collapsed" Width="180" Height="14" VerticalAlignment="Bottom" HorizontalAlignment="Center"
             Background="#01000000" AutomationProperties.Name="Reveal app dock">
-      <Border Height="5" CornerRadius="3" VerticalAlignment="Bottom" Margin="0,0,0,2"
-              Background="{DynamicResource NovaAccent}"/>
+      <!-- No visible bar: while hidden the dock leaves nothing on screen; the invisible strip only catches the pointer. -->
     </Border>
     <Border x:Name="Panel" CornerRadius="22" Padding="10,6,10,5" BorderThickness="1" AllowDrop="True"
             HorizontalAlignment="Center" VerticalAlignment="Bottom"

@@ -296,9 +296,12 @@ public partial class IslandWindow
     /// <summary>Every page except page 1 is exactly as tall as page 1, so the Island never changes size when you swipe. A taller page scrolls inside.</summary>
     void FitToQuickPage(int index)
     {
-        if (index == Quick) return;
         double h = MeasureQuickHeight();
-        if (h > 40 && _pages[index] is FrameworkElement page) page.Height = Math.Ceiling(h);
+        if (h <= 40) return;
+        h = Math.Ceiling(h);
+        PageHost.MinHeight = h;
+        for (int i = 0; i < _pages.Length; i++)
+            if (i != Quick && _pages[i] is FrameworkElement page && Math.Abs(page.Height - h) > 0.5) page.Height = h;   // all of them, so none is left at its own size
     }
 
     /// <summary>Puts a page in a scroll viewer (no visible bar until needed) so a fixed height never cuts its content off.</summary>
