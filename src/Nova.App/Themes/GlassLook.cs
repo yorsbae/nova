@@ -11,10 +11,10 @@ public static class GlassLook
     /// <summary>Corner radius of the dock panel and the compact Island.</summary>
     public const double Radius = 22;
 
-    /// <summary>Dark fill. <paramref name="alpha"/> 0–255 (the dock uses the lower end, the open Island the higher).</summary>
+    /// <summary>Dark fill that is pure black at its bottom edge. <paramref name="alpha"/> 0–255: 255 is completely solid, lower lets the windows behind show through.</summary>
     public static Brush Fill(byte alpha)
     {
-        var b = new LinearGradientBrush(Color.FromArgb(alpha, 0x1B, 0x20, 0x2C), Color.FromArgb(alpha, 0x0E, 0x12, 0x1B), 90);
+        var b = new LinearGradientBrush(Color.FromArgb(alpha, 0x0C, 0x0E, 0x14), Color.FromArgb(alpha, 0x00, 0x00, 0x00), 90);
         b.Freeze();
         return b;
     }

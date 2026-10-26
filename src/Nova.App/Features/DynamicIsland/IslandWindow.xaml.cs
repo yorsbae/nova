@@ -765,10 +765,10 @@ public void SetTimeline(NovaMediaTimeline? t)
             NativeMethods.SetWindowAlpha(this, Math.Max(0.5, k));
             Dispatcher.BeginInvoke(new Action(ClipSolidWindow), DispatcherPriority.Loaded);
         }
-        if (NotchActive && !highContrast && (_expanded || !FlushNotch))
+        if (!highContrast && (_expanded || !FlushNotch))
         {
-            // The same glass as the dock: dark translucent fill, thin light edge.
-            Pill.Background = Fade(Nova.App.Themes.GlassLook.Fill(_expanded ? (byte)0xE6 : (byte)0xCC), k);
+            // The same glass as the dock. The slider IS the fill's opacity: 100% = solid black, lower = more of the windows behind shows through.
+            Pill.Background = Nova.App.Themes.GlassLook.Fill((byte)Math.Round(255 * k));
             Pill.BorderThickness = FlushNotch ? new Thickness(1, 0, 1, 1) : new Thickness(1);
             Pill.BorderBrush = Nova.App.Themes.GlassLook.Edge();
         }

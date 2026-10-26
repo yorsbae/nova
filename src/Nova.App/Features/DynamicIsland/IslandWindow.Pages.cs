@@ -299,9 +299,18 @@ public partial class IslandWindow
         double h = MeasureQuickHeight();
         if (h <= 40) return;
         h = Math.Ceiling(h);
-        PageHost.MinHeight = h;
+        PageHost.MinHeight = index == Water || index == PrayerPage ? 0 : h;   // the short pages are allowed to be shorter than page 1
         for (int i = 0; i < _pages.Length; i++)
-            if (i != Quick && _pages[i] is FrameworkElement page && Math.Abs(page.Height - h) > 0.5) page.Height = h;   // all of them, so none is left at its own size
+        {
+            if (i == Quick || _pages[i] is not FrameworkElement page) continue;
+            if (i == Water || i == PrayerPage)
+            {
+                // Drink and prayer are short: they take only the room their content needs (and scroll if it ever outgrows page 1).
+                page.ClearValue(FrameworkElement.HeightProperty);
+                page.MaxHeight = h;
+            }
+            else if (Math.Abs(page.Height - h) > 0.5) page.Height = h;   // the others match page 1
+        }
     }
 
     /// <summary>Puts a page in a scroll viewer (no visible bar until needed) so a fixed height never cuts its content off.</summary>
