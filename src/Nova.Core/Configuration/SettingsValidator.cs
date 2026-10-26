@@ -1,3 +1,4 @@
+using Nova.Core.Reminders;
 using System.Globalization;
 
 namespace Nova.Core.Configuration;
@@ -48,12 +49,28 @@ public static class SettingsValidator
         s.SchemaVersion = d.SchemaVersion;
         s.Opacity = Clamp(s.Opacity, 0.7, 1.0, d.Opacity);
         s.ClockFontSize = Clamp(s.ClockFontSize, 12, 72, d.ClockFontSize);
-        s.IslandTopOffset = Clamp(s.IslandTopOffset, 0, 400, d.IslandTopOffset);
+        s.IslandTopOffset = Clamp(s.IslandTopOffset, 0, 4000, d.IslandTopOffset);
+        s.IslandOpacity = Clamp(s.IslandOpacity, 0.2, 1.0, d.IslandOpacity);
+        s.IslandOffsetX = Clamp(s.IslandOffsetX, -4000, 4000, d.IslandOffsetX);
         s.DockBottomOffset = Clamp(s.DockBottomOffset, 0, 400, d.DockBottomOffset);
         s.DockIconSize = Clamp(s.DockIconSize, 24, 96, d.DockIconSize);
         s.DockSpacing = Clamp(s.DockSpacing, 0, 32, d.DockSpacing);
         s.WindowCornerRadius = Clamp(s.WindowCornerRadius, 6, 40, d.WindowCornerRadius);
         s.DockMagnifyScale = Clamp(s.DockMagnifyScale, 1.0, 2.2, d.DockMagnifyScale);
+        s.IslandFaceClockSeconds = Math.Clamp(s.IslandFaceClockSeconds, 5, 300);
+        s.IslandFaceShowSeconds = Math.Clamp(s.IslandFaceShowSeconds, 3, 120);
+        s.HydrationIntervalMinutes = Math.Clamp(s.HydrationIntervalMinutes, 15, 240);
+        s.HydrationGoalGlasses = Math.Clamp(s.HydrationGoalGlasses, 1, 20);
+        s.HydrationFromHour = Math.Clamp(s.HydrationFromHour, 0, 23);
+        s.HydrationToHour = Math.Clamp(s.HydrationToHour, 0, 24);
+        s.PrayerLatitude = Clamp(s.PrayerLatitude, -65, 65, d.PrayerLatitude);
+        s.PrayerLongitude = Clamp(s.PrayerLongitude, -180, 180, d.PrayerLongitude);
+        s.PrayerCity = CleanText(s.PrayerCity, 40);
+        if (s.PrayerCity.Length == 0 || (s.PrayerCity != PrayerPlaces.Custom && PrayerPlaces.Find(s.PrayerCity) is null)) s.PrayerCity = d.PrayerCity;
+        s.PrayerSoundPath = CleanText(s.PrayerSoundPath, 260);
+        s.AlarmSoundPath = CleanText(s.AlarmSoundPath, 260);
+        if (!Enum.IsDefined(s.IslandFaceMode)) s.IslandFaceMode = d.IslandFaceMode;
+        if (!Enum.IsDefined(s.IslandFaceStyle)) s.IslandFaceStyle = d.IslandFaceStyle;
         s.ClipboardMaxItems = Math.Min(50, Math.Max(5, s.ClipboardMaxItems));
 
         if (!Enum.IsDefined(s.Theme)) s.Theme = d.Theme;
@@ -96,7 +113,7 @@ public static class SettingsValidator
             p.Name = name;
             p.Opacity = Clamp(p.Opacity, 0.7, 1.0, d.Opacity);
             p.ClockFontSize = Clamp(p.ClockFontSize, 12, 72, d.ClockFontSize);
-            p.IslandTopOffset = Clamp(p.IslandTopOffset, 0, 400, d.IslandTopOffset);
+            p.IslandTopOffset = Clamp(p.IslandTopOffset, 0, 4000, d.IslandTopOffset);
             p.DockBottomOffset = Clamp(p.DockBottomOffset, 0, 400, d.DockBottomOffset);
             p.DockIconSize = Clamp(p.DockIconSize, 24, 96, d.DockIconSize);
             p.DockSpacing = Clamp(p.DockSpacing, 0, 32, d.DockSpacing);

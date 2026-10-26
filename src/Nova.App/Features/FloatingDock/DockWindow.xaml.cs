@@ -22,6 +22,10 @@ public partial class DockWindow : Window
     readonly Action<NovaSettings> _persist;
     readonly Action<string, bool> _notify;
     readonly DispatcherTimer _hideTimer = new() { Interval = TimeSpan.FromMilliseconds(700) };
+    // Auto-hide does not rely on WPF mouse events (they miss a pointer that glides across the see-through part of this wide window):
+    // while auto-hide is on, the pointer's real position is checked a few times a second.
+    readonly DispatcherTimer _edgeTimer = new() { Interval = TimeSpan.FromMilliseconds(80) };
+    int _edgeTicks, _awayTicks;
     readonly RunningAppsService _running = new();
     readonly DispatcherTimer _runTimer = new() { Interval = TimeSpan.FromSeconds(2) };
     readonly DockReserveWindow _reserve = new();
@@ -41,9 +45,10 @@ public partial class DockWindow : Window
         OverlayChrome.Configure(this, opaque);
         _hideTimer.Tick += (_, _) => { _hideTimer.Stop(); TryHide(); };
         _runTimer.Tick += (_, _) => PollRunning();
+        _edgeTimer.Tick += (_, _) => PollEdge();
         _reserve.FullscreenChanged += SetFullscreen;
         _reserve.Repositioned += () => { if (!_placing) Reposition(); };
-        Closed += (_, _) => { _hideTimer.Stop(); _runTimer.Stop(); StopZoomLoop(); _reserve.Close(); };
+        Closed += (_, _) => { _hideTimer.Stop(); _runTimer.Stop(); _edgeTimer.Stop(); StopZoomLoop(); _reserve.Close(); };
         // The zoom follows the pointer over the dock; the loop also runs for a moment after it leaves, to shrink the icons back.
         Panel.MouseEnter += (_, _) => StartZoomLoop();
         Panel.MouseMove += OnPanelMouseMove;
@@ -101,6 +106,8 @@ public partial class DockWindow : Window
         ApplyGlass();
         if (!MagnifyOn) ResetZoom();
         Rebuild();
+        _edgeTicks = _awayTicks = 0;
+        if (RevealMode) _edgeTimer.Start(); else _edgeTimer.Stop();
         SetRevealed(!RevealMode);
         Reposition();
     }
@@ -162,8 +169,50 @@ public partial class DockWindow : Window
 
     void TryHide()
     {
-        if (!RevealMode || _modal || IsKeyboardFocusWithin || IsMouseOver) return;
+        if (!RevealMode || _modal || (IsKeyboardFocusWithin && IsActive) || IsMouseOver) return;
+        if (NativeMethods.TryGetCursor(out var cx, out var cy) && CursorNearDock(cx, cy)) return;
         SetRevealed(false);
+    }
+
+    /// <summary>True while the pointer (physical pixels) is on the dock, in the room above it that zoomed icons grow into, or just beside it.</summary>
+    bool CursorNearDock(int cx, int cy)
+    {
+        if (Panel.Visibility != Visibility.Visible || !Panel.IsLoaded) return false;
+        double dpi = VisualTreeHelper.GetDpi(this).DpiScaleX;
+        if (dpi <= 0) dpi = 1;
+        var topLeft = Panel.PointToScreen(new Point(0, 0));
+        double left = topLeft.X - 24 * dpi, right = topLeft.X + (Panel.ActualWidth + 24) * dpi;
+        double top = topLeft.Y - (Headroom + 12) * dpi;
+        double bottom = MonitorService.Resolve(_s.DockMonitor).Bounds.Bottom + 4;
+        return cx >= left && cx <= right && cy >= top && cy <= bottom;
+    }
+
+    /// <summary>
+    /// Auto-hide, driven by the pointer's real position: touching the bottom edge anywhere along the screen brings the dock up
+    /// (not while a mouse button is held, so dragging a window to the bottom does not pop it up); leaving it for about
+    /// two thirds of a second puts it away, unless a menu is open or the dock is being used from the keyboard.
+    /// </summary>
+    void PollEdge()
+    {
+        if (!RevealMode || !IsVisible || _fullscreen) { _edgeTicks = _awayTicks = 0; return; }
+        if (!NativeMethods.TryGetCursor(out var cx, out var cy)) return;
+
+        if (!_revealed)
+        {
+            _awayTicks = 0;
+            var bounds = MonitorService.Resolve(_s.DockMonitor).Bounds;
+            bool atEdge = cx >= bounds.Left && cx < bounds.Right && cy >= bounds.Bottom - 2 && cy <= bounds.Bottom;
+            if (atEdge && !NativeMethods.LeftButtonDown())
+            {
+                if (++_edgeTicks >= 2) { _edgeTicks = 0; _hideTimer.Stop(); SetRevealed(true); }
+            }
+            else _edgeTicks = 0;
+            return;
+        }
+
+        _edgeTicks = 0;
+        if (_modal || (IsKeyboardFocusWithin && IsActive) || CursorNearDock(cx, cy)) { _awayTicks = 0; return; }
+        if (++_awayTicks >= 8) { _awayTicks = 0; SetRevealed(false); }
     }
 
     static string AppsKey(IEnumerable<RunningApp> apps) => string.Join("|", apps.Select(a => a.Hwnd.ToInt64()));
@@ -238,8 +287,8 @@ public partial class DockWindow : Window
             var btn = BuildTile(item.Name, IconLoader.LoadSized(item.Path, 64), null, open is not null, icon, gap, open?.Hwnd ?? IntPtr.Zero, open?.ExePath ?? item.Path);
             AutomationProperties.SetName(btn, open is null ? $"Launch {item.Name}" : $"Switch to {item.Name}");
             AutomationProperties.SetHelpText(btn, "Alt plus Left or Right moves this shortcut. Delete removes it.");
-            btn.Click += (_, _) => { if (open is not null) ClickRunning(open.Hwnd, btn); else { Bounce(btn); Launch(item); } };
-            btn.ContextMenu = BuildAppMenu(item.Name, open?.ExePath ?? item.Path, open, item);
+            btn.Click += (_, _) => { if (open is not null) ClickRunning(open.Hwnd, btn, open.ExePath ?? item.Path, item); else { Bounce(btn); Launch(item); } };
+            btn.ContextMenu = BuildAppMenu(btn, item.Name, open?.ExePath ?? item.Path, open, item);
             btn.KeyDown += (_, e) => OnItemKeyDown(item, e);
             Items.Children.Add(btn);
         }
@@ -258,8 +307,8 @@ public partial class DockWindow : Window
             var btn = BuildTile(label, RunningIcon(app), null, true, icon, gap, app.Hwnd, app.ExePath);
             btn.ToolTip = title;
             AutomationProperties.SetName(btn, $"Switch to {title}");
-            btn.Click += (_, _) => ClickRunning(app.Hwnd, btn);
-            btn.ContextMenu = BuildAppMenu(label, app.ExePath, app, null);
+            btn.Click += (_, _) => ClickRunning(app.Hwnd, btn, app.ExePath, null);
+            btn.ContextMenu = BuildAppMenu(btn, label, app.ExePath, app, null);
             Items.Children.Add(btn);
         }
         MeasureRest();
@@ -339,35 +388,23 @@ public partial class DockWindow : Window
     static string Plain(string text) => text.Replace("_", "__");
 
     /// <summary>
-    /// Right-click on an app in the dock, laid out like the Windows taskbar: Quick access, the app itself (opens a new window),
-    /// Pin to dock / Unpin from dock, Close window, Exit program. Pinned apps also get Move left / right.
+    /// Right-click on an app in the dock, laid out like the Windows taskbar: for File Explorer the folders you open most,
+    /// then the app itself (opens a new window), Pin to dock / Unpin from dock, Close window, Exit program.
+    /// Pinned apps also get Move left / right.
     /// </summary>
     /// <param name="open">The running copy of the app, or null when it is only pinned and not open.</param>
     /// <param name="pinned">The dock shortcut, or null when the app is open but not pinned.</param>
-    ContextMenu BuildAppMenu(string label, string? exe, RunningApp? open, DockItem? pinned)
+    ContextMenu BuildAppMenu(Button owner, string label, string? exe, RunningApp? open, DockItem? pinned)
     {
         var menu = new ContextMenu();
 
-        // Quick access: folders, read only when the submenu is opened (not on every redraw of the dock).
-        var quick = new MenuItem { Header = "Quick access" };
-        quick.Items.Add(new MenuItem { Header = "Loading…", IsEnabled = false });
-        bool filled = false;
-        quick.SubmenuOpened += (_, _) =>
+        // File Explorer: the folders you open most, listed straight in the menu like the Windows taskbar's jump list.
+        // They are read just before the menu opens (not on every redraw of the dock), so they are always current.
+        if (IsExplorer(exe, label))
         {
-            if (filled) return;
-            filled = true;
-            quick.Items.Clear();
-            var folders = AppControl.QuickAccessFolders();
-            if (folders.Count == 0) quick.Items.Add(new MenuItem { Header = "No folders found", IsEnabled = false });
-            foreach (var (name, path) in folders)
-            {
-                var folder = new MenuItem { Header = Plain(name), ToolTip = path };
-                folder.Click += (_, _) => AppControl.OpenFolder(path);
-                quick.Items.Add(folder);
-            }
-        };
-        menu.Items.Add(quick);
-        menu.Items.Add(new Separator());
+            var inserted = new List<UIElement>();
+            owner.ContextMenuOpening += (_, _) => FillFrequentFolders(menu, inserted);
+        }
 
         // The app itself: a new window (or start it, when it is not open).
         if (exe is not null)
@@ -407,6 +444,33 @@ public partial class DockWindow : Window
         menu.Opened += (_, _) => _modal = true;
         menu.Closed += (_, _) => { _modal = false; if (RevealMode) _hideTimer.Start(); };
         return menu;
+    }
+
+    static bool IsExplorer(string? exe, string label)
+    {
+        var name = exe is null ? "" : System.IO.Path.GetFileNameWithoutExtension(exe);
+        return name.Equals("explorer", StringComparison.OrdinalIgnoreCase) || name.Equals("File Explorer", StringComparison.OrdinalIgnoreCase) ||
+               label.Equals("explorer", StringComparison.OrdinalIgnoreCase) || label.Equals("File Explorer", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>Puts a "Frequent" heading and the frequently used folders at the top of Explorer's menu (replacing what an earlier opening put there).</summary>
+    void FillFrequentFolders(ContextMenu menu, List<UIElement> inserted)
+    {
+        foreach (var old in inserted) menu.Items.Remove(old);
+        inserted.Clear();
+        int at = 0;
+        void Put(UIElement item) { menu.Items.Insert(at++, item); inserted.Add(item); }
+
+        Put(new MenuItem { Header = "Frequent", IsEnabled = false, FontWeight = FontWeights.SemiBold });
+        var folders = AppControl.QuickAccessFolders();
+        if (folders.Count == 0) Put(new MenuItem { Header = "No folders yet", IsEnabled = false });
+        foreach (var (name, path) in folders)
+        {
+            var folder = new MenuItem { Header = Plain(name), ToolTip = path };
+            folder.Click += (_, _) => AppControl.OpenFolder(path);
+            Put(folder);
+        }
+        Put(new Separator());
     }
 
     /// <summary>Asked only when a program did not close after "Exit program". Ending it loses unsaved work, so the default answer is No.</summary>
@@ -553,9 +617,32 @@ public partial class DockWindow : Window
 
     // ---- clicking an open app: open it, click again to put it away ----
 
-    void ClickRunning(IntPtr hwnd, Button tile)
+    /// <summary>The app's current window, found afresh (used when the one the tile remembers is gone).</summary>
+    IntPtr FindWindowOf(string? exe)
     {
-        if (!NativeMethods.IsWindow(hwnd)) return;
+        if (string.IsNullOrEmpty(exe)) return IntPtr.Zero;
+        var name = System.IO.Path.GetFileNameWithoutExtension(exe);
+        var hit = _running.Snapshot().FirstOrDefault(a => a.ExePath is { } p &&
+            (string.Equals(p, exe, StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(System.IO.Path.GetFileNameWithoutExtension(p), name, StringComparison.OrdinalIgnoreCase)));
+        return hit?.Hwnd ?? IntPtr.Zero;
+    }
+
+    /// <param name="exe">The program behind the tile, to find its window again if the remembered one has closed.</param>
+    /// <param name="pinned">The dock shortcut: if the program is not open any more, clicking starts it instead of doing nothing.</param>
+    void ClickRunning(IntPtr hwnd, Button tile, string? exe = null, DockItem? pinned = null)
+    {
+        if (!NativeMethods.IsWindow(hwnd))
+        {
+            // The dock is redrawn every 2 s, so a click can arrive for a window that has just closed or been replaced.
+            hwnd = FindWindowOf(exe);
+            if (hwnd == IntPtr.Zero)
+            {
+                if (pinned is not null) { Bounce(tile); Launch(pinned); }
+                Dispatcher.InvokeAsync(() => { _apps = _running.Snapshot(); _appsKey = AppsKey(_apps); Rebuild(); }, DispatcherPriority.Background);
+                return;
+            }
+        }
         if (_genie.Busy) return;
         var dpi = VisualTreeHelper.GetDpi(this).DpiScaleX;
         if (dpi <= 0) dpi = 1;

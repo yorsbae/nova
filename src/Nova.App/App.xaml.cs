@@ -116,6 +116,9 @@ public partial class App : Application
         {
             _island = new IslandWindow(_settings, opaque, ResetLayout, () => Shutdown(), () => _dock?.FocusFirst(), OpenSettings, OpenClipboard);
             _island.StatusProvider = _status.Sample;
+            var metrics = new SystemStatusService();   // its own readings, so it does not disturb the status line's CPU baseline
+            _island.MetricsProvider = metrics.SampleMetrics;
+            _island.SettingsEdited += () => Persist(_settings);   // a switch on the drink / prayer page was flipped
             _island.MediaPlayPause += () => _media?.TogglePlayPause();
             _island.MediaNext += () => _media?.Next();
             _island.MediaPrevious += () => _media?.Previous();
@@ -124,6 +127,20 @@ public partial class App : Application
                 var c = _settings.Clone();
                 c.LyricsEnabled = true;   // the user tapped "Aktifkan lirik": consent for artist + title to go to lrclib.net
                 ApplySettings(c, keepCurrentDock: true);
+            };
+            _island.EnableClipboardRequested = () =>
+            {
+                var c = _settings.Clone();
+                c.ClipboardHistoryEnabled = true;   // the user tapped "Aktifkan riwayat clipboard", which sits next to the privacy note
+                ApplySettings(c, keepCurrentDock: true);
+            };
+            _island.PositionChanged += (x, y) =>
+            {
+                // The Island has already moved itself; remember where it is (the same two numbers Settings shows).
+                _settings.IslandOffsetX = x;
+                _settings.IslandTopOffset = y;
+                Persist(_settings);
+                _topReserve?.Apply(_settings.IslandMonitor, NotchLayout.IslandStripDip(_settings.ClockFontSize, Math.Min(_settings.IslandTopOffset, 40)));
             };
             _island.EnsureVisibilityForMode();
         });
@@ -406,7 +423,7 @@ public partial class App : Application
                 _topReserve.Repositioned += () => _island?.BringToFront();
                 _topReserve.FullscreenChanged += full => { _island?.SetFullscreen(full); _dock?.SetFullscreen(full); };
             }
-            _topReserve.Apply(s.IslandMonitor, NotchLayout.IslandStripDip(s.ClockFontSize, s.IslandTopOffset));
+            _topReserve.Apply(s.IslandMonitor, NotchLayout.IslandStripDip(s.ClockFontSize, Math.Min(s.IslandTopOffset, 40)));   // a dragged-down Island must not squeeze the windows
         }
         else if (_topReserve is not null)
         {

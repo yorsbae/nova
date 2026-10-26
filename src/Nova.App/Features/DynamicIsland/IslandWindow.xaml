@@ -30,6 +30,9 @@
           <TextBlock x:Name="SubText" HorizontalAlignment="Left" TextAlignment="Left" FontSize="11" Opacity="0.6" Margin="0,1,0,0"
                      TextTrimming="CharacterEllipsis" Visibility="Collapsed" Foreground="{DynamicResource NovaOnSurface}"/>
         </StackPanel>
+        <!-- A small animated face that takes the clock's place for a few seconds (Settings: Island face) -->
+        <Border x:Name="FaceBox" Grid.Column="1" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center"
+                IsHitTestVisible="False" AutomationProperties.Name="Wajah Island"/>
         <Button x:Name="MiniPlay" Grid.Column="2" Style="{StaticResource NovaIconButton}" Width="30" Height="30" FontSize="14" Margin="8,0,0,0"
                 VerticalAlignment="Center" Visibility="Collapsed" Content="&#xE769;"
                 ToolTip="Putar / jeda" AutomationProperties.Name="Putar atau jeda" Click="OnPlayClick"/>
@@ -54,7 +57,7 @@
                    AutomationProperties.LiveSetting="Polite" AutomationProperties.Name="NOVA notice"/>
       </StackPanel>
 
-      <!-- Expanded content: 7 pages, one at a time -->
+      <!-- Expanded content: 10 pages, one at a time (the last three are built in IslandWindow.Extras.cs) -->
       <StackPanel x:Name="ExpandedPanel" Visibility="Collapsed" Width="380" Margin="0,6,0,0">
 
         <!-- Header: page counter on the left, the time on the right (as in the concept) -->
@@ -219,16 +222,54 @@
               </StackPanel>
             </Border>
             <StackPanel x:Name="NotesView" Margin="0,8,0,0">
-              <Grid>
-                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                <TextBox x:Name="NoteInput" Style="{StaticResource NovaInput}" Tag="Tulis catatan lalu tekan Enter…" MaxLength="300" AutomationProperties.Name="Catatan baru" KeyDown="OnNoteKey"/>
-                <Button x:Name="NoteAdd" Grid.Column="1" Style="{StaticResource NovaIconButton}" Margin="6,0,0,0" Width="32" Height="32" Content="&#xE710;" ToolTip="Tambah catatan" AutomationProperties.Name="Tambah catatan" Click="OnNoteAdd"/>
-              </Grid>
-              <StackPanel x:Name="NotesList" Margin="0,4,0,0"/>
+              <!-- The list: every note, scrollable; click one to read and edit it in full -->
+              <StackPanel x:Name="NotesListView">
+                <Grid>
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                  <TextBox x:Name="NoteInput" Style="{StaticResource NovaInput}" Tag="Tulis catatan lalu tekan Enter…" MaxLength="1000" AutomationProperties.Name="Catatan baru" KeyDown="OnNoteKey"/>
+                  <Button x:Name="NoteAdd" Grid.Column="1" Style="{StaticResource NovaIconButton}" Margin="6,0,0,0" Width="32" Height="32" Content="&#xE710;" ToolTip="Tambah catatan" AutomationProperties.Name="Tambah catatan" Click="OnNoteAdd"/>
+                </Grid>
+                <ScrollViewer MaxHeight="190" VerticalScrollBarVisibility="Auto" Focusable="False" Margin="0,4,0,0">
+                  <StackPanel x:Name="NotesList"/>
+                </ScrollViewer>
+              </StackPanel>
+              <!-- The detail: the whole note, editable -->
+              <StackPanel x:Name="NoteDetail" Visibility="Collapsed">
+                <Grid>
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                  <Button x:Name="NoteBack" Style="{StaticResource NovaIconButton}" Width="30" Height="30" Margin="0" Content="&#xE72B;"
+                          ToolTip="Kembali ke daftar" AutomationProperties.Name="Kembali ke daftar catatan" Click="OnNoteBack"/>
+                  <TextBlock x:Name="NoteStamp" Grid.Column="1" FontSize="12" Opacity="0.7" VerticalAlignment="Center" Margin="8,0,0,0"
+                             TextTrimming="CharacterEllipsis" Foreground="{DynamicResource NovaOnSurface}"/>
+                </Grid>
+                <Border CornerRadius="10" Background="{DynamicResource NovaSurfaceAlt}" Padding="8,6" Margin="0,6,0,0">
+                  <TextBox x:Name="NoteEdit" Background="Transparent" BorderThickness="0" Padding="0" FontSize="13"
+                           Foreground="{DynamicResource NovaOnSurface}" CaretBrush="{DynamicResource NovaOnSurface}" SelectionBrush="{DynamicResource NovaAccent}"
+                           AcceptsReturn="True" TextWrapping="Wrap" MinHeight="84" MaxHeight="150" VerticalScrollBarVisibility="Auto"
+                           MaxLength="1000" AutomationProperties.Name="Isi catatan" TextChanged="OnNoteEditChanged"/>
+                </Border>
+                <Grid Margin="0,6,0,0">
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                  <TextBlock x:Name="NoteCount" FontSize="11" Opacity="0.6" VerticalAlignment="Center" Foreground="{DynamicResource NovaOnSurface}"/>
+                  <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <Button Content="Salin" Style="{StaticResource NovaTab}" Click="OnNoteCopy" AutomationProperties.Name="Salin isi catatan"/>
+                    <Button x:Name="NoteSave" Content="Simpan" Style="{StaticResource NovaTab}" Click="OnNoteSave" AutomationProperties.Name="Simpan perubahan catatan"/>
+                    <Button Content="Hapus" Style="{StaticResource NovaTab}" Click="OnNoteDelete" AutomationProperties.Name="Hapus catatan ini"/>
+                  </StackPanel>
+                </Grid>
+              </StackPanel>
             </StackPanel>
             <StackPanel x:Name="ClipView" Margin="0,8,0,0" Visibility="Collapsed">
               <TextBlock x:Name="ClipHint" TextWrapping="Wrap" TextAlignment="Center" Opacity="0.7" FontSize="12" Foreground="{DynamicResource NovaOnSurface}"/>
-              <StackPanel x:Name="ClipList"/>
+              <Button x:Name="ClipEnableButton" Content="Aktifkan riwayat clipboard" Style="{StaticResource NovaTab}" Visibility="Collapsed"
+                      HorizontalAlignment="Center" Margin="0,6,0,0" Click="OnClipEnable"
+                      ToolTip="Teks, gambar, dan file yang disalin. Hanya di memori, tidak disimpan ke disk"
+                      AutomationProperties.Name="Aktifkan riwayat clipboard. Hanya di memori, tidak disimpan ke disk"/>
+              <ScrollViewer MaxHeight="200" VerticalScrollBarVisibility="Auto" Focusable="False">
+                <StackPanel x:Name="ClipList"/>
+              </ScrollViewer>
+              <Button x:Name="ClipClearButton" Content="Kosongkan riwayat" Style="{StaticResource NovaTab}" Visibility="Collapsed"
+                      HorizontalAlignment="Right" Margin="0,6,0,0" Click="OnClipClear" AutomationProperties.Name="Kosongkan riwayat clipboard"/>
             </StackPanel>
             <StackPanel x:Name="ShelfPage" Visibility="Collapsed" Margin="0,8,0,0">
               <Border x:Name="ShelfBox" MinHeight="88" CornerRadius="14" Padding="8" BorderThickness="1.5"
@@ -313,10 +354,12 @@
               </Border>
             </Grid>
             <Grid Margin="0,8,0,0">
-              <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="70"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-              <TextBox x:Name="EventInput" Style="{StaticResource NovaInput}" Tag="Acara baru" MaxLength="100" AutomationProperties.Name="Acara baru" KeyDown="OnEventKey"/>
-              <TextBox x:Name="EventTime" Grid.Column="1" Style="{StaticResource NovaInput}" Tag="14:30" MaxLength="5" Margin="6,0,0,0" ToolTip="Jam, misalnya 14:30" AutomationProperties.Name="Jam acara" KeyDown="OnEventKey"/>
-              <Button Grid.Column="2" Style="{StaticResource NovaIconButton}" Margin="6,0,0,0" Width="32" Height="32" Content="&#xE710;" ToolTip="Tambah acara" AutomationProperties.Name="Tambah acara" Click="OnEventAdd"/>
+              <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="70"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+              <Button x:Name="EventKind" Style="{StaticResource NovaTab}" Content="Acara" Margin="0,0,6,0" Click="OnEventKind"
+                      ToolTip="Ganti antara menambah acara dan menambah tugas untuk tanggal yang dipilih" AutomationProperties.Name="Jenis yang ditambah: acara"/>
+              <TextBox x:Name="EventInput" Grid.Column="1" Style="{StaticResource NovaInput}" Tag="Acara baru" MaxLength="100" AutomationProperties.Name="Judul baru" KeyDown="OnEventKey"/>
+              <TextBox x:Name="EventTime" Grid.Column="2" Style="{StaticResource NovaInput}" Tag="14:30" MaxLength="5" Margin="6,0,0,0" ToolTip="Jam, misalnya 14:30" AutomationProperties.Name="Jam" KeyDown="OnEventKey"/>
+              <Button Grid.Column="3" Style="{StaticResource NovaIconButton}" Margin="6,0,0,0" Width="32" Height="32" Content="&#xE710;" ToolTip="Tambah" AutomationProperties.Name="Tambah acara atau tugas" Click="OnEventAdd"/>
             </Grid>
           </StackPanel>
 
@@ -386,6 +429,8 @@
                   ToolTip="Fokus ke dock (keyboard)" AutomationProperties.Name="Move keyboard focus to the app dock" Click="OnDockClick"/>
           <Button x:Name="ClipboardButton" Style="{StaticResource NovaIconButton}" Width="30" Height="30" Content="&#xE77F;" Visibility="Collapsed"
                   ToolTip="Jendela clipboard" AutomationProperties.Name="Open clipboard history" Click="OnClipboardClick"/>
+          <Button x:Name="LockButton" Style="{StaticResource NovaIconButton}" Width="30" Height="30" Content="&#xE72E;"
+                  ToolTip="Kunci layar (Win+L)" AutomationProperties.Name="Lock the screen" Click="OnLockClick"/>
           <Button x:Name="SettingsButton" Style="{StaticResource NovaIconButton}" Width="30" Height="30" Content="&#xE713;"
                   ToolTip="Pengaturan NOVA" AutomationProperties.Name="Open NOVA settings" Click="OnSettingsClick"/>
           <Button x:Name="ResetButton" Style="{StaticResource NovaIconButton}" Width="30" Height="30" Content="&#xE777;"

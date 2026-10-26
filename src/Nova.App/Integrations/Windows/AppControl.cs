@@ -8,7 +8,7 @@ namespace Nova.App.Integrations.Windows;
 
 /// <summary>
 /// What the dock's right-click menu does to other programs, the way the Windows taskbar does it: close one window, exit a program
-/// (close all its windows politely, and offer to end it if it does not react), and a "Quick access" list of folders.
+/// (close all its windows politely, and offer to end it if it does not react), and the list of frequently used folders for Explorer.
 /// Nothing here kills a program without asking.
 /// </summary>
 public static class AppControl
@@ -79,35 +79,40 @@ public static class AppControl
     }
 
     /// <summary>
-    /// Folders for the "Quick access" submenu: the ones Explorer's own Quick access pins (read through the Windows shell),
-    /// otherwise the usual personal folders. Call it when the submenu opens, not while the dock is being built.
+    /// The folders you open most, for File Explorer's dock menu: first the ones Explorer's own Quick access shows (pinned, then frequent),
+    /// then Windows' "Frequent places" list, and only if both are empty the usual personal folders.
+    /// Call it when the menu is about to open, not while the dock is being built.
     /// </summary>
     public static IReadOnlyList<(string Name, string Path)> QuickAccessFolders()
     {
+        const int Max = 10;
         var result = new List<(string, string)>();
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         void Add(string? name, string? path)
         {
-            if (string.IsNullOrWhiteSpace(path) || !Directory.Exists(path) || !seen.Add(path)) return;
+            if (result.Count >= Max || string.IsNullOrWhiteSpace(path) || !Directory.Exists(path) || !seen.Add(path)) return;
             result.Add((string.IsNullOrWhiteSpace(name) ? (Path.GetFileName(path.TrimEnd('\\')) is { Length: > 0 } n ? n : path) : name, path));
         }
 
-        try
+        // Quick access, then Frequent places: both are read through the Windows shell.
+        foreach (var source in new[] { "shell:::{679f85cb-0220-4080-b29b-5540cc05aab6}", "shell:::{3936E9E4-D92C-4EEE-A85A-BC16D5EA0819}" })
         {
-            var type = Type.GetTypeFromProgID("Shell.Application");
-            if (type is not null)
+            if (result.Count >= Max) break;
+            try
             {
+                var type = Type.GetTypeFromProgID("Shell.Application");
+                if (type is null) break;
                 dynamic shell = Activator.CreateInstance(type)!;
-                dynamic folder = shell.NameSpace("shell:::{679f85cb-0220-4080-b29b-5540cc05aab6}");   // Quick access
-                if (folder is not null)
-                    foreach (dynamic item in folder.Items())
-                    {
-                        if (result.Count >= 12) break;
-                        try { Add((string)item.Name, (string)item.Path); } catch { /* an entry that is not a folder */ }
-                    }
+                dynamic folder = shell.NameSpace(source);
+                if (folder is null) continue;
+                foreach (dynamic item in folder.Items())
+                {
+                    if (result.Count >= Max) break;
+                    try { Add((string)item.Name, (string)item.Path); } catch { /* an entry that is not a folder */ }
+                }
             }
+            catch (Exception ex) { FileLog.Write($"Frequent folders read failed: {ex.GetType().Name}"); }
         }
-        catch (Exception ex) { FileLog.Write($"Quick access read failed: {ex.GetType().Name}"); }
 
         if (result.Count == 0)
         {

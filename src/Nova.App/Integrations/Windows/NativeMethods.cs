@@ -50,6 +50,19 @@ internal static class NativeMethods
 
     // ---- v2.3: foreground / minimize, window rectangles, PrintWindow, DWM attributes, shell hook ----
     [DllImport("user32.dll")] internal static extern IntPtr GetForegroundWindow();
+    [DllImport("user32.dll")] internal static extern bool BringWindowToTop(IntPtr hWnd);
+    [DllImport("user32.dll")] static extern bool AttachThreadInput(uint idAttach, uint idAttachTo, bool attach);
+    [DllImport("kernel32.dll")] static extern uint GetCurrentThreadId();
+    [DllImport("user32.dll")] static extern bool GetCursorPos(out POINT point);
+    [DllImport("user32.dll")] static extern short GetAsyncKeyState(int vKey);
+    [DllImport("user32.dll", SetLastError = true)] static extern bool LockWorkStation();
+
+    /// <summary>Locks the PC (the same as Win+L). False if Windows refused.</summary>
+    internal static bool Lock()
+    {
+        try { return LockWorkStation(); }
+        catch { return false; }
+    }
     [DllImport("user32.dll")] internal static extern IntPtr GetAncestor(IntPtr hWnd, uint flags);
     [DllImport("user32.dll")] internal static extern bool IsWindow(IntPtr hWnd);
     [DllImport("user32.dll")] internal static extern bool IsZoomed(IntPtr hWnd);
@@ -156,10 +169,53 @@ internal static class NativeMethods
         return GetClassLongPtr(h, -14 /* GCL_HICON */);
     }
 
+    /// <summary>The pointer in physical screen pixels.</summary>
+    internal static bool TryGetCursor(out int x, out int y)
+    {
+        if (GetCursorPos(out var p)) { x = p.X; y = p.Y; return true; }
+        x = y = 0;
+        return false;
+    }
+
+    /// <summary>True while the left mouse button is held (anywhere on screen).</summary>
+    internal static bool LeftButtonDown() => (GetAsyncKeyState(0x01 /* VK_LBUTTON */) & 0x8000) != 0;
+
+    /// <summary>
+    /// Brings another program's window to the front. The dock never takes focus itself (so it never steals typing), which means Windows
+    /// does not let NOVA call SetForegroundWindow directly: the call would only flash a taskbar button, and the taskbar is hidden.
+    /// So the input queue of the current foreground window is shared for a moment, which is the supported way around that rule.
+    /// </summary>
     internal static void Activate(IntPtr h)
     {
-        if (IsIconic(h)) ShowWindow(h, 9 /* SW_RESTORE */);
-        if (!SetForegroundWindow(h)) SwitchToThisWindow(h, true);
+        if (h == IntPtr.Zero || !IsWindow(h)) return;
+        if (IsIconic(h)) ShowWindow(h, SW_RESTORE);
+
+        uint me = GetCurrentThreadId();
+        var fg = GetForegroundWindow();
+        uint fgThread = fg == IntPtr.Zero ? 0 : GetWindowThreadProcessId(fg, out _);
+        uint target = GetWindowThreadProcessId(h, out _);
+        bool a1 = false, a2 = false;
+        try
+        {
+            if (fgThread != 0 && fgThread != me) a1 = AttachThreadInput(me, fgThread, true);
+            if (target != 0 && target != me && target != fgThread) a2 = AttachThreadInput(me, target, true);
+            BringWindowToTop(h);
+            if (!SetForegroundWindow(h)) SwitchToThisWindow(h, true);
+        }
+        finally
+        {
+            if (a1) AttachThreadInput(me, fgThread, false);
+            if (a2) AttachThreadInput(me, target, false);
+        }
+
+        // Still not in front (some apps refuse): a brief "topmost" flip raises it without changing its normal state.
+        if (GetForegroundWindow() != h && (GetExStyle(h) & 0x00000008 /* WS_EX_TOPMOST */) == 0)
+        {
+            const uint flags = SWP_NOMOVE | SWP_NOSIZE | 0x0040 /* SWP_SHOWWINDOW */;
+            SetWindowPos(h, HWND_TOPMOST, 0, 0, 0, 0, flags);
+            SetWindowPos(h, new IntPtr(-2) /* HWND_NOTOPMOST */, 0, 0, 0, 0, flags);
+            SetForegroundWindow(h);
+        }
     }
 
     [StructLayout(LayoutKind.Sequential)]

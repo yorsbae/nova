@@ -73,6 +73,8 @@ public partial class IslandWindow : Window
         {
             _clock.Stop(); _noticeTimer.Stop(); _statusTimer.Stop(); _posTimer.Stop();
             _hoverTimer.Stop(); _leaveTimer.Stop(); _zTimer.Stop();
+            _faceTimer.Stop(); _extraTimer.Stop(); _usageTimer.Stop();
+            AlertSound.Stop();
         };
         _statusTimer.Tick += (_, _) => UpdateStatus();
         _posTimer.Tick += (_, _) => TickPosition();
@@ -98,6 +100,12 @@ public partial class IslandWindow : Window
             _leaveTimer.Stop();
             if (_hoverOpened && _expanded && !_busy && !_dragOver && !Pill.IsMouseOver) Collapse();
         };
+        Pill.PreviewMouseLeftButtonDown += OnPillDragDown;
+        Pill.PreviewMouseMove += OnPillDragMove;
+        Pill.PreviewMouseLeftButtonUp += OnPillDragUp;
+        Pill.LostMouseCapture += (_, _) => { _winDragArmed = false; _winDragging = false; };
+        InitFace();
+        InitExtras();
         InitPages();
         ApplyCore(settings);
     }
@@ -119,8 +127,12 @@ public partial class IslandWindow : Window
         if (!s.ShelfEnabled) { _shelf.Clear(); RebuildShelf(); if (_sub == 2) _sub = 0; }
         if (!s.LyricsEnabled) { _lyrics = null; _lyricIndex = -2; }
         ApplyNotchLook();
+        ApplyFace();
         UpdateClock();
         RefreshExtras();
+        UpdateExtraTimer();
+        UpdateUsageTimer();
+        LockButton.Visibility = Visibility.Visible;
         Reposition();
     }
 
@@ -226,8 +238,8 @@ public void SetTimeline(NovaMediaTimeline? t)
         if (hasWeather) WeatherText.Text = _weather;
 
         ClipboardButton.Visibility = _s.ClipboardHistoryEnabled ? Visibility.Visible : Visibility.Collapsed;
-        if (!_s.ShowSystemStatus) { StatusText.Visibility = Visibility.Collapsed; _statusTimer.Stop(); }
-        else if (_expanded) StartStatus();
+        if (!_s.ShowSystemStatus) StatusText.Visibility = Visibility.Collapsed;
+        if (_expanded) StartStatus();
 
         SyncPosition();
         UpdatePosTimer();
@@ -338,6 +350,14 @@ public void SetTimeline(NovaMediaTimeline? t)
         TimeText.HorizontalAlignment = left ? HorizontalAlignment.Left : HorizontalAlignment.Center;
         TextCol.HorizontalAlignment = left ? HorizontalAlignment.Left : HorizontalAlignment.Center;
 
+        // Plain clock: the little face may take its place, or a one-line CPU / RAM reading may sit under it.
+        bool plain = pomo is null && !showLyric && !showTrack;
+        bool showFace = plain && !_expanded && _faceVisible && _s.IslandFaceMode != IslandFaceMode.ClockOnly;
+        ShowFace(showFace);
+        if (plain && !showFace && !_expanded && _s.IslandShowUsage && _usageText.Length > 0) sub = _usageText;
+        SubText.HorizontalAlignment = left ? HorizontalAlignment.Left : HorizontalAlignment.Center;
+        SubText.TextAlignment = left ? TextAlignment.Left : TextAlignment.Center;
+
         SubText.Text = sub ?? "";
         SubText.MaxWidth = 270;
         SubText.Visibility = string.IsNullOrWhiteSpace(sub) ? Visibility.Collapsed : Visibility.Visible;
@@ -347,6 +367,7 @@ public void SetTimeline(NovaMediaTimeline? t)
 
     void UpdateStatus()
     {
+        RefreshUsage();
         if (!_s.ShowSystemStatus || StatusProvider is null) { StatusText.Visibility = Visibility.Collapsed; return; }
         string text;
         try { text = StatusProvider(); } catch { text = ""; }
@@ -433,7 +454,9 @@ public void SetTimeline(NovaMediaTimeline? t)
         UpdateCompactText();
         if (ReducedMotion) ExpandedPanel.BeginAnimation(OpacityProperty, null);
         else ExpandedPanel.BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(180)));
-        if (_s.ShowSystemStatus) StartStatus();
+        StartStatus();
+        UpdateExtraTimer();
+        UpdateUsageTimer();
         SyncPosition();
         UpdatePosTimer();
         Morph(from);
@@ -455,6 +478,8 @@ public void SetTimeline(NovaMediaTimeline? t)
         ApplyCorners();
         UpdateNotchPadding();
         _statusTimer.Stop();                       // no background work while compact
+        UpdateExtraTimer();
+        UpdateUsageTimer();
         ExpandedPanel.Visibility = Visibility.Collapsed;
         CloseRadio(morph: false);
         UpdateCompactLayout();
@@ -719,21 +744,51 @@ public void SetTimeline(NovaMediaTimeline? t)
     void ApplyGlassLook()
     {
         bool highContrast = SystemParameters.HighContrast || _s.HighContrastOverride;
+        double k = highContrast ? 1 : Math.Clamp(_s.IslandOpacity, 0.2, 1.0);   // only the background fades; text and icons stay sharp
         if (NotchActive && !highContrast && (_expanded || !FlushNotch))
         {
             var fill = _expanded
                 ? new LinearGradientBrush(Color.FromRgb(0, 0, 0), Color.FromRgb(0x0B, 0x14, 0x24), 90)
                 : new LinearGradientBrush(Color.FromRgb(0x05, 0x08, 0x12), Color.FromRgb(0x0C, 0x16, 0x2C), 90);
             fill.Freeze();
-            Pill.Background = fill;
+            Pill.Background = Fade(fill, k);
             Pill.BorderThickness = FlushNotch ? new Thickness(1, 0, 1, 1) : new Thickness(1);
             Pill.BorderBrush = Frozen(Color.FromArgb(_expanded ? (byte)0x66 : (byte)0x55, 0x4C, 0x8D, 0xFF));
         }
         else
         {
-            Pill.SetResourceReference(Border.BackgroundProperty, "NovaSurface");
+            if (k < 0.999 && Pill.TryFindResource("NovaSurface") is Brush surface) Pill.Background = Fade(surface, k);
+            else Pill.SetResourceReference(Border.BackgroundProperty, "NovaSurface");
             Pill.SetResourceReference(Border.BorderBrushProperty, "NovaBorder");
             if (NotchActive) Pill.BorderThickness = new Thickness(0);
+        }
+    }
+
+    /// <summary>The same brush with its alpha multiplied by <paramref name="k"/> (1 = unchanged).</summary>
+    static Brush Fade(Brush b, double k)
+    {
+        if (k >= 0.999) return b;
+        switch (b)
+        {
+            case SolidColorBrush s:
+            {
+                var c = s.Color;
+                c.A = (byte)Math.Round(c.A * k);
+                return Frozen(c);
+            }
+            case GradientBrush g:
+            {
+                var clone = g.CloneCurrentValue();
+                foreach (var stop in clone.GradientStops)
+                {
+                    var c = stop.Color;
+                    c.A = (byte)Math.Round(c.A * k);
+                    stop.Color = c;
+                }
+                clone.Freeze();
+                return clone;
+            }
+            default: return b;
         }
     }
 
@@ -795,8 +850,10 @@ public void SetTimeline(NovaMediaTimeline? t)
         try
         {
             // Notch: flush with the very top of the monitor (on top of the bar). Otherwise: floating below the work-area top.
-            if (NotchActive) WindowPlacement.PlaceCentered(this, _s.IslandMonitor, PlacementEdge.TopFlush, FlushNotch ? 0 : _s.IslandTopOffset);
-            else WindowPlacement.PlaceCentered(this, _s.IslandMonitor, PlacementEdge.Top, _s.IslandTopOffset);
+            // The full-bar notch is always flush and centred; the floating Island sits where it was dragged to.
+            double ox = FlushNotch ? 0 : _s.IslandOffsetX;
+            if (NotchActive) WindowPlacement.PlaceCentered(this, _s.IslandMonitor, PlacementEdge.TopFlush, FlushNotch ? 0 : _s.IslandTopOffset, ox);
+            else WindowPlacement.PlaceCentered(this, _s.IslandMonitor, PlacementEdge.Top, _s.IslandTopOffset, ox);
         }
         finally { _placing = false; }
     }
@@ -828,6 +885,90 @@ public void SetTimeline(NovaMediaTimeline? t)
         return IntPtr.Zero;
     }
     void OnSizeChanged(object sender, SizeChangedEventArgs e) => Reposition();
+
+    // ---- dragging the floating Island to another spot ----
+
+    /// <summary>Raised once when a drag ends: the new sideways offset and distance from the top (device-independent pixels), for saving.</summary>
+    public event Action<double, double>? PositionChanged;
+
+    bool _winDragArmed, _winDragging;
+    int _dragCursorX, _dragCursorY, _dragWinX, _dragWinY;
+
+    static bool IsInteractive(DependencyObject? d, DependencyObject stop)
+    {
+        while (d is not null && !ReferenceEquals(d, stop))
+        {
+            if (d is System.Windows.Controls.Primitives.ButtonBase or System.Windows.Controls.Primitives.TextBoxBase
+                or System.Windows.Controls.Primitives.RangeBase or System.Windows.Controls.Primitives.ScrollBar
+                or System.Windows.Controls.Primitives.Selector or ScrollViewer) return true;
+            if (d is FrameworkElement { Cursor: var c } && ReferenceEquals(c, Cursors.Hand)) return true;   // clickable rows and shelf chips
+            d = (d is Visual or System.Windows.Media.Media3D.Visual3D) ? VisualTreeHelper.GetParent(d) : LogicalTreeHelper.GetParent(d);
+        }
+        return false;
+    }
+
+    void OnPillDragDown(object sender, MouseButtonEventArgs e)
+    {
+        _winDragArmed = false;
+        if (FlushNotch || _busy || _dragOver) return;   // the bar notch is part of the bar: it stays put
+        if (IsInteractive(e.OriginalSource as DependencyObject, Pill)) return;
+        var handle = new System.Windows.Interop.WindowInteropHelper(this).Handle;
+        if (handle == IntPtr.Zero || !NativeMethods.TryGetCursor(out _dragCursorX, out _dragCursorY) || !NativeMethods.GetWindowRect(handle, out var r)) return;
+        _dragWinX = r.Left; _dragWinY = r.Top;
+        _winDragArmed = true;
+    }
+
+    void OnPillDragMove(object sender, MouseEventArgs e)
+    {
+        if (!_winDragArmed) return;
+        if (e.LeftButton != MouseButtonState.Pressed) { EndPillDrag(save: _winDragging); return; }
+        if (!NativeMethods.TryGetCursor(out var cx, out var cy)) return;
+        int dx = cx - _dragCursorX, dy = cy - _dragCursorY;
+        if (!_winDragging)
+        {
+            if (Math.Abs(dx) < 8 && Math.Abs(dy) < 8) return;   // a small wobble is still a click
+            _winDragging = true;
+            _hoverTimer.Stop(); _leaveTimer.Stop();
+            Pill.CaptureMouse();
+        }
+
+        var handle = new System.Windows.Interop.WindowInteropHelper(this).Handle;
+        if (!NativeMethods.GetWindowRect(handle, out var r)) return;
+        int w = r.Right - r.Left, h = r.Bottom - r.Top;
+        var bounds = MonitorService.Resolve(_s.IslandMonitor).Bounds;   // stays on its own monitor
+        int x = Math.Clamp(_dragWinX + dx, bounds.Left, Math.Max(bounds.Left, bounds.Right - w));
+        int y = Math.Clamp(_dragWinY + dy, bounds.Top, Math.Max(bounds.Top, bounds.Bottom - h));
+        NativeMethods.SetWindowPos(handle, IntPtr.Zero, x, y, 0, 0, NativeMethods.SWP_NOSIZE | NativeMethods.SWP_NOZORDER | NativeMethods.SWP_NOACTIVATE);
+        StoreOffsets(x, y, w);
+        e.Handled = true;
+    }
+
+    void OnPillDragUp(object sender, MouseButtonEventArgs e)
+    {
+        bool moved = _winDragging;
+        EndPillDrag(save: moved);
+        if (moved) e.Handled = true;   // it was a drag, not a click: do not expand or collapse
+    }
+
+    void EndPillDrag(bool save)
+    {
+        _winDragArmed = false;
+        bool was = _winDragging;
+        _winDragging = false;
+        if (Pill.IsMouseCaptured) Pill.ReleaseMouseCapture();
+        if (save && was) PositionChanged?.Invoke(_s.IslandOffsetX, _s.IslandTopOffset);
+    }
+
+    /// <summary>Turns the window's pixel position into the settings' offsets (the inverse of <see cref="WindowPlacement.PlaceCentered"/>).</summary>
+    void StoreOffsets(int xPx, int yPx, int wPx)
+    {
+        var scr = MonitorService.Resolve(_s.IslandMonitor);
+        var wa = NotchActive ? scr.Bounds : scr.WorkingArea;
+        double dpi = VisualTreeHelper.GetDpi(this).DpiScaleX;
+        if (dpi <= 0) dpi = 1;
+        _s.IslandOffsetX = Math.Round((xPx - (wa.Left + (wa.Width - wPx) / 2)) / dpi);
+        _s.IslandTopOffset = Math.Max(0, Math.Round((yPx - wa.Top) / dpi));
+    }
 
     void OnPillEnter(object sender, MouseEventArgs e)
     {
@@ -871,6 +1012,11 @@ public void SetTimeline(NovaMediaTimeline? t)
     }
 
     void OnDockClick(object sender, RoutedEventArgs e) { Collapse(); _focusDock(); }
+    void OnLockClick(object sender, RoutedEventArgs e)
+    {
+        Collapse();
+        if (!NativeMethods.Lock()) FileLog.Write("Lock screen refused by Windows.");
+    }
     void OnClipboardClick(object sender, RoutedEventArgs e) { Collapse(); _openClipboard(); }
     void OnSettingsClick(object sender, RoutedEventArgs e) { Collapse(); _openSettings(); }
     void OnResetClick(object sender, RoutedEventArgs e) { Collapse(); _reset(); }

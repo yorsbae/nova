@@ -17,6 +17,37 @@ public sealed class PlanTask
     /// <summary>0 = normal, 1 = high.</summary>
     public int Priority { get; set; }
     public bool Done { get; set; }
+    /// <summary>The day this task is for (time of day ignored). Null = just "today's list", as before.</summary>
+    public DateTime? Due { get; set; }
+}
+
+/// <summary>An alarm: a time of day, optionally repeating on some weekdays (no days = rings once, then switches itself off).</summary>
+public sealed class AlarmItem
+{
+    /// <summary>"HH:mm".</summary>
+    public string Time { get; set; } = "06:00";
+    public string Label { get; set; } = "";
+    /// <summary>Bit 0 = Sunday ... bit 6 = Saturday. 0 = once.</summary>
+    public int Days { get; set; }
+    public bool Enabled { get; set; } = true;
+    /// <summary>The day this alarm last rang, so it rings once per day.</summary>
+    public DateTime? LastRang { get; set; }
+
+    public bool TryTime(out TimeSpan t)
+        => TimeSpan.TryParseExact(Time, "hh\\:mm", System.Globalization.CultureInfo.InvariantCulture, out t) && t < TimeSpan.FromDays(1);
+
+    public bool RepeatsOn(DayOfWeek d) => (Days & (1 << (int)d)) != 0;
+
+    /// <summary>"Sekali", "Setiap hari", "Sen-Jum" style summary for the list.</summary>
+    public string DaysText()
+    {
+        if (Days == 0) return "Sekali";
+        if (Days == 0x7F) return "Setiap hari";
+        if (Days == 0x3E) return "Senin–Jumat";
+        var names = new[] { "Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab" };
+        var order = new[] { 1, 2, 3, 4, 5, 6, 0 };
+        return string.Join(" ", order.Where(i => (Days & (1 << i)) != 0).Select(i => names[i]));
+    }
 }
 
 public sealed class CalendarEvent
@@ -31,11 +62,16 @@ public sealed class CalendarEvent
 /// <summary>Notes, plan and events. Local only: stored in one small JSON file, never sent anywhere.</summary>
 public sealed class UserData
 {
-    public const int MaxNotes = 50, MaxTasks = 50, MaxEvents = 300, MaxTextLength = 300;
+    public const int MaxNotes = 50, MaxTasks = 50, MaxEvents = 300, MaxTextLength = 300, MaxNoteLength = 1000;
 
     public List<NoteItem> Notes { get; set; } = new();
     public List<PlanTask> Tasks { get; set; } = new();
     public List<CalendarEvent> Events { get; set; } = new();
+    public List<AlarmItem> Alarms { get; set; } = new();
+    /// <summary>Glasses of water drunk per day, key "yyyy-MM-dd". Only the last 60 days are kept.</summary>
+    public Dictionary<string, int> Water { get; set; } = new();
+
+    public const int MaxAlarms = 20;
 
     public static string Clean(string? t, int max = MaxTextLength)
     {
@@ -46,9 +82,18 @@ public sealed class UserData
 
     public bool AddNote(string? text)
     {
-        var t = Clean(text);
+        var t = Clean(text, MaxNoteLength);
         if (t.Length == 0 || Notes.Count >= MaxNotes) return false;
         Notes.Insert(0, new NoteItem { Text = t });
+        return true;
+    }
+
+    /// <summary>Replaces the text of a note (from the detail view). An empty result is refused; use <c>Notes.Remove</c> to delete.</summary>
+    public bool UpdateNote(NoteItem? note, string? text)
+    {
+        var t = Clean(text, MaxNoteLength);
+        if (note is null || t.Length == 0 || !Notes.Contains(note)) return false;
+        note.Text = t;
         return true;
     }
 
@@ -69,8 +114,77 @@ public sealed class UserData
         return true;
     }
 
-    /// <summary>Done tasks / all tasks, as 0..1 (0 when there are none).</summary>
-    public double PlanProgress() => Tasks.Count == 0 ? 0 : (double)Tasks.Count(t => t.Done) / Tasks.Count;
+    public bool AddTask(string? title, string? time, DateTime due, int priority = 0)
+    {
+        if (!AddTask(title, time, priority)) return false;
+        Tasks[^1].Due = due.Date;
+        return true;
+    }
+
+    /// <summary>Tasks for one calendar day.</summary>
+    public IEnumerable<PlanTask> TasksOn(DateTime day) => Tasks.Where(t => t.Due?.Date == day.Date);
+
+    /// <summary>The "today" list: tasks without a date, tasks due today, and older tasks still not done.</summary>
+    public IEnumerable<PlanTask> TodayTasks(DateTime today)
+        => Tasks.Where(t => t.Due is null || t.Due.Value.Date == today.Date || (t.Due.Value.Date < today.Date && !t.Done));
+
+    /// <summary>Done tasks / today's tasks, as 0..1 (0 when there are none).</summary>
+    public double PlanProgress() => PlanProgress(DateTime.Today);
+
+    public double PlanProgress(DateTime today)
+    {
+        var list = TodayTasks(today).ToList();
+        return list.Count == 0 ? 0 : (double)list.Count(t => t.Done) / list.Count;
+    }
+
+    // ---- alarms ----
+
+    public bool AddAlarm(string? time, string? label, int days)
+    {
+        if (Alarms.Count >= MaxAlarms) return false;
+        if (!TimeSpan.TryParse((time ?? "").Trim(), System.Globalization.CultureInfo.InvariantCulture, out var t) || t < TimeSpan.Zero || t >= TimeSpan.FromDays(1)) return false;
+        var a = new AlarmItem { Time = $"{t.Hours:00}:{t.Minutes:00}", Label = Clean(label, 40), Days = days & 0x7F };
+        Alarms.Add(a);
+        Alarms.Sort((x, y) => string.CompareOrdinal(x.Time, y.Time));
+        return true;
+    }
+
+    /// <summary>
+    /// Alarms that should ring now: enabled, today is one of their days (or they are one-shot), their time has come (within the last
+    /// 2 minutes), and they have not rung today. Marks them as rung; one-shot alarms switch themselves off.
+    /// </summary>
+    public List<AlarmItem> TakeDueAlarms(DateTime now)
+    {
+        var due = new List<AlarmItem>();
+        foreach (var a in Alarms)
+        {
+            if (!a.Enabled || !a.TryTime(out var t)) continue;
+            if (a.Days != 0 && !a.RepeatsOn(now.DayOfWeek)) continue;
+            if (a.LastRang?.Date == now.Date) continue;
+            var at = now.Date + t;
+            if (now < at || now > at.AddMinutes(2)) continue;
+            a.LastRang = now.Date;
+            if (a.Days == 0) a.Enabled = false;
+            due.Add(a);
+        }
+        return due;
+    }
+
+    // ---- water ----
+
+    static string DayKey(DateTime d) => d.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
+
+    public int WaterOn(DateTime day) => Water.TryGetValue(DayKey(day), out var n) ? n : 0;
+
+    /// <summary>Adds (or, with a negative number, removes) glasses for a day; never below 0 or above 99. Returns the new count.</summary>
+    public int AddWater(DateTime day, int glasses)
+    {
+        var n = Math.Clamp(WaterOn(day) + glasses, 0, 99);
+        Water[DayKey(day)] = n;
+        if (Water.Count > 60)
+            foreach (var old in Water.Keys.OrderBy(k => k, StringComparer.Ordinal).Take(Water.Count - 60).ToList()) Water.Remove(old);
+        return n;
+    }
 
     public IEnumerable<CalendarEvent> EventsOn(DateTime day)
         => Events.Where(e => e.Start.Date == day.Date).OrderBy(e => e.Start);
@@ -94,11 +208,14 @@ public sealed class UserData
     /// <summary>Repairs data read from disk: drops empty items, trims text and enforces the limits.</summary>
     public UserData Normalize()
     {
-        Notes = (Notes ?? new()).Where(n => n is not null && Clean(n.Text).Length > 0)
-            .Select(n => { n.Text = Clean(n.Text); return n; }).Take(MaxNotes).ToList();
+        Notes = (Notes ?? new()).Where(n => n is not null && Clean(n.Text, MaxNoteLength).Length > 0)
+            .Select(n => { n.Text = Clean(n.Text, MaxNoteLength); return n; }).Take(MaxNotes).ToList();
         Tasks = (Tasks ?? new()).Where(t => t is not null && Clean(t.Title, 100).Length > 0)
             .Select(t => { t.Title = Clean(t.Title, 100); t.Time = Clean(t.Time, 20); t.Priority = t.Priority > 0 ? 1 : 0; return t; })
             .Take(MaxTasks).ToList();
+        Alarms = (Alarms ?? new()).Where(a => a is not null && a.TryTime(out _)).Select(a => { a.Label = Clean(a.Label, 40); a.Days &= 0x7F; return a; })
+            .OrderBy(a => a.Time, StringComparer.Ordinal).Take(MaxAlarms).ToList();
+        Water = (Water ?? new()).Where(kv => kv.Value >= 0).ToDictionary(kv => kv.Key, kv => Math.Min(99, kv.Value));
         Events = (Events ?? new()).Where(e => e is not null && Clean(e.Title, 100).Length > 0)
             .Select(e => { e.Title = Clean(e.Title, 100); e.ReminderMinutes = Math.Min(1440, Math.Max(0, e.ReminderMinutes)); return e; })
             .OrderBy(e => e.Start).Take(MaxEvents).ToList();

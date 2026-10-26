@@ -49,3 +49,30 @@ public static class StatusFormatter
         return string.Join("  ·  ", parts);
     }
 }
+
+/// <summary>One reading of the machine's load, for the indicators. Null = unknown (for example CPU on the very first reading).</summary>
+public sealed record SystemMetrics(double? Cpu, double? Memory, double? Disk, BatteryInfo? Battery, double DownBytesPerSecond, double UpBytesPerSecond);
+
+public static class RateFormatter
+{
+    /// <summary>"0 B/s", "850 KB/s", "1.2 MB/s": short enough for a small label.</summary>
+    public static string Format(double bytesPerSecond)
+    {
+        var c = CultureInfo.InvariantCulture;
+        if (double.IsNaN(bytesPerSecond) || bytesPerSecond < 1) return "0 B/s";
+        if (bytesPerSecond < 1024) return $"{bytesPerSecond.ToString("0", c)} B/s";
+        if (bytesPerSecond < 1024 * 1024) return $"{(bytesPerSecond / 1024).ToString("0", c)} KB/s";
+        if (bytesPerSecond < 1024.0 * 1024 * 1024) return $"{(bytesPerSecond / 1024 / 1024).ToString("0.0", c)} MB/s";
+        return $"{(bytesPerSecond / 1024 / 1024 / 1024).ToString("0.0", c)} GB/s";
+    }
+
+    /// <summary>Compact one-line reading for the Island: "CPU 12% · RAM 48%".</summary>
+    public static string Compact(double? cpu, double? memory)
+    {
+        var c = CultureInfo.InvariantCulture;
+        var parts = new List<string>();
+        if (cpu is not null) parts.Add($"CPU {cpu.Value.ToString("0", c)}%");
+        if (memory is not null) parts.Add($"RAM {memory.Value.ToString("0", c)}%");
+        return string.Join(" · ", parts);
+    }
+}

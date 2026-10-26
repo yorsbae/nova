@@ -2,6 +2,8 @@ using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
+using Nova.App.Integrations.Windows;
 using Nova.Core.Clipboard;
 
 namespace Nova.App.Features.ClipboardPanel;
@@ -12,7 +14,7 @@ public sealed class ClipboardWindow : Window
     readonly ClipboardHistory _history;
     readonly Action<string, bool> _notify;
     readonly StackPanel _list = new();
-    readonly TextBlock _empty = new() { Text = "Nothing copied yet this session.", Margin = new Thickness(0, 8, 0, 8), TextWrapping = TextWrapping.Wrap };
+    readonly TextBlock _empty = new() { Text = "Nothing copied yet this session. Copy some text, a picture or a file and it shows up here.", Margin = new Thickness(0, 8, 0, 8), TextWrapping = TextWrapping.Wrap };
 
     public ClipboardWindow(ClipboardHistory history, Action<string, bool> notify)
     {
@@ -25,7 +27,7 @@ public sealed class ClipboardWindow : Window
 
         var header = new TextBlock
         {
-            Text = "Clipboard history. Text only, kept in memory for this session. Choose an item to copy it again.",
+            Text = "Clipboard history. Text, pictures and copied files, kept in memory for this session only. Choose an item to copy it again.",
             TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 8)
         };
         header.SetResourceReference(TextBlock.ForegroundProperty, "NovaOnSurface");
@@ -49,26 +51,43 @@ public sealed class ClipboardWindow : Window
         _history.Changed += Rebuild;
         Closed += (_, _) => _history.Changed -= Rebuild;
         KeyDown += (_, e) => { if (e.Key == Key.Escape) Close(); };
-        Loaded += (_, _) => { Activate(); (_list.Children.OfType<Button>().FirstOrDefault() ?? buttons.Children.OfType<Button>().First()).Focus(); };
+        Loaded += (_, _) => { Activate(); (_list.Children.OfType<DockPanel>().SelectMany(d => d.Children.OfType<Button>()).FirstOrDefault() ?? buttons.Children.OfType<Button>().First()).Focus(); };
         Rebuild();
     }
 
     void Rebuild()
     {
         _list.Children.Clear();
-        if (_history.Items.Count == 0) { _list.Children.Add(_empty); return; }
-        foreach (var text in _history.Items.ToList())
+        if (_history.Entries.Count == 0) { _list.Children.Add(_empty); return; }
+        foreach (var entry in _history.Entries.ToList())
         {
-            var label = new TextBlock { Text = ClipboardHistory.Preview(text, 90), TextTrimming = TextTrimming.CharacterEllipsis, HorizontalAlignment = HorizontalAlignment.Left };
+            var label = new TextBlock { Text = ClipboardHistory.Describe(entry, 90), TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center };
             label.SetResourceReference(TextBlock.ForegroundProperty, "NovaOnSurface");
-            var b = new Button { Content = label, Margin = new Thickness(0, 0, 0, 6), HorizontalContentAlignment = HorizontalAlignment.Left };
-            AutomationProperties.SetName(b, "Copy again: " + ClipboardHistory.Preview(text, 60));
-            b.Click += (_, _) =>
+            object content = label;
+            if (entry.Kind == ClipKind.Image && ClipboardTools.Decode(entry.Png, 160) is { } thumb)
             {
-                try { System.Windows.Clipboard.SetText(text); Close(); }
-                catch { _notify("Couldn't copy that item; the clipboard is busy.", true); }
+                var pic = new Image { Source = thumb, Height = 44, MaxWidth = 90, Stretch = Stretch.Uniform, Margin = new Thickness(0, 0, 10, 0) };
+                var line = new StackPanel { Orientation = Orientation.Horizontal };
+                line.Children.Add(pic); line.Children.Add(label);
+                content = line;
+            }
+
+            var copy = new Button { Content = content, HorizontalContentAlignment = HorizontalAlignment.Left };
+            AutomationProperties.SetName(copy, "Copy again: " + ClipboardHistory.Describe(entry, 60));
+            copy.Click += (_, _) =>
+            {
+                if (ClipboardTools.Restore(entry)) Close();
+                else _notify("Couldn't copy that item; the clipboard is busy or the file is gone.", true);
             };
-            _list.Children.Add(b);
+            var remove = new Button { Content = "\u2715", Width = 30, Margin = new Thickness(6, 0, 0, 0) };
+            AutomationProperties.SetName(remove, "Remove from history: " + ClipboardHistory.Describe(entry, 40));
+            remove.Click += (_, _) => _history.Remove(entry);
+
+            var row = new DockPanel { Margin = new Thickness(0, 0, 0, 6), LastChildFill = true };
+            DockPanel.SetDock(remove, Dock.Right);
+            row.Children.Add(remove);
+            row.Children.Add(copy);
+            _list.Children.Add(row);
         }
     }
 }

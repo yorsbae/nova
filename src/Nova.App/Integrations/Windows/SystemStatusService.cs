@@ -9,6 +9,63 @@ public sealed class SystemStatusService
     readonly record struct Snapshot(ulong Idle, ulong Kernel, ulong User, DateTime At);
     Snapshot? _last;
 
+    // Network speed is the change in the adapters' byte counters between two readings.
+    (long Down, long Up, DateTime At)? _lastNet;
+    // The system drive's size cannot change quickly: read it at most every 30 s.
+    double? _disk; DateTime _diskAt = DateTime.MinValue;
+
+    /// <summary>CPU, memory, system drive, battery and network speed in one go. Cheap; call it every few seconds while it is being shown.</summary>
+    public SystemMetrics SampleMetrics()
+    {
+        double? cpu = null, mem = null;
+        BatteryInfo? battery = null;
+        var nowUtc = DateTime.UtcNow;
+
+        if (NativeMethods.GetSystemTimes(out var idle, out var kernel, out var user))
+        {
+            if (_last is { } l && (nowUtc - l.At).TotalSeconds < 10)
+                cpu = CpuUsage.Compute(l.Idle, l.Kernel, l.User, idle, kernel, user);
+            _last = new Snapshot(idle, kernel, user, nowUtc);
+        }
+
+        var m = new NativeMethods.MEMORYSTATUSEX { dwLength = (uint)Marshal.SizeOf<NativeMethods.MEMORYSTATUSEX>() };
+        if (NativeMethods.GlobalMemoryStatusEx(ref m)) mem = MemoryUsage.UsedPercent(m.ullTotalPhys, m.ullAvailPhys);
+        if (NativeMethods.GetSystemPowerStatus(out var p)) battery = BatteryInfo.From(p.ACLineStatus, p.BatteryFlag, p.BatteryLifePercent);
+
+        if ((nowUtc - _diskAt).TotalSeconds > 30)
+        {
+            _diskAt = nowUtc;
+            try
+            {
+                var drive = new System.IO.DriveInfo(System.IO.Path.GetPathRoot(Environment.SystemDirectory) ?? "C:\\");
+                _disk = drive.TotalSize > 0 ? Math.Round(100.0 * (drive.TotalSize - drive.AvailableFreeSpace) / drive.TotalSize, 0) : null;
+            }
+            catch { _disk = null; }
+        }
+
+        double down = 0, up = 0;
+        try
+        {
+            long rx = 0, tx = 0;
+            foreach (var nic in System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces())
+            {
+                if (nic.OperationalStatus != System.Net.NetworkInformation.OperationalStatus.Up ||
+                    nic.NetworkInterfaceType is System.Net.NetworkInformation.NetworkInterfaceType.Loopback or System.Net.NetworkInformation.NetworkInterfaceType.Tunnel) continue;
+                var s = nic.GetIPv4Statistics();
+                rx += s.BytesReceived; tx += s.BytesSent;
+            }
+            if (_lastNet is { } n && (nowUtc - n.At).TotalSeconds is > 0 and < 15 && rx >= n.Down && tx >= n.Up)
+            {
+                var secs = (nowUtc - n.At).TotalSeconds;
+                down = (rx - n.Down) / secs; up = (tx - n.Up) / secs;
+            }
+            _lastNet = (rx, tx, nowUtc);
+        }
+        catch { _lastNet = null; }
+
+        return new SystemMetrics(cpu, mem, _disk, battery, down, up);
+    }
+
     public string Sample()
     {
         double? cpu = null, mem = null;

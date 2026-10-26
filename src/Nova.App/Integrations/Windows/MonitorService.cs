@@ -66,7 +66,8 @@ public static class WindowPlacement
         }
     }
 
-    public static void PlaceCentered(Window w, string? monitor, PlacementEdge edge, double offsetDip)
+    /// <param name="offsetXDip">Sideways shift from the monitor's centre (the Island can be dragged). The window is kept on the monitor.</param>
+    public static void PlaceCentered(Window w, string? monitor, PlacementEdge edge, double offsetDip, double offsetXDip = 0)
     {
         var handle = new WindowInteropHelper(w).EnsureHandle();
         var screen = MonitorService.Resolve(monitor);
@@ -84,6 +85,7 @@ public static class WindowPlacement
             var dpi = VisualTreeHelper.GetDpi(w);
             int wPx = (int)Math.Round(wDip * dpi.DpiScaleX), hPx = (int)Math.Round(hDip * dpi.DpiScaleY);
             int x = wa.Left + (wa.Width - wPx) / 2;
+            if (offsetXDip != 0) x = Math.Clamp(x + (int)Math.Round(offsetXDip * dpi.DpiScaleX), wa.Left, Math.Max(wa.Left, wa.Right - wPx));
             int y = edge is PlacementEdge.Bottom or PlacementEdge.BottomFlush ? wa.Bottom - hPx : wa.Top + (int)Math.Round(offsetDip * dpi.DpiScaleY);
             NativeMethods.SetWindowPos(handle, IntPtr.Zero, x, y, 0, 0,
                 NativeMethods.SWP_NOSIZE | NativeMethods.SWP_NOZORDER | NativeMethods.SWP_NOACTIVATE);

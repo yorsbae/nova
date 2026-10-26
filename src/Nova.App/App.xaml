@@ -186,6 +186,7 @@
       <Setter Property="Minimum" Value="0"/>
       <Setter Property="Maximum" Value="1"/>
       <Setter Property="Focusable" Value="False"/>
+      <Setter Property="Foreground" Value="{DynamicResource NovaAccent}"/>
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="ProgressBar">
@@ -193,7 +194,7 @@
               <Border CornerRadius="2" Background="{DynamicResource NovaSurfaceAlt}"/>
               <Border x:Name="PART_Track">
                 <Border x:Name="PART_Indicator" HorizontalAlignment="Left" CornerRadius="2"
-                        Background="{DynamicResource NovaAccent}"/>
+                        Background="{TemplateBinding Foreground}"/>
               </Border>
             </Grid>
           </ControlTemplate>

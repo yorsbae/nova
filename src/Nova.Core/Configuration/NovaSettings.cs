@@ -5,6 +5,9 @@ public enum ClockFormat { H24, H12 }
 public enum IslandBehavior { AlwaysCompact, HiddenUntilInvoked, Adaptive }
 public enum DockVisibility { AlwaysVisible, RevealOnEdgeHover }
 public enum LayoutPreset { Minimal, Balanced, Custom }
+/// <summary>What the compact Island shows when nothing else (music, timer, alert) is using it.</summary>
+public enum IslandFaceMode { ClockOnly, Alternate, FaceOnly }
+public enum IslandFaceStyle { Pet, Robot, Anime, Cat, Sleepy, Emoticon }
 
 public sealed class DockItem
 {
@@ -47,6 +50,10 @@ public sealed class NovaSettings
 
     public IslandBehavior IslandBehavior { get; set; } = IslandBehavior.AlwaysCompact;
     public double IslandTopOffset { get; set; } = 10;
+    /// <summary>v2.5: how see-through the Island's glass is (0.2 = almost clear, 1 = solid). Only the background fades, never the text.</summary>
+    public double IslandOpacity { get; set; } = 1.0;
+    /// <summary>v2.5: sideways shift of the floating Island from the centre of its monitor, in device-independent pixels (set by dragging it).</summary>
+    public double IslandOffsetX { get; set; } = 0;
     public bool TemporaryNotices { get; set; } = false;
     /// <summary>Windows device name such as \\.\DISPLAY2. Empty = primary monitor.</summary>
     public string IslandMonitor { get; set; } = "";
@@ -74,7 +81,7 @@ public sealed class NovaSettings
     public double WeatherLongitude { get; set; } = double.NaN;
     public bool WeatherFahrenheit { get; set; } = false;
 
-    /// <summary>Opt-in. Text only, kept in memory only, never written to disk.</summary>
+    /// <summary>Opt-in. Text, images and copied files; kept in memory only, never written to disk.</summary>
     public bool ClipboardHistoryEnabled { get; set; } = false;
     public int ClipboardMaxItems { get; set; } = 20;
 
@@ -138,6 +145,35 @@ public sealed class NovaSettings
     public bool RoundAppWindows { get; set; } = true;
     /// <summary>Corner radius of those windows in device-independent pixels.</summary>
     public double WindowCornerRadius { get; set; } = 20;
+
+    // --- v2.6: face, reminders, alarms, usage ---
+    /// <summary>Clock only, clock and a little animated face taking turns, or the face only.</summary>
+    public IslandFaceMode IslandFaceMode { get; set; } = IslandFaceMode.Alternate;
+    public IslandFaceStyle IslandFaceStyle { get; set; } = IslandFaceStyle.Pet;
+    /// <summary>In Alternate mode: seconds the clock stays, then seconds the face stays.</summary>
+    public int IslandFaceClockSeconds { get; set; } = 20;
+    public int IslandFaceShowSeconds { get; set; } = 8;
+    /// <summary>A small "CPU 12% · RAM 48%" line under the clock in the compact Island (checked every 3 s while it is shown).</summary>
+    public bool IslandShowUsage { get; set; } = false;
+
+    /// <summary>Drink reminder: a notice every <see cref="HydrationIntervalMinutes"/> between the two hours.</summary>
+    public bool HydrationEnabled { get; set; } = false;
+    public int HydrationIntervalMinutes { get; set; } = 60;
+    public int HydrationGoalGlasses { get; set; } = 8;
+    public int HydrationFromHour { get; set; } = 7;
+    public int HydrationToHour { get; set; } = 22;
+
+    /// <summary>Adzan notice (and sound) at each prayer time. The timetable page is always available.</summary>
+    public bool PrayerNotify { get; set; } = false;
+    /// <summary>A name from the built-in list, or "Custom" to use the coordinates below.</summary>
+    public string PrayerCity { get; set; } = "Jakarta";
+    public double PrayerLatitude { get; set; } = -6.2088;
+    public double PrayerLongitude { get; set; } = 106.8456;
+    public bool PrayerSound { get; set; } = true;
+    /// <summary>Optional sound file (wav/mp3) for the adzan; empty = a short system sound.</summary>
+    public string PrayerSoundPath { get; set; } = "";
+    /// <summary>Optional sound file for alarms; empty = a system sound.</summary>
+    public string AlarmSoundPath { get; set; } = "";
 
     public bool ReducedMotion { get; set; } = false;
     public bool HighContrastOverride { get; set; } = false;

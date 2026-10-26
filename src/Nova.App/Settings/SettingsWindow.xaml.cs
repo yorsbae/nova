@@ -7,6 +7,7 @@ using System.Windows.Data;
 using Microsoft.Win32;
 using Nova.App.Integrations.Windows;
 using Nova.Core.Configuration;
+using Nova.Core.Reminders;
 
 namespace Nova.App.Settings;
 
@@ -66,7 +67,17 @@ public partial class SettingsWindow : Window
         Header("Island");
         AddCombo<IslandBehavior>("Island behavior", nameof(NovaSettings.IslandBehavior));
         AddMonitor("Island monitor", nameof(NovaSettings.IslandMonitor));
-        AddSlider("Distance from top of screen (Island-only mode and classic floating mode; the full-bar notch is always flush)", nameof(NovaSettings.IslandTopOffset), 0, 200, 1, "0");
+        AddSlider("Island transparency: how much of the windows behind it shows through (100% = solid, only the background fades)", nameof(NovaSettings.IslandOpacity), 0.2, 1.0, 0.05, "P0");
+        AddSlider("Distance from top of screen (Island-only mode and classic floating mode; you can also drag the Island with the mouse)", nameof(NovaSettings.IslandTopOffset), 0, 2200, 1, "0");
+        AddSlider("Sideways shift from the centre (negative = left, positive = right)", nameof(NovaSettings.IslandOffsetX), -2500, 2500, 1, "0");
+        var resetIsland = SmallButton("Put the Island back at the top centre", "Reset the Island's position to the top centre of the screen");
+        resetIsland.Click += (_, _) => { _work.IslandOffsetX = 0; _work.IslandTopOffset = new NovaSettings().IslandTopOffset; Refresh(); Status("Island position reset in the form. Press Apply to use it."); };
+        Form.Children.Add(resetIsland);
+        AddCombo<IslandFaceMode>("Compact Island: clock only, clock and a little face taking turns, or the face only", nameof(NovaSettings.IslandFaceMode));
+        AddCombo<IslandFaceStyle>("Face style: Pet, Robot, Anime, Cat, Sleepy or Emoticon", nameof(NovaSettings.IslandFaceStyle));
+        AddSlider("Seconds the clock stays before the face shows (clock-and-face mode)", nameof(NovaSettings.IslandFaceClockSeconds), 5, 120, 1, "0");
+        AddSlider("Seconds the face stays before the clock returns", nameof(NovaSettings.IslandFaceShowSeconds), 3, 60, 1, "0");
+        AddCheck("Show CPU and RAM use under the clock in the compact Island (read every 3 seconds while it is shown)", nameof(NovaSettings.IslandShowUsage));
         AddCheck("Live activities: show volume changes, charger, low battery and Bluetooth / Wi-Fi connecting on the Island", nameof(NovaSettings.ActivityAlerts));
         AddCheck("Eco mode: lower priority, Windows efficiency mode and memory trimming when idle (lightest on RAM and CPU)", nameof(NovaSettings.EcoMode));
         AddCheck("Expand the Island when the pointer rests on it, and fold it again when the pointer leaves", nameof(NovaSettings.IslandHoverExpand));
@@ -89,6 +100,27 @@ public partial class SettingsWindow : Window
         AddCheck("Media controls for the app that is playing", nameof(NovaSettings.ShowMedia));
         AddCheck("System status: CPU, memory, battery (updates only while expanded)", nameof(NovaSettings.ShowSystemStatus));
 
+        Header("Drink reminder (Island page 8)");
+        AddCheck("Remind me to drink water with a notice on the Island", nameof(NovaSettings.HydrationEnabled));
+        AddSlider("Minutes between reminders", nameof(NovaSettings.HydrationIntervalMinutes), 15, 240, 5, "0");
+        AddSlider("Daily goal (glasses)", nameof(NovaSettings.HydrationGoalGlasses), 1, 20, 1, "0");
+        AddSlider("Remind from (hour)", nameof(NovaSettings.HydrationFromHour), 0, 23, 1, "0");
+        AddSlider("Remind until (hour)", nameof(NovaSettings.HydrationToHour), 0, 24, 1, "0");
+
+        Header("Prayer times and adzan (Island page 9, worked out on this PC, no internet)");
+        AddCheck("Show a notice (and play a sound) at each prayer time", nameof(NovaSettings.PrayerNotify));
+        AddCheck("Play a sound with the adzan notice", nameof(NovaSettings.PrayerSound));
+        var city = new ComboBox { ItemsSource = PrayerPlaces.All.Select(p => p.Name).Append(PrayerPlaces.Custom).ToList(), MinWidth = 200 };
+        city.SetBinding(Selector.SelectedItemProperty, new Binding(nameof(NovaSettings.PrayerCity)) { Mode = BindingMode.TwoWay });
+        AutomationProperties.SetName(city, "Prayer times city");
+        Row("City (times follow the Kemenag method: Fajr 20°, Isha 18°)", city);
+        AddSlider("Latitude when City is Custom (negative = south)", nameof(NovaSettings.PrayerLatitude), -65, 65, 0.01, "0.00");
+        AddSlider("Longitude when City is Custom (negative = west)", nameof(NovaSettings.PrayerLongitude), -180, 180, 0.01, "0.00");
+        AddText("Adzan sound file (wav or mp3, empty = system sound)", nameof(NovaSettings.PrayerSoundPath));
+
+        Header("Alarms (Island page 10)");
+        AddText("Alarm sound file (wav or mp3, empty = system sound)", nameof(NovaSettings.AlarmSoundPath));
+
         Header("Lyrics (optional, uses the internet)");
         AddCheck("Show synced lyrics. Sends the artist and song title (and length) of what is playing to lrclib.net", nameof(NovaSettings.LyricsEnabled));
 
@@ -98,7 +130,7 @@ public partial class SettingsWindow : Window
         AddCheck("Use Fahrenheit", nameof(NovaSettings.WeatherFahrenheit));
 
         Header("Clipboard history (optional, private)");
-        AddCheck("Keep clipboard history. Text only, memory only, never saved to disk", nameof(NovaSettings.ClipboardHistoryEnabled));
+        AddCheck("Keep clipboard history. Text, pictures and copied files; memory only, never saved to disk", nameof(NovaSettings.ClipboardHistoryEnabled));
         AddSlider("Items to keep", nameof(NovaSettings.ClipboardMaxItems), 5, 50, 1, "0");
 
         Header("Motion and startup");
@@ -294,7 +326,7 @@ public partial class SettingsWindow : Window
         }
         if (_work.ClipboardHistoryEnabled && !_liveClipboard)
         {
-            if (!Confirm("Clipboard history will remember text you copy, in memory only, until you turn it off, clear it, or exit NOVA. It skips items that password managers mark as private. Anything you copy while it is on can appear in the list.\n\nTurn on clipboard history?"))
+            if (!Confirm("Clipboard history will remember the text, pictures and files you copy, in memory only, until you turn it off, clear it, or exit NOVA. It skips items that password managers mark as private. Anything you copy while it is on can appear in the list.\n\nTurn on clipboard history?"))
             { _work.ClipboardHistoryEnabled = false; Refresh(); }
         }
 

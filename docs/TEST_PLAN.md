@@ -120,3 +120,21 @@ Settings → "Use opaque windows" → restart NOVA → Island and dock are solid
 6. Auto-hide taskbar (dock replacement off): taskbar hides; switch off or exit and the original state returns. The taskbar is NOT hidden outright.
 7. Dock right-click on a running app: Quick access folders open in Explorer; Pin/Unpin; Close window; Exit program (try an app with unsaved work: it asks to save, then after 5 s NOVA asks before ending it). Right-click Start: Win+X menu. Right-click empty dock: Add app…, Task Manager.
 
+## T. v2.5 changes
+1. Settings → Island → *Island transparency* to 40%: the Island's background lets a window behind it show through, its text stays sharp; 100% = solid as before.
+2. Drag the compact Island (press on the clock, not on a button) to another place: it follows the pointer, stays on its monitor, and does not expand on release. Restart NOVA: it is where you left it. *Put the Island back at the top centre* + Apply: back to default. The full-bar notch (Settings → full top bar) cannot be dragged.
+3. Dock: click an open app (also one that has two windows, and one you just closed): it comes to the front every time; a pinned app that is no longer open starts. Try clicking right after switching windows with Alt+Tab.
+4. Right-click *File Explorer* in the dock: a *Frequent* heading and your frequent folders appear at the top; clicking one opens it. Folders you opened recently show up the next time.
+5. Auto-hide on: the dock slides away; moving the pointer to the bottom edge (left, middle and right part of the screen) brings it back within a moment; holding a mouse button (dragging a window) at the bottom does not; it hides again ~0.7 s after the pointer leaves, but not while its right-click menu is open.
+6. Island → *Catatan & Clipboard* → Catatan: add a long note (several lines); click it: the full text opens; edit + *Simpan*, *Salin*, *Hapus*, and the back arrow (keeps what you typed). The list scrolls with many notes.
+7. Clipboard (Settings: on, or the *Aktifkan riwayat clipboard* button on the Island): copy text, a screenshot (Win+Shift+S) or "Copy image" in a browser, and files in Explorer: each appears (thumbnail for pictures), clicking one puts it back on the clipboard (paste it to check), ✕ removes one, *Kosongkan riwayat* clears all. Copy from a password manager: not recorded. Turn history off: everything is wiped.
+
+## U. v2.6 changes
+1. Settings → Island: *clock and face* (20 s / 8 s): the face replaces the clock for a few seconds, blinks and looks sideways; try each of the six styles; *face only*; *clock only* returns to the old look. The Island does not change size when the face appears. During music/timer/notice the clock text logic is unchanged.
+2. Page 8 *Minum Air*: +1 / −1 change the count and drops; turn the reminder on, pick 30 min: a "💧 Waktunya minum" notice appears at the right time (test with a short interval); +1 postpones the next one; nothing outside the hours set.
+3. Page 9 *Waktu Sholat*: times for your city look right against a local timetable (±3 min); the next prayer is highlighted with a countdown; *Adzan: Aktif* shows a notice and plays a sound at the time; clicking the notice stops the sound; a custom wav/mp3 in Settings plays.
+4. Page 10 *Alarm*: add 06:30 with days Sen–Jum; add a one-shot a minute ahead: it rings (sound + notice), the tick turns off; clicking the notice silences it; the tick toggles an alarm; delete works; after restart alarms are still there.
+5. Calendar page: switch *Acara* → *Tugas*, add a task on a future day: the day gets a dot, its agenda shows the task with a check box; today's plan page does not show future tasks.
+6. *Sistem & Alat*: bars for CPU, RAM, disk, battery and network speed move every 2 s; a bar turns red above 85% (battery below 20%). Settings → *Show CPU and RAM use under the clock*: the compact Island shows the line.
+7. The lock button in the Island's button row locks the PC.
+

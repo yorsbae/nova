@@ -1,6 +1,6 @@
 # NOVA
 
-A lightweight Windows desktop companion with a **Mac-style notch**: a bar docked to the top edge of the screen (Windows keeps your windows *below* it, it does not float over them) with the Island attached in the middle like a notch, plus an adaptive **Island** (clock, media controls, system status, optional weather), a configurable **floating dock** of app shortcuts, optional private clipboard history, layout profiles, multi-monitor placement, and accessibility-first settings. It does **not** replace Explorer or the Windows shell. See [`docs/VISION.md`](docs/VISION.md). Project status: [`docs/PROGRESS.md`](docs/PROGRESS.md). Limitations: [`docs/LIMITATIONS.md`](docs/LIMITATIONS.md).
+A lightweight Windows desktop companion with a **Mac-style notch**: a bar docked to the top edge of the screen (Windows keeps your windows *below* it, it does not float over them) with the Island attached in the middle like a notch, plus an adaptive **Island** (clock, media controls, system status, optional weather), a configurable **floating dock** of app shortcuts, optional private clipboard history (text, pictures, files), layout profiles, multi-monitor placement, and accessibility-first settings. It does **not** replace Explorer or the Windows shell. See [`docs/VISION.md`](docs/VISION.md). Project status: [`docs/PROGRESS.md`](docs/PROGRESS.md). Limitations: [`docs/LIMITATIONS.md`](docs/LIMITATIONS.md).
 
 ## Requirements
 - Windows 10 version 2004 (build 19041) or later, or Windows 11, x64 (declared target; verify with `docs/TEST_PLAN.md`)
@@ -31,13 +31,28 @@ Package (portable zip + Inno Setup installer): `.\build\publish.ps1` (add `-Self
 
 On exit NOVA gives the screen space back, and puts the taskbar (and the Windows theme, if you used it) back exactly as it found them. If NOVA was force-killed and the taskbar stays hidden: start NOVA again and exit normally. Or press `Ctrl+Shift+Esc` → Task Manager → *Windows Explorer* → *Restart*, which brings the taskbar back immediately.
 
+## New in v2.6
+- **A face for the Island.** When nothing else is using the compact Island, the clock and a small animated face take turns (Settings → Island: *clock only*, *clock and face*, or *face only*). Six styles: Pet, Robot, Anime, Cat, Sleepy, Emoticon; they blink and look around (still when reduced motion is on). You choose how many seconds each stays.
+- **Three new Island pages (10 in all):** **Minum Air** (glass counter, goal, a notice every 15–240 minutes between two hours), **Waktu Sholat** (the five prayers and sunrise worked out on the PC without internet, Kemenag method, 25 Indonesian cities or your own coordinates, optional adzan notice and sound) and **Alarm** (one-shot or repeating on chosen weekdays, own sound file optional; click the notice to silence it).
+- **Tasks on the calendar.** On the calendar page the add button switches between *Acara* and *Tugas*; tasks for a day show in that day's agenda (with check and delete) and mark the day. Today's plan list shows undated tasks, today's, and unfinished older ones.
+- **CPU, RAM and more.** The *Sistem & Alat* page starts with bars for CPU, RAM, disk and battery (red when high / low) and the network speed. Optional: a small "CPU 12% · RAM 48%" line under the clock in the compact Island.
+- **Lock screen button** in the Island's button row (same as Win+L).
+
+## New in v2.5
+- **Island: transparency and position.** Settings → Island → *Island transparency* fades only the glass background (text stays sharp), so what is behind the Island shows through. **Drag the Island** with the mouse (press on an empty part of it and move) to put it anywhere on its monitor; it remembers the spot (*Put the Island back at the top centre* in Settings resets it). The full-bar notch stays fixed on the bar.
+- **Opening apps from the dock is reliable.** NOVA now brings the window forward the way Windows allows a background program to (before, Windows could refuse and, with the taskbar hidden, nothing visible happened). If the remembered window has just closed, NOVA finds the app's current window, or starts the pinned app again.
+- **Frequent folders.** Right-click File Explorer in the dock: the folders you open most are listed directly in the menu (under *Frequent*), no "Quick access" submenu.
+- **Auto-hide follows the pointer.** Touch the bottom edge anywhere along the screen to bring the dock up; it goes away about 0.7 s after the pointer leaves, and never while a menu is open.
+- **Notes: detail view.** Click a note in *Catatan & Clipboard* to read all of it, edit it, copy it or delete it (notes can now be up to 1000 characters; the list scrolls).
+- **Clipboard history works with pictures and files** (text, screenshots / "Copy image", files copied in Explorer), shows a thumbnail, can delete single items, and can be switched on straight from the Island with one tap. Memory only, never saved to disk.
+
 ## New in v2.4
 - **One music page.** The duplicate "Sedang Diputar" page is gone; the Island now has **7 pages**, and *Musik* (page 2) is the only music page (it also holds the *Aktifkan lirik* button).
 - **Lyrics fit the Island.** The compact Island shows the current lyric line and **wraps it onto up to 3 lines** when it is long; the Island grows wider/taller with the text (smoothly) and shrinks again on the next short line. Under the lyric, a small line shows *title · artist*. Without lyrics it shows the title with the artist underneath, plus a play/pause button and the equalizer, as in the concept.
 - **New place and look.** The Island floats at the top centre, a little away from the edge (10 px), as a dark-navy glass capsule with a soft blue edge. It **floats over the windows**: no strip is kept free for it any more (*ReserveTopSpace* now defaults to off; it is still a setting).
 - **Rounded-square app windows.** The programs you open get large rounded corners (radius 6–40, default 20) through the Windows window-region API. Reversible. See `docs/LIMITATIONS.md` for what it cannot do (no anti-aliasing, maximized windows are left alone).
 - **Auto-hide.** Settings → Dock → *Auto-hide the dock*. If you keep the Windows taskbar (dock does not replace it): Settings → Mac style → *Auto-hide the Windows taskbar* (original state restored on exit).
-- **Right-click like Windows.** On an app in the dock: **Quick access** (folders) · the app (new window) · **Pin to dock / Unpin from dock** · **Close window** · **Exit program** (closes all its windows; if it does not close within 5 s NOVA asks before ending it). On the Start button: Windows' Win+X menu. On an empty part of the dock: *Add app…*, *Task Manager*.
+- **Right-click like Windows.** On an app in the dock: for **File Explorer** the folders you open most (listed straight in the menu) · the app (new window) · **Pin to dock / Unpin from dock** · **Close window** · **Exit program** (closes all its windows; if it does not close within 5 s NOVA asks before ending it). On the Start button: Windows' Win+X menu. On an empty part of the dock: *Add app…*, *Task Manager*.
 
 ## New in v2.3 (default look)
 - **Only the Island at the top**: floating, centred, shows day · date · time; shows lyrics while music plays, and chat alerts (WhatsApp...) / volume / battery / Wi-Fi activity as it changes size. The old full bar is a setting.
@@ -67,7 +82,7 @@ On exit NOVA gives the screen space back, and puts the taskbar (and the Windows 
 | Reset layout | Island → **Reset layout**, or tray → **Reset layout** |
 | Exit | Island → **Exit NOVA**, or tray → **Exit NOVA** |
 
-Settings live in `%LocalAppData%\NOVA\settings.json`; logs (local only, no content) in `%LocalAppData%\NOVA\nova.log`. No telemetry. The only network feature is weather, which is **off by default**, asks for consent, and sends just your city name (once) and its coordinates to open-meteo.com. Clipboard history is **off by default**, text-only, memory-only.
+Settings live in `%LocalAppData%\NOVA\settings.json`; logs (local only, no content) in `%LocalAppData%\NOVA\nova.log`. No telemetry. The only network feature is weather, which is **off by default**, asks for consent, and sends just your city name (once) and its coordinates to open-meteo.com. Clipboard history is **off by default** (text, pictures and copied files), memory-only.
 
 ## Layout
 `src/Nova.Core` (settings, validation, hotkey parsing, launch validation, logging, no UI) · `src/Nova.App` (WPF UI + Windows integrations) · `tests/Nova.Core.Tests` · `installer/` · `build/`
@@ -79,7 +94,7 @@ Hover the notch (or click it, or press `Ctrl+Alt+N`) and it grows into a panel w
 |---|---|---|
 | 1 | Wi-Fi, Suara & Pengaturan | Network / Bluetooth / battery summary, volume slider, shortcuts to Wi-Fi, mute, Bluetooth, airplane mode, Night light, Windows Settings |
 | 2 | Musik | Album art, previous / play-pause / next, progress, synced lyrics, one-tap *Aktifkan lirik* |
-| 3 | Catatan & Clipboard | Quick notes (saved locally), clipboard history (opt-in), file shelf (drop files on the notch, drag them out later) |
+| 3 | Catatan & Clipboard | Quick notes (saved locally), clipboard history (opt-in; text, pictures, files), file shelf (drop files on the notch, drag them out later) |
 | 4 | Rencana | Today's tasks with time, priority (end a title with `!`) and progress |
 | 5 | Pomodoro | 25 / 5 / 15 min timer, pause, skip, session count |
 | 6 | Kalender & Acara | Month view, agenda per day, events with a reminder 10 minutes before |

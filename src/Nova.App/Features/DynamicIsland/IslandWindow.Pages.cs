@@ -24,12 +24,13 @@ public partial class IslandWindow
     static readonly string[] PageTitles =
     {
         "Wi-Fi, Suara & Pengaturan", "Musik", "Catatan & Clipboard", "Rencana",
-        "Pomodoro", "Kalender & Acara", "Sistem & Alat"
+        "Pomodoro", "Kalender, Acara & Tugas", "Sistem & Alat",
+        "Minum Air", "Waktu Sholat", "Alarm"
     };
-    const int Quick = 0, Music = 1, Notes = 2, Plan = 3, Pomo = 4, Calendar = 5, SystemPage = 6;
+    const int Quick = 0, Music = 1, Notes = 2, Plan = 3, Pomo = 4, Calendar = 5, SystemPage = 6, Water = 7, PrayerPage = 8, AlarmPage = 9;
 
     UIElement[] _pages = Array.Empty<UIElement>();
-    readonly Ellipse[] _dots = new Ellipse[7];
+    readonly Ellipse[] _dots = new Ellipse[10];
     int _pageIndex, _sub;
     Point _swipeStart; bool _swipeArmed;
 
@@ -61,7 +62,9 @@ public partial class IslandWindow
 
     void InitPages()
     {
-        _pages = new UIElement[] { PageQuick, PageMusic, PageNotes, PagePlan, PagePomo, PageCalendar, PageSystem };
+        _pages = new UIElement[] { PageQuick, PageMusic, PageNotes, PagePlan, PagePomo, PageCalendar, PageSystem, BuildWaterPage(), BuildPrayerPage(), BuildAlarmPage() };
+        foreach (var extra in _pages.Skip(7)) { extra.Visibility = Visibility.Collapsed; PageHost.Children.Add(extra); }
+        BuildUsagePanel();
         for (int i = 0; i < _dots.Length; i++)
         {
             var d = new Ellipse { Width = 5, Height = 5, Margin = new Thickness(2, 0, 2, 0), Opacity = 0.3 };
@@ -123,6 +126,9 @@ public partial class IslandWindow
             case Pomo: UpdatePomoUi(); break;
             case Calendar: RebuildCalendar(); RebuildAgenda(); break;
             case SystemPage: UpdateStatus(); LoadBrightness(); BuildShortcuts(); break;
+            case Water: RefreshWater(); break;
+            case PrayerPage: RefreshPrayer(); break;
+            case AlarmPage: RebuildAlarms(); break;
         }
     }
 
@@ -341,13 +347,19 @@ public partial class IslandWindow
         SetSub(2, morph: false);
     }
 
+    NoteItem? _noteOpen;
+
     void RebuildNotes()
     {
         NotesList.Children.Clear();
-        foreach (var n in _data.Notes.Take(4).ToList())
-            NotesList.Children.Add(BuildRow(n.Text, n.CreatedUtc.ToLocalTime().ToString("HH:mm", CultureInfo.CurrentCulture), dot: (Brush)FindResource("NovaAccent"),
-                onDelete: () => { _data.Notes.Remove(n); SaveData(); RebuildNotes(); }, deleteName: "Hapus catatan"));
-        if (_data.Notes.Count == 0) NotesList.Children.Add(Hint("Belum ada catatan. Ketik di atas lalu tekan Enter."));
+        foreach (var n in _data.Notes.ToList())
+        {
+            var note = n;
+            NotesList.Children.Add(BuildRow(ClipboardHistory.Preview(note.Text, 80), note.CreatedUtc.ToLocalTime().ToString("HH:mm", CultureInfo.CurrentCulture),
+                dot: (Brush)FindResource("NovaAccent"), onClick: () => OpenNote(note),
+                onDelete: () => { _data.Notes.Remove(note); SaveData(); RebuildNotes(); }, deleteName: "Hapus catatan"));
+        }
+        NotesList.Children.Add(Hint(_data.Notes.Count == 0 ? "Belum ada catatan. Ketik di atas lalu tekan Enter." : "Klik catatan untuk membaca isinya secara lengkap."));
     }
 
     void OnNoteAdd(object sender, RoutedEventArgs e)
@@ -360,18 +372,118 @@ public partial class IslandWindow
 
     void OnNoteKey(object sender, KeyEventArgs e) { if (e.Key == Key.Enter) { OnNoteAdd(sender, e); e.Handled = true; } }
 
+    // The detail of one note: all of its text, with Copy, Save and Delete.
+
+    void OpenNote(NoteItem note)
+    {
+        var from = CurrentSize();
+        _noteOpen = note;
+        NoteStamp.Text = note.CreatedUtc.ToLocalTime().ToString("dddd, d MMMM yyyy · HH:mm", CultureInfo.CurrentCulture);
+        NoteEdit.Text = note.Text;
+        NotesListView.Visibility = Visibility.Collapsed;
+        NoteDetail.Visibility = Visibility.Visible;
+        UpdateNoteEditState();
+        if (_expanded) Morph(from);
+        NoteEdit.Focus();
+        NoteEdit.CaretIndex = NoteEdit.Text.Length;
+    }
+
+    void CloseNote()
+    {
+        var from = CurrentSize();
+        _noteOpen = null;
+        NoteDetail.Visibility = Visibility.Collapsed;
+        NotesListView.Visibility = Visibility.Visible;
+        RebuildNotes();
+        if (_expanded) Morph(from);
+    }
+
+    bool NoteEdited() => _noteOpen is not null
+        && UserData.Clean(NoteEdit.Text, UserData.MaxNoteLength) is { Length: > 0 } clean && clean != _noteOpen.Text;
+
+    void UpdateNoteEditState()
+    {
+        NoteCount.Text = $"{NoteEdit.Text.Length}/{UserData.MaxNoteLength}";
+        NoteSave.IsEnabled = NoteEdited();
+    }
+
+    void OnNoteEditChanged(object sender, TextChangedEventArgs e) { if (_noteOpen is not null) UpdateNoteEditState(); }
+
+    void OnNoteBack(object sender, RoutedEventArgs e)
+    {
+        if (NoteEdited() && _data.UpdateNote(_noteOpen, NoteEdit.Text)) SaveData();   // going back never loses what was typed
+        CloseNote();
+    }
+
+    void OnNoteSave(object sender, RoutedEventArgs e)
+    {
+        if (_noteOpen is null) return;
+        if (_data.UpdateNote(_noteOpen, NoteEdit.Text)) SaveData();
+        CloseNote();
+    }
+
+    void OnNoteCopy(object sender, RoutedEventArgs e)
+    {
+        try { System.Windows.Clipboard.SetText(NoteEdit.Text); }
+        catch (Exception ex) { FileLog.Write($"Note copy failed: {ex.GetType().Name}"); }
+    }
+
+    void OnNoteDelete(object sender, RoutedEventArgs e)
+    {
+        if (_noteOpen is not null) { _data.Notes.Remove(_noteOpen); SaveData(); }
+        CloseNote();
+    }
+
+    // ---- clipboard history on the same page ----
+
+    /// <summary>Set by the app: turns clipboard history on (the same switch as in Settings). Null = the button is not offered.</summary>
+    public Action? EnableClipboardRequested { get; set; }
+
+    void OnClipEnable(object sender, RoutedEventArgs e) => EnableClipboardRequested?.Invoke();
+
+    void OnClipClear(object sender, RoutedEventArgs e) => _clipSource?.Clear();
+
     void RebuildClip()
     {
         ClipList.Children.Clear();
-        if (_clipSource is null) { ClipHint.Text = "Riwayat clipboard nonaktif. Aktifkan di Settings (hanya teks, hanya di memori)."; return; }
-        var items = _clipSource.Items.Take(5).ToList();
-        ClipHint.Text = items.Count == 0 ? "Belum ada yang disalin pada sesi ini." : "Klik untuk menyalin lagi.";
-        foreach (var text in items)
-            ClipList.Children.Add(BuildRow(ClipboardHistory.Preview(text, 70), onClick: () =>
-            {
-                try { System.Windows.Clipboard.SetText(text); ShowNotice("Disalin.", important: false); }
-                catch (Exception ex) { FileLog.Write($"Clipboard copy failed: {ex.GetType().Name}"); }
-            }));
+        ClipClearButton.Visibility = Visibility.Collapsed;
+        ClipEnableButton.Visibility = Visibility.Collapsed;
+        if (_clipSource is null)
+        {
+            ClipHint.Text = "Riwayat clipboard belum aktif. Setelah diaktifkan, teks, gambar, dan file yang Anda salin muncul di sini. Hanya di memori, tidak pernah disimpan ke disk.";
+            ClipEnableButton.Visibility = EnableClipboardRequested is null ? Visibility.Collapsed : Visibility.Visible;
+            return;
+        }
+        var entries = _clipSource.Entries.ToList();
+        ClipHint.Text = entries.Count == 0 ? "Belum ada yang disalin. Salin teks, gambar, atau file, lalu muncul di sini." : "Klik untuk menyalin lagi.";
+        ClipClearButton.Visibility = entries.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
+        foreach (var entry in entries) ClipList.Children.Add(BuildClipRow(entry));
+    }
+
+    Border BuildClipRow(ClipEntry entry)
+    {
+        void Copy()
+        {
+            if (ClipboardTools.Restore(entry)) ShowNotice("Disalin.", important: false);
+            else FileLog.Write("Clipboard copy failed.");
+        }
+        void Delete() => _clipSource?.Remove(entry);
+        var time = entry.CapturedUtc.ToLocalTime().ToString("HH:mm", CultureInfo.CurrentCulture);
+
+        if (entry.Kind != ClipKind.Image)
+            return BuildRow((entry.Kind == ClipKind.Files ? "\uD83D\uDCC4 " : "") + ClipboardHistory.Describe(entry, 70), time, onDelete: Delete, deleteName: "Hapus dari riwayat", onClick: Copy);
+
+        // A picture: a small preview, its size, and the usual delete button.
+        var row = BuildRow($"Gambar {entry.Width}×{entry.Height}", time, onDelete: Delete, deleteName: "Hapus dari riwayat", onClick: Copy);
+        if (row.Child is Grid grid && ClipboardTools.Decode(entry.Png, 120) is { } thumb)
+        {
+            var preview = new System.Windows.Controls.Image { Source = thumb, Height = 44, MaxWidth = 88, Stretch = Stretch.Uniform, Margin = new Thickness(0, 0, 8, 0) };
+            RenderOptions.SetBitmapScalingMode(preview, BitmapScalingMode.HighQuality);
+            AutomationProperties.SetName(preview, $"Gambar {entry.Width} kali {entry.Height}");
+            Grid.SetColumn(preview, 0);
+            grid.Children.Add(preview);
+        }
+        return row;
     }
 
     // ---- 4: plan ----
@@ -379,10 +491,11 @@ public partial class IslandWindow
     void RebuildPlan()
     {
         PlanList.Children.Clear();
-        int done = _data.Tasks.Count(t => t.Done), total = _data.Tasks.Count;
+        var today = _data.TodayTasks(DateTime.Today).ToList();
+        int done = today.Count(t => t.Done), total = today.Count;
         PlanSummary.Text = total == 0 ? "Belum ada tugas hari ini." : $"Hari ini · {total} tugas · {done}/{total} selesai";
         PlanProgress.Value = _data.PlanProgress();
-        foreach (var t in _data.Tasks.Take(5).ToList())
+        foreach (var t in today.Take(5))
         {
             var task = t;
             PlanList.Children.Add(BuildRow((task.Priority > 0 ? "! " : "") + task.Title, task.Time,
@@ -415,7 +528,7 @@ public partial class IslandWindow
         PomoPhase.Text = _pomo.Phase switch { PomodoroPhase.Focus => "Fokus", PomodoroPhase.ShortBreak => "Istirahat", _ => "Istirahat panjang" };
         PomoTime.Text = $"{(int)rem.TotalMinutes:00}:{rem.Seconds:00}";
         SetRing(1 - _pomo.Fraction(now));   // the red ring shows what is LEFT, like the concept
-        var todo = _data.Tasks.FirstOrDefault(t => !t.Done);
+        var todo = _data.TodayTasks(DateTime.Today).FirstOrDefault(t => !t.Done);
         TodoTitle.Text = todo?.Title ?? "Tidak ada tugas";
         TodoTime.Text = todo?.Time ?? "";
         PomoToggle.Content = _pomo.Running ? "\uE769" : "\uE768";
@@ -505,7 +618,7 @@ public partial class IslandWindow
             int day = i - offset + 1;
             if (day < 1 || day > days) { CalGrid.Children.Add(new Border { Height = 28 }); continue; }
             var date = new DateTime(_calMonth.Year, _calMonth.Month, day);
-            bool hasEvent = _data.Events.Any(ev => ev.Start.Date == date);
+            bool hasEvent = _data.Events.Any(ev => ev.Start.Date == date) || _data.TasksOn(date).Any();
             bool isToday = date == DateTime.Today, isSelected = date == _calDay.Date;
             var label = new TextBlock
             {
@@ -528,7 +641,7 @@ public partial class IslandWindow
                 cell.Children.Add(mark);
             }
             var btn = new Button { Style = (Style)FindResource("NovaBarButton"), Height = 28, Padding = new Thickness(0), Margin = new Thickness(0), Content = cell };
-            AutomationProperties.SetName(btn, date.ToString("D", culture) + (hasEvent ? ", ada acara" : ""));
+            AutomationProperties.SetName(btn, date.ToString("D", culture) + (hasEvent ? ", ada acara atau tugas" : ""));
             btn.Click += (_, _) => { _calDay = date; RebuildCalendar(); RebuildAgenda(); };
             CalGrid.Children.Add(btn);
         }
@@ -551,11 +664,40 @@ public partial class IslandWindow
             AgendaList.Children.Add(BuildRow(item.Title, item.Start.ToString("HH:mm", culture), dot: dot,
                 onDelete: () => { _data.Events.Remove(item); SaveData(); UpdateRemTimer(); RebuildAgenda(); RebuildCalendar(); }, deleteName: "Hapus acara"));
         }
-        if (!_data.EventsOn(_calDay).Any()) AgendaList.Children.Add(Hint("Tidak ada acara."));
+        foreach (var t in _data.TasksOn(_calDay).Take(4).ToList())
+        {
+            var task = t;
+            AgendaList.Children.Add(BuildRow((task.Priority > 0 ? "! " : "") + task.Title, task.Time,
+                onDelete: () => { _data.Tasks.Remove(task); SaveData(); RebuildAgenda(); RebuildCalendar(); if (_pageIndex == Plan) RebuildPlan(); }, deleteName: "Hapus tugas",
+                check: task.Done ? "\uE73A" : "\uE739", onCheck: () => { task.Done = !task.Done; SaveData(); RebuildAgenda(); },
+                strike: task.Done, accent: task.Priority > 0 && !task.Done));
+        }
+        if (!_data.EventsOn(_calDay).Any() && !_data.TasksOn(_calDay).Any()) AgendaList.Children.Add(Hint("Tidak ada acara atau tugas."));
+    }
+
+    bool _addTask;
+
+    void OnEventKind(object sender, RoutedEventArgs e)
+    {
+        _addTask = !_addTask;
+        EventKind.Content = _addTask ? "Tugas" : "Acara";
+        EventInput.Tag = _addTask ? "Tugas baru (akhiri dengan ! = penting)" : "Acara baru";
+        AutomationProperties.SetName(EventKind, "Jenis yang ditambah: " + (_addTask ? "tugas" : "acara"));
     }
 
     void OnEventAdd(object sender, RoutedEventArgs e)
     {
+        if (_addTask)
+        {
+            var title = (EventInput.Text ?? "").Trim();
+            int priority = title.EndsWith('!') ? 1 : 0;
+            if (priority > 0) title = title.TrimEnd('!', ' ');
+            if (!_data.AddTask(title, EventTime.Text, _calDay.Date, priority)) return;
+            EventInput.Clear(); EventTime.Clear();
+            SaveData();
+            RebuildAgenda(); RebuildCalendar();
+            return;
+        }
         var timeText = string.IsNullOrWhiteSpace(EventTime.Text) ? "09:00" : EventTime.Text.Trim();
         if (!TimeSpan.TryParse(timeText, CultureInfo.InvariantCulture, out var ts) || ts < TimeSpan.Zero || ts >= TimeSpan.FromDays(1))
         {
