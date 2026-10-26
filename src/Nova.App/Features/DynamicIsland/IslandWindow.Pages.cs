@@ -107,6 +107,7 @@ public partial class IslandWindow
         if (_radioOpen && index != Quick) CloseRadio(morph: false);
         var from = CurrentSize();
         FitToQuickPage(index);
+        ExpandedPanel.Width = index == Calendar ? 640 : 380;   // Fokus & Tugas is three columns: it grows sideways, not downwards
         _pageIndex = index;
         for (int i = 0; i < _pages.Length; i++)
         {
@@ -702,7 +703,7 @@ public partial class IslandWindow
     int _calView;   // kept for older call sites; the page has no tabs
 
     /// <summary>
-    /// Acara, tugas and alarm are one function: a task with an optional time. One month view, one agenda for the chosen day,
+    /// Acara, tugas and alarm are one function: a task with an optional time. Three columns (tasks, pomodoro, up next) for the chosen day,
     /// one add row: title, time and a bell (the alarm rings at that time).
     /// </summary>
     void BuildCalendarTabs()
@@ -710,15 +711,6 @@ public partial class IslandWindow
         PageHost.Children.Remove(PagePlan);
         PagePlan.Visibility = Visibility.Collapsed;
         _alarmList = new StackPanel();   // not shown any more; alarms are listed in the agenda
-        // Pomodoro lives on this page too: a compact card on top, connected to the tasks below (it shows the task being worked on).
-        PageHost.Children.Remove(PagePomo);
-        PagePomo.Visibility = Visibility.Visible;
-        var pomoCard = new Border
-        {
-            CornerRadius = new CornerRadius(14), Padding = new Thickness(10, 4, 10, 4), Margin = new Thickness(0, 0, 0, 8),
-            Background = new SolidColorBrush(Color.FromArgb(0x14, 0x80, 0x80, 0x80)), Child = PagePomo
-        };
-        PageCalendar.Children.Insert(0, pomoCard);
     }
 
     /// <summary>Refreshes the merged page.</summary>
@@ -729,88 +721,61 @@ public partial class IslandWindow
         if (morph && _expanded) Morph(from);
     }
 
-    void OnCalPrev(object sender, RoutedEventArgs e) { _calMonth = _calMonth.AddMonths(-1); RebuildCalendar(); }
-    void OnCalNext(object sender, RoutedEventArgs e) { _calMonth = _calMonth.AddMonths(1); RebuildCalendar(); }
+    // The month grid is gone (the page is wide, not tall): the arrows move the chosen day, and the date button goes back to today.
+    void OnCalPrev(object sender, RoutedEventArgs e) { _calDay = _calDay.AddDays(-1); RebuildAgenda(); }
+    void OnCalNext(object sender, RoutedEventArgs e) { _calDay = _calDay.AddDays(1); RebuildAgenda(); }
+    void OnCalToday(object sender, RoutedEventArgs e) { _calDay = DateTime.Today; RebuildAgenda(); }
 
-    void RebuildCalendar()
-    {
-        var culture = CultureInfo.CurrentCulture;
-        CalTitle.Text = _calMonth.ToString("MMM yyyy", culture);
-        CalGrid.Children.Clear();
-        var first = culture.DateTimeFormat.FirstDayOfWeek;
-        for (int i = 0; i < 7; i++)
-        {
-            var name = culture.DateTimeFormat.GetShortestDayName((DayOfWeek)(((int)first + i) % 7));
-            var h = new TextBlock { Text = name, FontSize = 10, FontWeight = FontWeights.SemiBold, Opacity = 0.5, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 2, 0, 3) };
-            h.SetResourceReference(TextBlock.ForegroundProperty, "NovaOnSurface");
-            CalGrid.Children.Add(h);
-        }
-        int offset = ((int)_calMonth.DayOfWeek - (int)first + 7) % 7;
-        int days = DateTime.DaysInMonth(_calMonth.Year, _calMonth.Month);
-        int cells = (offset + days + 6) / 7 * 7;   // only as many weeks as the month needs
-        for (int i = 0; i < cells; i++)
-        {
-            int day = i - offset + 1;
-            if (day < 1 || day > days) { CalGrid.Children.Add(new Border { Height = 28 }); continue; }
-            var date = new DateTime(_calMonth.Year, _calMonth.Month, day);
-            bool hasEvent = _data.Events.Any(ev => ev.Start.Date == date) || _data.TasksOn(date).Any();
-            bool isToday = date == DateTime.Today, isSelected = date == _calDay.Date;
-            var label = new TextBlock
-            {
-                Text = day.ToString(culture), FontSize = 12, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
-                FontWeight = isToday || isSelected ? FontWeights.SemiBold : FontWeights.Normal
-            };
-            var circle = new Border { Width = 24, Height = 24, CornerRadius = new CornerRadius(12), VerticalAlignment = VerticalAlignment.Top, Child = label };
-            if (isToday) { circle.SetResourceReference(Border.BackgroundProperty, "NovaAccent"); label.Foreground = Brushes.White; }
-            else
-            {
-                label.SetResourceReference(TextBlock.ForegroundProperty, "NovaOnSurface");
-                if (isSelected) { circle.BorderThickness = new Thickness(1.5); circle.SetResourceReference(Border.BorderBrushProperty, "NovaAccent"); }
-            }
-            var cell = new Grid();
-            cell.Children.Add(circle);
-            if (hasEvent)
-            {
-                var mark = new Ellipse { Width = 4, Height = 4, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Bottom };
-                mark.SetResourceReference(Shape.FillProperty, "NovaAccent");
-                cell.Children.Add(mark);
-            }
-            var btn = new Button { Style = (Style)FindResource("NovaBarButton"), Height = 28, Padding = new Thickness(0), Margin = new Thickness(0), Content = cell };
-            AutomationProperties.SetName(btn, date.ToString("D", culture) + (hasEvent ? ", ada acara atau tugas" : ""));
-            btn.Click += (_, _) => { _calDay = date; RebuildCalendar(); RebuildAgenda(); };
-            CalGrid.Children.Add(btn);
-        }
-    }
+    /// <summary>Kept for the call sites that used to redraw the month grid: the page now only needs its day lists.</summary>
+    void RebuildCalendar() { }
 
     /// <summary>A day's tasks; for today also the undated ones and unfinished older ones, as on the plan tab.</summary>
     IEnumerable<PlanTask> DayTasks(DateTime day) => day.Date == DateTime.Today ? _data.TodayTasks(day) : _data.TasksOn(day);
 
-    /// <summary>The chosen day: events, tasks and alarms in one list, in time order.</summary>
+    /// <summary>
+    /// The chosen day, in two lists side by side: TUGAS (every task, to tick off) and BERIKUTNYA (everything with a time, in time order:
+    /// timed tasks, alarms and older events).
+    /// </summary>
     void RebuildAgenda()
     {
         var culture = CultureInfo.CurrentCulture;
         AgendaTitle.Text = _calDay.ToString("dddd, d MMMM", culture);
-        DayName.Text = _calDay.ToString("ddd", culture);
+        DayName.Text = _calDay.Date == DateTime.Today ? "Hari ini" : _calDay.ToString("ddd", culture);
         DayNumber.Text = _calDay.Day.ToString(culture);
         DayMonth.Text = _calDay.ToString("MMM", culture);
         AgendaList.Children.Clear();
+        TaskList.Children.Clear();
         var palette = new[] { "#FF7C5CFF", "#FF3DA5FF", "#FFFFB020", "#FF3DD68C" };
         int n = 0;
+
+        // left: tasks
+        var tasks = DayTasks(_calDay).OrderBy(t => t.Done).ThenBy(t => string.IsNullOrWhiteSpace(t.Time) ? "99:99" : t.Time, StringComparer.Ordinal).ToList();
+        TaskCount.Text = tasks.Count(t => !t.Done).ToString(culture);
+        foreach (var t in tasks.Take(5))
+        {
+            var task = t;
+            TaskList.Children.Add(BuildRow((task.Priority > 0 ? "! " : "") + task.Title, task.Time,
+                onDelete: () => { _data.Tasks.Remove(task); SaveData(); UpdateExtraTimer(); RebuildAgenda(); },
+                deleteName: "Hapus tugas",
+                check: task.Done ? "\uE73A" : "\uE739", onCheck: () => { task.Done = !task.Done; SaveData(); UpdateExtraTimer(); RebuildAgenda(); UpdatePomoUi(); },
+                strike: task.Done, accent: task.Priority > 0 && !task.Done));
+        }
+        if (tasks.Count > 5) TaskList.Children.Add(Hint($"+{tasks.Count - 5} lainnya"));
+        if (tasks.Count == 0) TaskList.Children.Add(Hint("Belum ada tugas."));
+
+        // right: everything with a time
         var rows = new List<(string Key, UIElement Row)>();
         foreach (var ev in _data.EventsOn(_calDay).ToList())
         {
             var item = ev;
             var dot = (Brush)new BrushConverter().ConvertFromString(palette[n++ % palette.Length])!;
             rows.Add((item.Start.ToString("HH:mm", culture), BuildRow(item.Title, item.Start.ToString("HH:mm", culture), dot: dot,
-                onDelete: () => { _data.Events.Remove(item); SaveData(); UpdateRemTimer(); RebuildAgenda(); RebuildCalendar(); }, deleteName: "Hapus acara")));
+                onDelete: () => { _data.Events.Remove(item); SaveData(); UpdateRemTimer(); RebuildAgenda(); }, deleteName: "Hapus acara")));
         }
-        foreach (var t in DayTasks(_calDay).ToList())
+        foreach (var t in tasks.Where(t => !t.Done && !string.IsNullOrWhiteSpace(t.Time)))
         {
-            var task = t;
-            rows.Add((string.IsNullOrWhiteSpace(task.Time) ? "99:99" : task.Time, BuildRow((task.Alarm ? "⏰ " : "") + (task.Priority > 0 ? "! " : "") + task.Title, task.Time,
-                onDelete: () => { _data.Tasks.Remove(task); SaveData(); UpdateExtraTimer(); RebuildAgenda(); RebuildCalendar(); }, deleteName: "Hapus tugas",
-                check: task.Done ? "\uE73A" : "\uE739", onCheck: () => { task.Done = !task.Done; SaveData(); UpdateExtraTimer(); RebuildAgenda(); },
-                strike: task.Done, accent: task.Priority > 0 && !task.Done)));
+            var dot = (Brush)new BrushConverter().ConvertFromString(palette[n++ % palette.Length])!;
+            rows.Add((t.Time, BuildRow((t.Alarm ? "⏰ " : "") + t.Title, t.Time, dot: dot)));
         }
         foreach (var a in _data.Alarms.Where(a => a.Days == 0 ? _calDay.Date == DateTime.Today : a.RepeatsOn(_calDay.DayOfWeek)).ToList())
         {
@@ -821,9 +786,9 @@ public partial class IslandWindow
                 onCheck: () => { alarm.Enabled = !alarm.Enabled; if (alarm.Enabled) alarm.LastRang = null; SaveData(); UpdateExtraTimer(); RebuildAgenda(); },
                 strike: !alarm.Enabled)));
         }
-        foreach (var r in rows.OrderBy(r => r.Key, StringComparer.Ordinal).Take(6)) AgendaList.Children.Add(r.Row);
-        if (rows.Count > 6) AgendaList.Children.Add(Hint($"+{rows.Count - 6} lainnya"));
-        if (rows.Count == 0) AgendaList.Children.Add(Hint("Tidak ada tugas atau alarm."));
+        foreach (var r in rows.OrderBy(r => r.Key, StringComparer.Ordinal).Take(5)) AgendaList.Children.Add(r.Row);
+        if (rows.Count > 5) AgendaList.Children.Add(Hint($"+{rows.Count - 5} lainnya"));
+        if (rows.Count == 0) AgendaList.Children.Add(Hint("Tidak ada jadwal."));
     }
 
     bool _addAlarm = true;   // the bell: the new task rings at its time
