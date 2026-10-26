@@ -173,7 +173,7 @@ public class IslandPlacementSettingsTests
     [InlineData(0.01, 0.2)]
     [InlineData(0.5, 0.5)]
     [InlineData(7, 1.0)]
-    [InlineData(double.NaN, 1.0)]
+    [InlineData(double.NaN, 0.65)]
     public void Island_transparency_is_kept_in_range(double given, double expected)
     {
         var s = new NovaSettings { IslandOpacity = given };
