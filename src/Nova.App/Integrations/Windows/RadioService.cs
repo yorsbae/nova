@@ -35,6 +35,53 @@ public static class RadioService
         catch (Exception ex) { FileLog.Write($"Radio state failed: {ex.GetType().Name}"); return null; }
     }
 
+    // ---- airplane mode: every radio (Wi-Fi, Bluetooth, mobile broadband) off / back on ----
+
+    static readonly HashSet<string> _onBeforeAirplane = new();
+
+    /// <summary>true = airplane mode is on (radios exist and none is on). false = off. null = no radios / unreadable.</summary>
+    public static async Task<bool?> AirplaneOnAsync()
+    {
+        try
+        {
+            var radios = (await Radio.GetRadiosAsync()).Where(r => r.Kind != RadioKind.Other).ToList();
+            if (radios.Count == 0) return null;
+            return radios.All(r => r.State != RadioState.On);
+        }
+        catch (Exception ex) { FileLog.Write($"Airplane state failed: {ex.GetType().Name}"); return null; }
+    }
+
+    /// <summary>Turns airplane mode on or off right away, with Windows' radio API. When turning it off, only the radios that were on before come back.</summary>
+    public static async Task<RadioResult> SetAirplaneAsync(bool on)
+    {
+        try
+        {
+            var access = await Radio.RequestAccessAsync();
+            if (access != RadioAccessStatus.Allowed)
+                return new(false, "Windows tidak mengizinkan NOVA mengatur radio. Cek Pengaturan › Privasi & keamanan › Radio.");
+            var radios = (await Radio.GetRadiosAsync()).Where(r => r.Kind != RadioKind.Other).ToList();
+            if (radios.Count == 0) return new(false, "Perangkat ini tidak punya radio nirkabel.");
+            if (on)
+            {
+                _onBeforeAirplane.Clear();
+                foreach (var r in radios) if (r.State == RadioState.On) _onBeforeAirplane.Add(r.Kind + ":" + r.Name);
+            }
+            foreach (var r in radios)
+            {
+                if (!on && _onBeforeAirplane.Count > 0 && !_onBeforeAirplane.Contains(r.Kind + ":" + r.Name)) continue;
+                var result = await r.SetStateAsync(on ? RadioState.Off : RadioState.On);
+                if (result != RadioAccessStatus.Allowed) return new(false, "Windows menolak perubahan itu.");
+            }
+            if (!on) _onBeforeAirplane.Clear();
+            return new(true);
+        }
+        catch (Exception ex)
+        {
+            FileLog.Write($"Airplane switch failed: {ex.GetType().Name}");
+            return new(false, "Gagal mengubah mode pesawat.");
+        }
+    }
+
     public static async Task<RadioResult> SetAsync(QuickRadio kind, bool on)
     {
         try

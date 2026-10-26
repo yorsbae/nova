@@ -181,7 +181,9 @@ public sealed class NovaSettings
 
     public bool ReducedMotion { get; set; } = false;
     public bool HighContrastOverride { get; set; } = false;
-    public bool StartWithWindows { get; set; } = false;
+    public bool StartWithWindows { get; set; } = true;
+    /// <summary>Set once the "start with Windows" default (now on) has been applied to settings saved by an older version.</summary>
+    public bool StartupDefaultApplied { get; set; } = false;
     public string Hotkey { get; set; } = "Ctrl+Alt+N";
     /// <summary>v2.13: modifiers for the page shortcuts: prefix + 1…7 opens the Island straight on that page (Ctrl+Alt+1 = page 1 … Ctrl+Alt+7 = page 7). Empty = off.</summary>
     public string PageHotkeyPrefix { get; set; } = "Ctrl+Alt";

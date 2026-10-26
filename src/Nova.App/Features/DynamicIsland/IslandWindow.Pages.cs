@@ -347,6 +347,9 @@ public partial class IslandWindow
             SetToggle(TglWifi, q.Net != NetKind.None);
             SetToggle(TglSound, !q.Muted && q.Volume is not null);
             SetToggle(TglBluetooth, q.BluetoothOn);
+            SetToggle(TglNight, SystemToggles.NightLightOn() == true);
+            SetToggle(TglDnd, SystemToggles.DndOn());
+            SetToggle(TglAirplane, await RadioService.AirplaneOnAsync() == true);
 
             VolumeRow.Visibility = q.Volume is null ? Visibility.Collapsed : Visibility.Visible;
             if (q.Volume is double v && !VolumeSlider.IsMouseCaptureWithin)
@@ -388,7 +391,31 @@ public partial class IslandWindow
         else b.ClearValue(Control.BackgroundProperty);
     }
 
-    void OnTglAirplane(object sender, RoutedEventArgs e) => OpenUri("ms-settings:network-airplanemode");
+    /// <summary>Airplane mode: one click switches every radio off (or back on), no Settings page.</summary>
+    async void OnTglAirplane(object sender, RoutedEventArgs e)
+    {
+        TglAirplane.IsEnabled = false;
+        try
+        {
+            bool turnOn = await RadioService.AirplaneOnAsync() != true;
+            var result = await RadioService.SetAirplaneAsync(turnOn);
+            if (!result.Ok) { if (result.Message is not null) ShowNotice(result.Message, important: true, seconds: 8); return; }
+            SetToggle(TglAirplane, turnOn);
+            ShowNotice(turnOn ? "Mode pesawat nyala" : "Mode pesawat mati", important: false, seconds: 3);
+            await Task.Delay(1200);
+            RefreshQuick();
+        }
+        finally { TglAirplane.IsEnabled = true; }
+    }
+
+    /// <summary>Do not disturb: one click, no Settings page.</summary>
+    void OnTglDnd(object sender, RoutedEventArgs e)
+    {
+        var now = SystemToggles.ToggleDnd();
+        if (now is null) { OpenUri("ms-settings:notifications"); return; }
+        SetToggle(TglDnd, now.Value);
+        ShowNotice(now.Value ? "Jangan ganggu nyala" : "Jangan ganggu mati", important: false, seconds: 3);
+    }
     void OnTglSound(object sender, RoutedEventArgs e)
     {
         AudioService.ToggleMute();
@@ -615,7 +642,7 @@ public partial class IslandWindow
 
     void SetRing(double fraction)
     {
-        const double R = 45, C = 55;   // centre and radius inside the 110 x 110 box
+        const double R = 34, C = 42;   // centre and radius inside the 84 x 84 box
         fraction = Math.Min(0.9995, Math.Max(0, fraction));
         if (fraction < 0.0005) { PomoArc.Data = Geometry.Empty; return; }
         double a = fraction * 2 * Math.PI;
@@ -877,7 +904,14 @@ public partial class IslandWindow
 
     // ---- page 1 tools: night light, brightness ----
 
-    void OnToolNight(object sender, RoutedEventArgs e) => OpenUri("ms-settings:nightlight");
+    /// <summary>Night light: one click switches it on or off. Only when this Windows build keeps the setting in an unknown layout does it open Settings instead.</summary>
+    void OnToolNight(object sender, RoutedEventArgs e)
+    {
+        var now = SystemToggles.ToggleNightLight();
+        if (now is null) { OpenUri("ms-settings:nightlight"); return; }
+        SetToggle(TglNight, now.Value);
+        ShowNotice(now.Value ? "Night light nyala" : "Night light mati", important: false, seconds: 3);
+    }
 
     /// <summary>The brightness button: shows or hides the slider right on page 1 (laptops), or opens Windows display settings when the screen has no software brightness.</summary>
     async void OnToolBright(object sender, RoutedEventArgs e)

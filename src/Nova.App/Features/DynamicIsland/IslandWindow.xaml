@@ -128,10 +128,10 @@
               <Button x:Name="TglWifi" Style="{StaticResource NovaIconButton}" Content="&#xE701;" ToolTip="Wi-Fi" AutomationProperties.Name="Buka pengaturan Wi-Fi" Click="OnTglWifi"/>
               <Button x:Name="TglSound" Style="{StaticResource NovaIconButton}" Content="&#xE767;" ToolTip="Bisukan / aktifkan suara" AutomationProperties.Name="Bisukan atau aktifkan suara" Click="OnTglSound"/>
               <Button x:Name="TglBluetooth" Style="{StaticResource NovaIconButton}" Content="&#xE702;" ToolTip="Bluetooth" AutomationProperties.Name="Buka pengaturan Bluetooth" Click="OnTglBluetooth"/>
-              <Button x:Name="TglAirplane" Style="{StaticResource NovaIconButton}" Content="&#xE709;" ToolTip="Mode pesawat" AutomationProperties.Name="Buka pengaturan mode pesawat" Click="OnTglAirplane"/>
+              <Button x:Name="TglAirplane" Style="{StaticResource NovaIconButton}" Content="&#xE709;" ToolTip="Mode pesawat" AutomationProperties.Name="Nyalakan atau matikan mode pesawat" Click="OnTglAirplane"/>
               <Button x:Name="TglBright" Style="{StaticResource NovaIconButton}" Content="&#xE706;" ToolTip="Kecerahan" AutomationProperties.Name="Kecerahan layar" Click="OnToolBright"/>
-              <Button x:Name="TglNight" Style="{StaticResource NovaIconButton}" Content="&#xE708;" ToolTip="Night light" AutomationProperties.Name="Buka pengaturan Night light" Click="OnToolNight"/>
-              <Button x:Name="TglMore" Style="{StaticResource NovaIconButton}" Content="&#xE76C;" ToolTip="Halaman berikutnya" AutomationProperties.Name="Halaman berikutnya" Click="OnPageNext"/>
+              <Button x:Name="TglNight" Style="{StaticResource NovaIconButton}" Content="&#xE708;" ToolTip="Night light" AutomationProperties.Name="Nyalakan atau matikan Night light" Click="OnToolNight"/>
+              <Button x:Name="TglDnd" Style="{StaticResource NovaIconButton}" Content="&#xE7ED;" ToolTip="Jangan ganggu" AutomationProperties.Name="Jangan ganggu" Click="OnTglDnd"/>
             </UniformGrid>
             <Grid x:Name="BrightRow" Visibility="Collapsed" Margin="6,8,6,0">
               <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
@@ -356,27 +356,25 @@
           <!-- 5: Pomodoro -->
           <Grid x:Name="PagePomo" Visibility="Collapsed">
             <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-            <Grid Width="110" Height="110" Margin="4,0,18,0">
-              <Ellipse Width="98" Height="98" StrokeThickness="8" Stroke="{DynamicResource NovaSurfaceAlt}"/>
-              <Path x:Name="PomoArc" Stroke="#FFE5484D" StrokeThickness="8" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+            <Grid Width="84" Height="84" Margin="4,0,14,0" VerticalAlignment="Center">
+              <Ellipse Width="76" Height="76" StrokeThickness="7" Stroke="{DynamicResource NovaSurfaceAlt}"/>
+              <Path x:Name="PomoArc" Stroke="#FFE5484D" StrokeThickness="7" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
                     HorizontalAlignment="Left" VerticalAlignment="Top" AutomationProperties.Name="Sisa waktu sesi"/>
-              <Button x:Name="PomoToggle" Style="{StaticResource NovaIconButton}" Width="28" Height="28" FontSize="13" Content="&#xE768;"
+              <Button x:Name="PomoToggle" Style="{StaticResource NovaIconButton}" Width="26" Height="26" FontSize="12" Content="&#xE768;"
                       ToolTip="Mulai / jeda" AutomationProperties.Name="Mulai atau jeda timer" Click="OnPomoToggle"/>
             </Grid>
             <StackPanel Grid.Column="1" VerticalAlignment="Center">
-              <TextBlock x:Name="PomoPhase" FontSize="13" Opacity="0.85" Foreground="{DynamicResource NovaOnSurface}"/>
-              <TextBlock x:Name="PomoTime" FontSize="36" FontWeight="SemiBold" Foreground="{DynamicResource NovaOnSurface}" AutomationProperties.Name="Sisa waktu"/>
-              <Border CornerRadius="10" Padding="8,5" Margin="0,4,0,0" Background="#14808080">
-                <StackPanel>
-                  <TextBlock Text="Todo" FontSize="10" Opacity="0.6" Foreground="{DynamicResource NovaOnSurface}"/>
-                  <TextBlock x:Name="TodoTitle" FontSize="12" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource NovaOnSurface}"/>
-                  <TextBlock x:Name="TodoTime" FontSize="10" Opacity="0.6" Foreground="{DynamicResource NovaOnSurface}"/>
-                </StackPanel>
-              </Border>
-              <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                <Button x:Name="PomoReset" Style="{StaticResource NovaIconButton}" Width="28" Height="28" FontSize="13" Content="&#xE777;" ToolTip="Atur ulang" AutomationProperties.Name="Atur ulang timer" Click="OnPomoReset"/>
-                <Button x:Name="PomoSkip" Style="{StaticResource NovaIconButton}" Width="28" Height="28" FontSize="13" Content="&#xE893;" ToolTip="Lewati fase" AutomationProperties.Name="Lewati fase" Click="OnPomoSkip"/>
-                <TextBlock x:Name="PomoSessions" FontSize="11" Opacity="0.75" VerticalAlignment="Center" Margin="6,0,0,0" Foreground="{DynamicResource NovaOnSurface}"/>
+              <TextBlock x:Name="PomoPhase" FontSize="11" Opacity="0.85" Foreground="{DynamicResource NovaOnSurface}"/>
+              <TextBlock x:Name="PomoTime" FontSize="28" FontWeight="SemiBold" Foreground="{DynamicResource NovaOnSurface}" AutomationProperties.Name="Sisa waktu"/>
+              <Grid Margin="0,1,0,0">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                <TextBlock x:Name="TodoTitle" FontSize="11" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource NovaOnSurface}"/>
+                <TextBlock x:Name="TodoTime" Grid.Column="1" FontSize="10" Opacity="0.6" Margin="6,0,0,0" Foreground="{DynamicResource NovaOnSurface}"/>
+              </Grid>
+              <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                <Button x:Name="PomoReset" Style="{StaticResource NovaIconButton}" Width="26" Height="26" FontSize="12" Margin="0,0,2,0" Content="&#xE777;" ToolTip="Atur ulang" AutomationProperties.Name="Atur ulang timer" Click="OnPomoReset"/>
+                <Button x:Name="PomoSkip" Style="{StaticResource NovaIconButton}" Width="26" Height="26" FontSize="12" Margin="0" Content="&#xE893;" ToolTip="Lewati fase" AutomationProperties.Name="Lewati fase" Click="OnPomoSkip"/>
+                <TextBlock x:Name="PomoSessions" FontSize="10" Opacity="0.75" VerticalAlignment="Center" Margin="6,0,0,0" Foreground="{DynamicResource NovaOnSurface}"/>
               </StackPanel>
             </StackPanel>
           </Grid>

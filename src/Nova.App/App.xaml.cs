@@ -11,6 +11,7 @@ using Nova.Core.Logging;
 using Nova.Core.Media;
 using Nova.Core.Data;
 using Nova.Core.Notifications;
+using Nova.Core.Reminders;
 
 namespace Nova.App;
 
@@ -65,6 +66,13 @@ public partial class App : Application
         if (_safeMode)   // safe mode: only clock + dock, and NOVA touches nothing in Windows itself
         { _settings.ShowMedia = false; _settings.ShowSystemStatus = false; _settings.NotchMode = false; _settings.HideTaskbar = false; _settings.WindowsDarkMode = false; _settings.ShowRunningApps = false; _settings.DockReservesSpace = false; _settings.LyricsEnabled = false; }
         if (load.Warning is not null) FileLog.Write(load.Warning);
+        if (!_safeMode)
+        {
+            // NOVA starts by itself after every shutdown/sign-in. Settings saved by older versions get the new default once;
+            // afterwards the checkbox in Settings is respected. Registering on every launch also repairs a moved .exe.
+            if (!_settings.StartupDefaultApplied) { _settings.StartWithWindows = true; _settings.StartupDefaultApplied = true; _store.Save(_settings); }
+            StartupService.SetEnabled(_settings.StartWithWindows);
+        }
         FileLog.Write($"Start: safe={_safeMode} notch={_settings.NotchMode} hideTaskbar={_settings.HideTaskbar} runningApps={_settings.ShowRunningApps} reserve={_settings.DockReservesSpace} media={_settings.ShowMedia}");
 
         // Started by Windows at sign-in (--startup): Explorer may not be ready yet, and the taskbar can only be hidden and the
@@ -168,7 +176,8 @@ public partial class App : Application
         {
             _weather = new WeatherService();
             _weather.TextChanged += t => { _island?.SetWeather(t); _topBar?.SetWeather(t); };
-            if (NeedsWeatherLookup(_settings)) _ = ResolveWeatherAsync(); else _weather.Configure(_settings);
+            _weather.Configure(_settings);
+            StartLocation();
         });
 
         Guard("activity", () => ApplyActivity(_settings));
@@ -377,8 +386,6 @@ public partial class App : Application
         var s = SettingsValidator.Normalize(incoming);
         if (keepCurrentDock) s.DockItems = old.DockItems;   // the dock may have changed while Settings was open
 
-        if (!string.Equals(old.WeatherCity, s.WeatherCity, StringComparison.OrdinalIgnoreCase))
-        { s.WeatherPlace = ""; s.WeatherLatitude = double.NaN; s.WeatherLongitude = double.NaN; }   // new city → look it up again
 
         _settings = s;
         ThemeService.Apply(this, s);
@@ -398,7 +405,8 @@ public partial class App : Application
         ApplyEco(s);
         if (!s.LyricsEnabled) { _lyricsCts?.Cancel(); _island?.SetLyrics(null); }
         else if (!old.LyricsEnabled && _lyricsTrack is { HasTrack: true } t) _ = LoadLyricsAsync(t);
-        if (NeedsWeatherLookup(s)) _ = ResolveWeatherAsync(); else _weather?.Configure(s);
+        _weather?.Configure(s);
+        if (s.WeatherEnabled && double.IsNaN(s.WeatherLatitude)) _ = RefreshLocationAsync();   // switched on: find where this laptop is
 
         if (!_safeMode)
         {
@@ -550,25 +558,55 @@ public partial class App : Application
         _clipboardWindow.Show();
     }
 
-    static bool NeedsWeatherLookup(NovaSettings s)
-        => s.WeatherEnabled && !string.IsNullOrWhiteSpace(s.WeatherCity) && double.IsNaN(s.WeatherLatitude);
+    // ---- location: the laptop's GPS drives the weather and the prayer times ----
 
-    async Task ResolveWeatherAsync()
+    readonly System.Windows.Threading.DispatcherTimer _locationTimer = new() { Interval = TimeSpan.FromMinutes(30) };
+    bool _locationBusy, _locationWarned;
+
+    void StartLocation()
     {
-        var city = _settings.WeatherCity;
-        var geo = await WeatherService.GeocodeAsync(city);
-        if (!_settings.WeatherEnabled || !string.Equals(city, _settings.WeatherCity, StringComparison.OrdinalIgnoreCase)) return;   // settings changed meanwhile
-        if (geo is null)
+        if (_safeMode) return;
+        _locationTimer.Tick += (_, _) => _ = RefreshLocationAsync();
+        _locationTimer.Start();
+        _ = RefreshLocationAsync();
+    }
+
+    async Task RefreshLocationAsync()
+    {
+        if (_locationBusy || _safeMode) return;
+        _locationBusy = true;
+        try
         {
-            Notify($"Couldn't find “{city}” for the weather. Check the spelling or your connection.", true);
-            _weather?.Configure(_settings);   // no coordinates → stays idle
-            return;
+            var fix = await LocationService.GetAsync();
+            if (fix.Status != LocationService.Status.Ok)
+            {
+                // Keep the last known position (or Jakarta before the first fix); tell the person once how to fix it.
+                if (!_locationWarned)
+                {
+                    _locationWarned = true;
+                    Notify(fix.Status == LocationService.Status.Denied
+                        ? "Lokasi belum diizinkan. Nyalakan di Pengaturan > Privasi & keamanan > Lokasi (juga untuk aplikasi desktop)."
+                        : "Posisi laptop belum bisa dibaca. Waktu sholat memakai lokasi terakhir.", true);
+                }
+                return;
+            }
+            _locationWarned = false;
+            var s = _settings;
+            bool moved = double.IsNaN(s.WeatherLatitude) || Math.Abs(s.PrayerLatitude - fix.Latitude) > 0.01 || Math.Abs(s.PrayerLongitude - fix.Longitude) > 0.01;
+            s.PrayerCity = PrayerPlaces.Custom;
+            s.PrayerLatitude = fix.Latitude; s.PrayerLongitude = fix.Longitude;
+            s.WeatherCity = "GPS";   // marker: the weather position comes from the GPS (no city to type)
+            s.WeatherPlace = "";
+            s.WeatherLatitude = fix.Latitude; s.WeatherLongitude = fix.Longitude;
+            if (moved)
+            {
+                Persist(s);
+                _island?.ApplySettings(s);   // the prayer page reads the new position
+                _weather?.Configure(s);
+            }
         }
-        _settings.WeatherLatitude = geo.Latitude;
-        _settings.WeatherLongitude = geo.Longitude;
-        _settings.WeatherPlace = geo.DisplayName;
-        Persist(_settings);
-        _weather?.Configure(_settings);
+        catch (Exception ex) { FileLog.Write($"Location refresh failed: {ex.GetType().Name}"); }
+        finally { _locationBusy = false; }
     }
 
     // ---- windows ----
@@ -626,6 +664,7 @@ public partial class App : Application
         _system?.RestoreAll();
         _clipboard?.Dispose();
         _media?.Dispose();
+        _locationTimer.Stop();
         _weather?.Dispose();
         try { _mutex?.ReleaseMutex(); } catch { }
         _mutex?.Dispose();

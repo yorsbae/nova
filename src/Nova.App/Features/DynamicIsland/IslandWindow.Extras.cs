@@ -575,11 +575,8 @@ public partial class IslandWindow
     Button _prayerNotifyBtn = null!, _prayerSoundBtn = null!;
     readonly HashSet<string> _announced = new();
 
-    (string Name, double Lat, double Lon) PrayerSpot()
-    {
-        if (_s.PrayerCity == PrayerPlaces.Custom) return ("Koordinat sendiri", _s.PrayerLatitude, _s.PrayerLongitude);
-        return PrayerPlaces.Find(_s.PrayerCity) is { } p ? (p.Name, p.Latitude, p.Longitude) : ("Jakarta", -6.2088, 106.8456);
-    }
+    /// <summary>The laptop's GPS position (kept fresh by the app; the last known position, or Jakarta before the first fix).</summary>
+    (string Name, double Lat, double Lon) PrayerSpot() => ("Lokasi GPS", _s.PrayerLatitude, _s.PrayerLongitude);
 
     static double UtcOffset(DateTime day) => TimeZoneInfo.Local.GetUtcOffset(day).TotalHours;
 

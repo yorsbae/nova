@@ -114,12 +114,7 @@ public partial class SettingsWindow : Window
         Header("Prayer times and adzan (Island page 8, worked out on this PC, no internet)");
         AddCheck("Show a notice (and play a sound) at each prayer time", nameof(NovaSettings.PrayerNotify));
         AddCheck("Play a sound with the adzan notice", nameof(NovaSettings.PrayerSound));
-        var city = new ComboBox { ItemsSource = PrayerPlaces.All.Select(p => p.Name).Append(PrayerPlaces.Custom).ToList(), MinWidth = 200 };
-        city.SetBinding(Selector.SelectedItemProperty, new Binding(nameof(NovaSettings.PrayerCity)) { Mode = BindingMode.TwoWay });
-        AutomationProperties.SetName(city, "Prayer times city");
-        Row("City (times follow the Kemenag method: Fajr 20°, Isha 18°)", city);
-        AddSlider("Latitude when City is Custom (negative = south)", nameof(NovaSettings.PrayerLatitude), -65, 65, 0.01, "0.00");
-        AddSlider("Longitude when City is Custom (negative = west)", nameof(NovaSettings.PrayerLongitude), -180, 180, 0.01, "0.00");
+        Row("Location", new TextBlock { Text = "Automatic, from the laptop GPS (Windows Settings > Privacy & security > Location must be on). Times follow the Kemenag method: Fajr 20, Isha 18 degrees.", TextWrapping = TextWrapping.Wrap, Opacity = 0.75 });
         AddText("Adzan sound file (wav or mp3, empty = system sound)", nameof(NovaSettings.PrayerSoundPath));
 
         Header("Alarms (Calendar page, Alarm tab)");
@@ -129,8 +124,7 @@ public partial class SettingsWindow : Window
         AddCheck("Show synced lyrics. Sends the artist and song title (and length) of what is playing to lrclib.net", nameof(NovaSettings.LyricsEnabled));
 
         Header("Weather (optional, uses the internet)");
-        AddCheck("Show weather. Sends your city (once) and its coordinates (every 30 min) to open-meteo.com", nameof(NovaSettings.WeatherEnabled));
-        AddText("City", nameof(NovaSettings.WeatherCity));
+        AddCheck("Show weather for where this laptop is (GPS). Sends its coordinates (every 30 min) to open-meteo.com", nameof(NovaSettings.WeatherEnabled));
         AddCheck("Use Fahrenheit", nameof(NovaSettings.WeatherFahrenheit));
 
         Header("Clipboard history (optional, private)");
@@ -319,8 +313,7 @@ public partial class SettingsWindow : Window
         // Explicit consent for the two privacy-relevant features, asked when they are first switched on.
         if (_work.WeatherEnabled && !_liveWeather)
         {
-            if (string.IsNullOrWhiteSpace(_work.WeatherCity)) { Status("Error: enter a city to use weather. Nothing was applied."); return false; }
-            if (!Confirm("Weather uses the free open-meteo.com service.\n\nNOVA will send the city name you entered (once) and its coordinates (about every 30 minutes). Nothing else is sent.\n\nTurn on weather?"))
+            if (!Confirm("Weather uses the free open-meteo.com service.\n\nNOVA will read the laptop GPS position and send its coordinates (about every 30 minutes). Nothing else is sent.\n\nTurn on weather?"))
             { _work.WeatherEnabled = false; Refresh(); }
         }
         if (_work.LyricsEnabled && !_liveLyrics)
