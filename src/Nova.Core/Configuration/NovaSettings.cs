@@ -7,7 +7,8 @@ public enum DockVisibility { AlwaysVisible, RevealOnEdgeHover }
 public enum LayoutPreset { Minimal, Balanced, Custom }
 /// <summary>What the compact Island shows when nothing else (music, timer, alert) is using it.</summary>
 public enum IslandFaceMode { ClockOnly, Alternate, FaceOnly, AllModules }
-public enum IslandFaceStyle { Pet, Robot, Anime, Cat, Sleepy, Emoticon }
+/// <summary>Pet and the three anime characters are eyes; Orbit, Wave, Heartbeat and Spark are different moving shapes (no eyes).</summary>
+public enum IslandFaceStyle { Pet, AnimeA, AnimeB, AnimeC, Orbit, Wave, Heartbeat, Spark }
 
 public sealed class DockItem
 {
@@ -189,7 +190,7 @@ public sealed class NovaSettings
     /// <summary>Set once the "start with Windows" default (now on) has been applied to settings saved by an older version.</summary>
     public bool StartupDefaultApplied { get; set; } = false;
     public string Hotkey { get; set; } = "Ctrl+Alt+N";
-    /// <summary>v2.13: modifiers for the page shortcuts: prefix + 1…7 opens the Island straight on that page (Ctrl+Alt+1 = page 1 … Ctrl+Alt+7 = page 7). Empty = off.</summary>
+    /// <summary>v2.13: modifiers for the page shortcuts: prefix + 1…6 opens the Island straight on that page (Ctrl+Alt+1 = page 1 … Ctrl+Alt+6 = page 6). Empty = off.</summary>
     public string PageHotkeyPrefix { get; set; } = "Ctrl+Alt";
 
     /// <summary>Deep copy, so a settings dialog can edit without touching live state.</summary>

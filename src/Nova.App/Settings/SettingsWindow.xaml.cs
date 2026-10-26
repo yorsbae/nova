@@ -83,7 +83,7 @@ public partial class SettingsWindow : Window
         resetIsland.Click += (_, _) => { _work.IslandOffsetX = 0; _work.IslandTopOffset = new NovaSettings().IslandTopOffset; Refresh(); Status("Island position reset in the form. Press Apply to use it."); };
         _cur.Children.Add(resetIsland);
         AddCombo<IslandFaceMode>("Compact (minimal) Island: clock only, clock and face taking turns, face only, or all modules taking turns (clock, face, water, prayer)", nameof(NovaSettings.IslandFaceMode));
-        AddCombo<IslandFaceStyle>("Face style: Pet, Robot, Anime, Cat, Sleepy or Emoticon", nameof(NovaSettings.IslandFaceStyle));
+        AddCombo<IslandFaceStyle>("Face style: Pet, three Anime characters (A, B, C), or the moving shapes Orbit, Wave, Heartbeat and Spark", nameof(NovaSettings.IslandFaceStyle));
         AddSlider("Seconds the clock stays before the face shows (clock-and-face mode)", nameof(NovaSettings.IslandFaceClockSeconds), 5, 120, 1, "0");
         AddSlider("Seconds the face stays before the clock returns", nameof(NovaSettings.IslandFaceShowSeconds), 3, 60, 1, "0");
         AddCheck("Show CPU and RAM use under the clock in the compact Island (read every 3 seconds while it is shown)", nameof(NovaSettings.IslandShowUsage));
@@ -92,7 +92,7 @@ public partial class SettingsWindow : Window
         AddCheck("File shelf: drop files on the Island to hold them for a moment, drag them out later", nameof(NovaSettings.ShelfEnabled));
         AddCheck("Show temporary notices (including 'now playing' in Adaptive mode)", nameof(NovaSettings.TemporaryNotices));
         AddText("Keyboard shortcut (e.g. Ctrl+Alt+N)", nameof(NovaSettings.Hotkey));
-        AddText("Page shortcuts: this prefix + 1…7 opens the Island on that page (Ctrl+Alt → Ctrl+Alt+1 … Ctrl+Alt+7; empty = off)", nameof(NovaSettings.PageHotkeyPrefix));
+        AddText("Page shortcuts: this prefix + 1…6 opens the Island on that page (Ctrl+Alt → Ctrl+Alt+1 … Ctrl+Alt+6; empty = off)", nameof(NovaSettings.PageHotkeyPrefix));
 
         Category("Dock", "🧲");
         Header("Dock");
@@ -111,20 +111,20 @@ public partial class SettingsWindow : Window
         AddCheck("System status: CPU, memory, battery (updates only while expanded)", nameof(NovaSettings.ShowSystemStatus));
 
         Category("Pengingat", "🔔");
-        Header("Drink reminder (Island page 6)");
+        Header("Drink reminder (Island page 5)");
         AddCheck("Remind me to drink water with a notice on the Island", nameof(NovaSettings.HydrationEnabled));
         AddSlider("Minutes between reminders", nameof(NovaSettings.HydrationIntervalMinutes), 15, 240, 5, "0");
         AddSlider("Daily goal (glasses)", nameof(NovaSettings.HydrationGoalGlasses), 1, 20, 1, "0");
         AddSlider("Remind from (hour)", nameof(NovaSettings.HydrationFromHour), 0, 23, 1, "0");
         AddSlider("Remind until (hour)", nameof(NovaSettings.HydrationToHour), 0, 24, 1, "0");
 
-        Header("Prayer times and adzan (Island page 7, worked out on this PC, no internet)");
+        Header("Prayer times and adzan (Island page 6, worked out on this PC, no internet)");
         AddCheck("Show a notice (and play a sound) at each prayer time", nameof(NovaSettings.PrayerNotify));
         AddCheck("Play a sound with the adzan notice", nameof(NovaSettings.PrayerSound));
         Row("Location", new TextBlock { Text = "Automatic: your current place (shown as village, regency, province), read from Windows Location (Settings > Privacy & security > Location must be on). Times follow the Kemenag method: Fajr 20, Isha 18 degrees.", TextWrapping = TextWrapping.Wrap, Opacity = 0.75 });
         AddText("Adzan sound file (wav or mp3, empty = system sound)", nameof(NovaSettings.PrayerSoundPath));
 
-        Header("Tugas & alarm (Island page 5)");
+        Header("Fokus, tugas & alarm (Island page 4)");
         AddText("Alarm sound file (wav or mp3, empty = system sound)", nameof(NovaSettings.AlarmSoundPath));
 
         Category("Online & Data", "🌐");

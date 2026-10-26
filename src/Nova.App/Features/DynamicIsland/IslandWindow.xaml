@@ -356,16 +356,16 @@
           <!-- 5: Pomodoro -->
           <Grid x:Name="PagePomo" Visibility="Collapsed">
             <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-            <Grid Width="84" Height="84" Margin="4,0,14,0" VerticalAlignment="Center">
+            <Viewbox Width="60" Height="60" Margin="2,0,12,0" VerticalAlignment="Center"><Grid Width="84" Height="84">
               <Ellipse Width="76" Height="76" StrokeThickness="7" Stroke="{DynamicResource NovaSurfaceAlt}"/>
               <Path x:Name="PomoArc" Stroke="#FFE5484D" StrokeThickness="7" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
                     HorizontalAlignment="Left" VerticalAlignment="Top" AutomationProperties.Name="Sisa waktu sesi"/>
               <Button x:Name="PomoToggle" Style="{StaticResource NovaIconButton}" Width="26" Height="26" FontSize="12" Content="&#xE768;"
                       ToolTip="Mulai / jeda" AutomationProperties.Name="Mulai atau jeda timer" Click="OnPomoToggle"/>
-            </Grid>
+            </Grid></Viewbox>
             <StackPanel Grid.Column="1" VerticalAlignment="Center">
               <TextBlock x:Name="PomoPhase" FontSize="11" Opacity="0.85" Foreground="{DynamicResource NovaOnSurface}"/>
-              <TextBlock x:Name="PomoTime" FontSize="28" FontWeight="SemiBold" Foreground="{DynamicResource NovaOnSurface}" AutomationProperties.Name="Sisa waktu"/>
+              <TextBlock x:Name="PomoTime" FontSize="22" FontWeight="SemiBold" Foreground="{DynamicResource NovaOnSurface}" AutomationProperties.Name="Sisa waktu"/>
               <Grid Margin="0,1,0,0">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                 <TextBlock x:Name="TodoTitle" FontSize="11" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource NovaOnSurface}"/>
@@ -411,7 +411,7 @@
               <Button x:Name="EventKind" Style="{StaticResource NovaTab}" Content="&#x23F0;" Margin="0,0,6,0" Click="OnEventKind"
                       ToolTip="Alarm nyala: berbunyi pada jam tugas. Klik untuk mematikan." AutomationProperties.Name="Alarm untuk tugas ini: nyala"/>
               <TextBox x:Name="EventInput" Grid.Column="1" Style="{StaticResource NovaInput}" Tag="Tugas baru (akhiri dengan ! = penting)" MaxLength="100" AutomationProperties.Name="Judul tugas" KeyDown="OnEventKey"/>
-              <TextBox x:Name="EventTime" Grid.Column="2" Style="{StaticResource NovaInput}" Tag="14:30" MaxLength="5" Margin="6,0,0,0" ToolTip="Jam tugas dan alarm, misalnya 14:30 (kosong = tugas tanpa jam)" AutomationProperties.Name="Jam" KeyDown="OnEventKey"/>
+              <TextBox x:Name="EventTime" Grid.Column="2" Style="{StaticResource NovaInput}" Tag="14:30" MaxLength="5" TextChanged="OnEventTimeChanged" Margin="6,0,0,0" ToolTip="Jam tugas dan alarm, misalnya 14:30 (kosong = tugas tanpa jam)" AutomationProperties.Name="Jam" KeyDown="OnEventKey"/>
               <Button Grid.Column="3" Style="{StaticResource NovaIconButton}" Margin="6,0,0,0" Width="32" Height="32" Content="&#xE710;" ToolTip="Tambah" AutomationProperties.Name="Tambah tugas" Click="OnEventAdd"/>
             </Grid>
           </StackPanel>

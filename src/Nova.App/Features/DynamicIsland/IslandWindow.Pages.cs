@@ -18,21 +18,22 @@ using Nova.Core.Media;
 
 namespace Nova.App.Features.DynamicIsland;
 
-/// <summary>The seven pages of the expanded Island and the way you move between them.</summary>
+/// <summary>The six pages of the expanded Island and the way you move between them.</summary>
 public partial class IslandWindow
 {
     static readonly string[] PageTitles =
     {
         "Wi-Fi, Suara & Pengaturan", "Musik", "Catatan & Clipboard",
-        "Pomodoro", "Kalender & Tugas",
+        "Fokus & Tugas",
         "Minum Air", "Waktu Sholat"
     };
     // Acara, tugas and alarm are ONE thing on the Kalender page (a task, with an optional time and alarm), so there are 7 pages.
     // The old "Sistem & Alat" page is gone: the RAM reading now sits on page 1.
-    const int Quick = 0, Music = 1, Notes = 2, Pomo = 3, Calendar = 4, Water = 5, PrayerPage = 6;
+    // Pomodoro and the calendar/tasks are one page (Fokus & Tugas): the timer sits on top, the tasks it works on below.
+    const int Quick = 0, Music = 1, Notes = 2, Pomo = 3, Calendar = 3, Water = 4, PrayerPage = 5;
 
     UIElement[] _pages = Array.Empty<UIElement>();
-    readonly Ellipse[] _dots = new Ellipse[7];
+    readonly Ellipse[] _dots = new Ellipse[6];
     int _pageIndex, _sub;
     Point _swipeStart; bool _swipeArmed;
 
@@ -72,7 +73,7 @@ public partial class IslandWindow
         PageHost.Children.Add(prayer);
         _pages = new UIElement[]
         {
-            PageQuick, WrapScrolling(PageMusic), WrapScrolling(PageNotes), WrapScrolling(PagePomo),
+            PageQuick, WrapScrolling(PageMusic), WrapScrolling(PageNotes),
             WrapScrolling(PageCalendar), water, prayer
         };
         for (int i = 0; i < _dots.Length; i++)
@@ -134,8 +135,7 @@ public partial class IslandWindow
         {
             case Quick: ApplyQuickBasics(); RefreshQuick(); RefreshRam(); break;
             case Notes: SetSub(_sub, morph: false); break;
-            case Pomo: UpdatePomoUi(); break;
-            case Calendar: SetCalView(_calView, morph: false); break;
+            case Calendar: UpdatePomoUi(); SetCalView(_calView, morph: false); break;
             case Water: RefreshWater(); break;
             case PrayerPage: RefreshPrayer(); break;
         }
@@ -182,8 +182,8 @@ public partial class IslandWindow
     bool HandlePageKey(KeyEventArgs e)
     {
         if (!_expanded || Keyboard.FocusedElement is TextBoxBase || Keyboard.FocusedElement is Slider) return false;
-        // 1–7 jump straight to that page
-        int digit = e.Key >= Key.D1 && e.Key <= Key.D7 ? e.Key - Key.D1 : e.Key >= Key.NumPad1 && e.Key <= Key.NumPad7 ? e.Key - Key.NumPad1 : -1;
+        // 1–6 jump straight to that page
+        int digit = e.Key >= Key.D1 && e.Key <= Key.D6 ? e.Key - Key.D1 : e.Key >= Key.NumPad1 && e.Key <= Key.NumPad6 ? e.Key - Key.NumPad1 : -1;
         if (digit >= 0 && Keyboard.Modifiers == ModifierKeys.None && digit < _pages.Length) { GoToPage(digit); return true; }
         if (e.Key == Key.Left) { GoToPage(_pageIndex - 1); return true; }
         if (e.Key == Key.Right) { GoToPage(_pageIndex + 1); return true; }
@@ -703,25 +703,23 @@ public partial class IslandWindow
 
     /// <summary>
     /// Acara, tugas and alarm are one function: a task with an optional time. One month view, one agenda for the chosen day,
-    /// one add row: title, time, a bell (the alarm rings at that time) and optional weekday chips (repeat every week).
+    /// one add row: title, time and a bell (the alarm rings at that time).
     /// </summary>
     void BuildCalendarTabs()
     {
         PageHost.Children.Remove(PagePlan);
         PagePlan.Visibility = Visibility.Collapsed;
         _alarmList = new StackPanel();   // not shown any more; alarms are listed in the agenda
-        _alarmDaysRow = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 6, 0, 0) };
-        for (int i = 0; i < 7; i++)
+        // Pomodoro lives on this page too: a compact card on top, connected to the tasks below (it shows the task being worked on).
+        PageHost.Children.Remove(PagePomo);
+        PagePomo.Visibility = Visibility.Visible;
+        var pomoCard = new Border
         {
-            var btn = TabBtn(DayInitials[i], (sender, _) => { var b = (Button)sender; b.Tag = b.Tag as string == "on" ? null : "on"; }, "Ulangi setiap hari " + DayNames[i]);
-            btn.ToolTip = "Ulangi tiap " + DayNames[i] + " (butuh jam)";
-            _alarmDays[i] = btn;
-            _alarmDaysRow.Children.Add(btn);
-        }
-        PageCalendar.Children.Add(_alarmDaysRow);
+            CornerRadius = new CornerRadius(14), Padding = new Thickness(10, 4, 10, 4), Margin = new Thickness(0, 0, 0, 8),
+            Background = new SolidColorBrush(Color.FromArgb(0x14, 0x80, 0x80, 0x80)), Child = PagePomo
+        };
+        PageCalendar.Children.Insert(0, pomoCard);
     }
-
-    StackPanel _alarmDaysRow = null!;
 
     /// <summary>Refreshes the merged page.</summary>
     void SetCalView(int view, bool morph)
@@ -840,15 +838,12 @@ public partial class IslandWindow
     }
 
     /// <summary>One add function. No time = a plain task for the chosen day. With a time = a task that rings then (bell on).
-    /// With weekday chips + a time = it repeats every week (listed as an alarm on those days).</summary>
+    </summary>
     void OnEventAdd(object sender, RoutedEventArgs e)
     {
         var title = (EventInput.Text ?? "").Trim();
         int priority = title.EndsWith('!') ? 1 : 0;
         if (priority > 0) title = title.TrimEnd('!', ' ');
-        int mask = 0;
-        for (int i = 0; i < 7; i++) if (_alarmDays[i].Tag as string == "on") mask |= 1 << DayOrder[i];
-
         var timeText = (EventTime.Text ?? "").Trim();
         string time = "";
         if (timeText.Length > 0)
@@ -860,26 +855,33 @@ public partial class IslandWindow
             }
             time = $"{ts.Hours:00}:{ts.Minutes:00}";
         }
-        if (mask != 0 && time.Length == 0) { ShowNotice("Isi jam dulu untuk mengulang tiap minggu. Contoh: 06:30", important: true); return; }
         if (title.Length == 0 && time.Length == 0) return;
 
-        if (mask != 0)
+        if (title.Length == 0) title = "Alarm";
+        if (!_data.AddTask(title, time, _calDay.Date, priority, alarm: _addAlarm && time.Length > 0))
         {
-            if (!_data.AddAlarm(time, title, mask)) { ShowNotice("Alarm sudah penuh.", important: true); return; }
-        }
-        else
-        {
-            if (title.Length == 0) title = "Alarm";
-            if (!_data.AddTask(title, time, _calDay.Date, priority, alarm: _addAlarm && time.Length > 0))
-            {
-                ShowNotice("Daftar tugas sudah penuh.", important: true);
-                return;
-            }
+            ShowNotice("Daftar tugas sudah penuh.", important: true);
+            return;
         }
         EventInput.Clear(); EventTime.Clear();
-        for (int i = 0; i < 7; i++) _alarmDays[i].Tag = null;
         SaveData(); UpdateExtraTimer();
         RebuildAgenda(); RebuildCalendar();
+    }
+
+    bool _timeFmtBusy;
+
+    /// <summary>Formats the time while typing: 1030, 10.30 or 10:30 all become 10:30 (a first digit above 2 is a one-digit hour: 930 gives 9:30).</summary>
+    void OnEventTimeChanged(object sender, TextChangedEventArgs e)
+    {
+        if (_timeFmtBusy) return;
+        var digits = new string((EventTime.Text ?? "").Where(char.IsDigit).Take(4).ToArray());
+        int hourLen = digits.Length > 0 && digits[0] > '2' ? 1 : 2;
+        string text = digits.Length <= hourLen ? digits : digits[..hourLen] + ":" + digits[hourLen..];
+        if (text == EventTime.Text) return;
+        _timeFmtBusy = true;
+        EventTime.Text = text;
+        EventTime.CaretIndex = text.Length;
+        _timeFmtBusy = false;
     }
 
     void OnEventKey(object sender, KeyEventArgs e) { if (e.Key == Key.Enter) { OnEventAdd(sender, e); e.Handled = true; } }

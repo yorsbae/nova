@@ -160,13 +160,13 @@ public partial class App : Application
             _hotkey = new HotkeyService(_island, () => _island.Invoke());
             if (!_hotkey.Register(_settings.Hotkey))
                 Notify($"Shortcut {_settings.Hotkey} is unavailable. Use the tray icon, or change it in Settings.", true);
-            for (int i = 0; i < 7; i++)
+            for (int i = 0; i < 6; i++)
             {
                 int page = i;
                 _pageHotkeys.Add(new HotkeyService(_island, () => _island.InvokePage(page), 0x4E51 + i));
             }
             if (!RegisterPageHotkeys(_settings))
-                Notify($"Some page shortcuts ({_settings.PageHotkeyPrefix}+1…7) are in use by another app. Change the prefix in Settings.", true);
+                Notify($"Some page shortcuts ({_settings.PageHotkeyPrefix}+1…6) are in use by another app. Change the prefix in Settings.", true);
         });
         Guard("tray", () => _tray = new TrayService(
             () => _island?.Invoke(), () => _dock?.FocusFirst(), OpenClipboard, OpenSettings, ResetLayout, () => Shutdown()));
@@ -363,7 +363,7 @@ public partial class App : Application
         else _trimTimer.Stop();
     }
 
-    /// <summary>Prefix + 1…7 → page 1…7 of the Island. Returns false if any of them is taken by another app (an empty prefix switches them all off and counts as fine).</summary>
+    /// <summary>Prefix + 1…6 → page 1…6 of the Island. Returns false if any of them is taken by another app (an empty prefix switches them all off and counts as fine).</summary>
     bool RegisterPageHotkeys(NovaSettings s)
     {
         bool all = true;

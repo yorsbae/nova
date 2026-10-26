@@ -246,65 +246,150 @@ public partial class IslandWindow
         return b;
     }
 
-    Grid MakeEye(IslandFaceStyle style, double h)
+    /// <summary>One anime eye: iris colour, size, highlights and an optional lash line differ per character.</summary>
+    Grid AnimeEye(double h, string iris, double w, double ht, bool lash, bool star)
     {
-        var g = new Grid { RenderTransformOrigin = new Point(0.5, 0.5), Margin = new Thickness(h * 0.18, 0, h * 0.18, 0), VerticalAlignment = VerticalAlignment.Center };
-        switch (style)
+        var g = new Grid { RenderTransformOrigin = new Point(0.5, 0.5), Margin = new Thickness(h * 0.16, 0, h * 0.16, 0), VerticalAlignment = VerticalAlignment.Center };
+        g.Children.Add(Blob(h * w, h * ht, h * w / 2, null, Solid(iris)));
+        var pupil = Blob(h * w * 0.52, h * ht * 0.58, h * w * 0.26, null, Brushes.Black);
+        pupil.VerticalAlignment = VerticalAlignment.Bottom; pupil.Margin = new Thickness(0, 0, 0, h * ht * 0.12);
+        g.Children.Add(pupil);
+        if (star)
         {
-            case IslandFaceStyle.Robot:
-            {
-                var glow = Blob(h * 0.72, h * 0.46, h * 0.14, "NovaAccent");
-                glow.Opacity = 0.28;
-                g.Children.Add(glow);
-                g.Children.Add(Blob(h * 0.54, h * 0.30, h * 0.08, "NovaAccent"));
-                break;
-            }
-            case IslandFaceStyle.Anime:
-            {
-                g.Children.Add(Blob(h * 0.58, h * 0.82, h * 0.29, "NovaAccent"));
-                var pupil = Blob(h * 0.30, h * 0.48, h * 0.15, null, Brushes.Black);
-                pupil.VerticalAlignment = VerticalAlignment.Bottom; pupil.Margin = new Thickness(0, 0, 0, h * 0.10);
-                g.Children.Add(pupil);
-                var big = Blob(h * 0.17, h * 0.17, h * 0.085, null, Brushes.White);
-                big.HorizontalAlignment = HorizontalAlignment.Left; big.VerticalAlignment = VerticalAlignment.Top; big.Margin = new Thickness(h * 0.10, h * 0.12, 0, 0);
-                g.Children.Add(big);
-                var small = Blob(h * 0.09, h * 0.09, h * 0.045, null, Brushes.White);
-                small.HorizontalAlignment = HorizontalAlignment.Right; small.VerticalAlignment = VerticalAlignment.Bottom; small.Margin = new Thickness(0, 0, h * 0.10, h * 0.18);
-                g.Children.Add(small);
-                break;
-            }
-            case IslandFaceStyle.Cat:
-            {
-                g.Children.Add(Blob(h * 0.58, h * 0.58, h * 0.29, null, Solid("#FFFFD34D")));
-                g.Children.Add(Blob(h * 0.12, h * 0.50, h * 0.06, null, Brushes.Black));
-                break;
-            }
-            default:   // Pet
-            {
-                g.Children.Add(Blob(h * 0.40, h * 0.60, h * 0.20, "NovaOnSurface"));
-                var spark = Blob(h * 0.15, h * 0.15, h * 0.075, "NovaSurface");
-                spark.HorizontalAlignment = HorizontalAlignment.Left; spark.VerticalAlignment = VerticalAlignment.Top; spark.Margin = new Thickness(h * 0.07, h * 0.10, 0, 0);
-                g.Children.Add(spark);
-                break;
-            }
+            var st = new TextBlock { Text = "✦", FontSize = h * 0.30, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(h * 0.03, h * 0.02, 0, 0) };
+            g.Children.Add(st);
+        }
+        else
+        {
+            var big = Blob(h * 0.17, h * 0.17, h * 0.085, null, Brushes.White);
+            big.HorizontalAlignment = HorizontalAlignment.Left; big.VerticalAlignment = VerticalAlignment.Top; big.Margin = new Thickness(h * 0.09, h * 0.12, 0, 0);
+            g.Children.Add(big);
+        }
+        var small = Blob(h * 0.09, h * 0.09, h * 0.045, null, Brushes.White);
+        small.HorizontalAlignment = HorizontalAlignment.Right; small.VerticalAlignment = VerticalAlignment.Bottom; small.Margin = new Thickness(0, 0, h * 0.09, h * 0.16);
+        g.Children.Add(small);
+        if (lash)
+        {
+            var line = Blob(h * w * 1.05, Math.Max(2, h * 0.07), h * 0.035, null, Brushes.Black);
+            line.VerticalAlignment = VerticalAlignment.Top; line.Margin = new Thickness(0, -h * 0.02, 0, 0);
+            g.Children.Add(line);
         }
         return g;
     }
 
-    /// <summary>A closed eye: a small downward arc, for the sleepy face.</summary>
-    FrameworkElement MakeSleepyEye(double h)
+    Grid MakeEye(IslandFaceStyle style, double h)
     {
-        double w = h * 0.5;
-        var figure = new PathFigure { StartPoint = new Point(0, 0), IsClosed = false };
-        figure.Segments.Add(new QuadraticBezierSegment(new Point(w / 2, h * 0.42), new Point(w, 0), true));
-        var arc = new Path
+        switch (style)
         {
-            Data = new PathGeometry(new[] { figure }), StrokeThickness = Math.Max(2, h * 0.10),
-            StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round,
-            Margin = new Thickness(h * 0.16, 0, h * 0.16, 0), VerticalAlignment = VerticalAlignment.Center, RenderTransformOrigin = new Point(0.5, 0.5)
-        };
-        arc.SetResourceReference(Shape.StrokeProperty, "NovaOnSurface");
-        return arc;
+            case IslandFaceStyle.AnimeA: return AnimeEye(h, "#FF3DA5FF", 0.58, 0.82, lash: false, star: false);   // character A: blue, tall oval
+            case IslandFaceStyle.AnimeB: return AnimeEye(h, "#FFB36BFF", 0.64, 0.78, lash: true, star: false);    // character B: violet, soft, with a lash line
+            case IslandFaceStyle.AnimeC: return AnimeEye(h, "#FF3DD68C", 0.70, 0.70, lash: false, star: true);    // character C: green, round, star sparkle
+            default:   // Pet
+            {
+                var g = new Grid { RenderTransformOrigin = new Point(0.5, 0.5), Margin = new Thickness(h * 0.18, 0, h * 0.18, 0), VerticalAlignment = VerticalAlignment.Center };
+                g.Children.Add(Blob(h * 0.40, h * 0.60, h * 0.20, "NovaOnSurface"));
+                var spark = Blob(h * 0.15, h * 0.15, h * 0.075, "NovaSurface");
+                spark.HorizontalAlignment = HorizontalAlignment.Left; spark.VerticalAlignment = VerticalAlignment.Top; spark.Margin = new Thickness(h * 0.07, h * 0.10, 0, 0);
+                g.Children.Add(spark);
+                return g;
+            }
+        }
+    }
+
+    // ---- the four moving shapes (no eyes): each has its own build and its own animation ----
+
+    Action? _shapeStart, _shapeStop;
+
+    static bool IsShape(IslandFaceStyle s) => s is IslandFaceStyle.Orbit or IslandFaceStyle.Wave or IslandFaceStyle.Heartbeat or IslandFaceStyle.Spark;
+
+    FrameworkElement MakeShape(IslandFaceStyle style, double h)
+    {
+        var host = new Grid { Width = h * 1.3, Height = h, VerticalAlignment = VerticalAlignment.Center };
+        switch (style)
+        {
+            case IslandFaceStyle.Orbit:   // three dots circling a core
+            {
+                var core = Blob(h * 0.22, h * 0.22, h * 0.11, "NovaAccent");
+                host.Children.Add(core);
+                var spin = new Grid { Width = h * 0.9, Height = h * 0.9, RenderTransformOrigin = new Point(0.5, 0.5) };
+                var rot = new RotateTransform(0); spin.RenderTransform = rot;
+                for (int i = 0; i < 3; i++)
+                {
+                    var dot = Blob(h * 0.16, h * 0.16, h * 0.08, "NovaOnSurface");
+                    dot.HorizontalAlignment = HorizontalAlignment.Center; dot.VerticalAlignment = VerticalAlignment.Top;
+                    dot.RenderTransformOrigin = new Point(0.5, h * 0.45 / (h * 0.16));
+                    dot.RenderTransform = new RotateTransform(i * 120);
+                    dot.Opacity = 1 - i * 0.28;
+                    spin.Children.Add(dot);
+                }
+                host.Children.Add(spin);
+                _shapeStart = () => rot.BeginAnimation(RotateTransform.AngleProperty, new DoubleAnimation(0, 360, TimeSpan.FromSeconds(2.4)) { RepeatBehavior = RepeatBehavior.Forever });
+                _shapeStop = () => { rot.BeginAnimation(RotateTransform.AngleProperty, null); rot.Angle = 0; };
+                break;
+            }
+            case IslandFaceStyle.Wave:    // five bars like an equalizer
+            {
+                var row = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+                var scales = new List<ScaleTransform>();
+                for (int i = 0; i < 5; i++)
+                {
+                    var bar = Blob(h * 0.12, h * 0.8, h * 0.06, i % 2 == 0 ? "NovaAccent" : "NovaOnSurface");
+                    bar.Margin = new Thickness(h * 0.05, 0, h * 0.05, 0);
+                    bar.RenderTransformOrigin = new Point(0.5, 0.5);
+                    var sc = new ScaleTransform(1, 0.3); bar.RenderTransform = sc; scales.Add(sc);
+                    row.Children.Add(bar);
+                }
+                host.Children.Add(row);
+                _shapeStart = () =>
+                {
+                    for (int i = 0; i < scales.Count; i++)
+                        scales[i].BeginAnimation(ScaleTransform.ScaleYProperty, new DoubleAnimation(0.25, 1, TimeSpan.FromSeconds(0.45 + i * 0.07))
+                        { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever, EasingFunction = new SineEase(), BeginTime = TimeSpan.FromMilliseconds(i * 90) });
+                };
+                _shapeStop = () => { foreach (var sc in scales) { sc.BeginAnimation(ScaleTransform.ScaleYProperty, null); sc.ScaleY = 0.3; } };
+                break;
+            }
+            case IslandFaceStyle.Heartbeat:   // a heart that beats twice, then rests
+            {
+                var heart = new TextBlock { Text = "♥", FontSize = h * 0.95, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, RenderTransformOrigin = new Point(0.5, 0.5), Foreground = Solid("#FFFF4D6D") };
+                var sc = new ScaleTransform(1, 1); heart.RenderTransform = sc;
+                host.Children.Add(heart);
+                _shapeStart = () =>
+                {
+                    var beat = new DoubleAnimationUsingKeyFrames { Duration = TimeSpan.FromSeconds(1.5), RepeatBehavior = RepeatBehavior.Forever };
+                    foreach (var (v, t) in new[] { (1.0, 0.0), (1.28, 0.12), (1.0, 0.26), (1.2, 0.38), (1.0, 0.52), (1.0, 1.5) })
+                        beat.KeyFrames.Add(new EasingDoubleKeyFrame(v, TimeSpan.FromSeconds(t), new SineEase()));
+                    sc.BeginAnimation(ScaleTransform.ScaleXProperty, beat); sc.BeginAnimation(ScaleTransform.ScaleYProperty, beat);
+                };
+                _shapeStop = () => { sc.BeginAnimation(ScaleTransform.ScaleXProperty, null); sc.BeginAnimation(ScaleTransform.ScaleYProperty, null); sc.ScaleX = sc.ScaleY = 1; };
+                break;
+            }
+            default:   // Spark: a big star that turns and twinkles, with two small ones
+            {
+                var stars = new List<(TextBlock T, RotateTransform R)>();
+                (double size, double dx, double dy, double sec)[] spec = { (0.95, 0, 0, 3.2), (0.38, -0.5, -0.28, 2.0), (0.30, 0.5, 0.26, 2.6) };
+                foreach (var (size, dx, dy, sec) in spec)
+                {
+                    var t = new TextBlock { Text = "✦", FontSize = h * size, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, RenderTransformOrigin = new Point(0.5, 0.5), Margin = new Thickness(h * dx, h * dy, 0, 0) };
+                    t.SetResourceReference(TextBlock.ForegroundProperty, size > 0.9 ? "NovaAccent" : "NovaOnSurface");
+                    var r = new RotateTransform(0); t.RenderTransform = r;
+                    host.Children.Add(t); stars.Add((t, r));
+                }
+                _shapeStart = () =>
+                {
+                    int k = 0;
+                    foreach (var (t, r) in stars)
+                    {
+                        double sec = spec[k++].sec;
+                        r.BeginAnimation(RotateTransform.AngleProperty, new DoubleAnimation(0, 360, TimeSpan.FromSeconds(sec)) { RepeatBehavior = RepeatBehavior.Forever });
+                        t.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0.25, 1, TimeSpan.FromSeconds(0.6 + k * 0.25)) { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever, EasingFunction = new SineEase() });
+                    }
+                };
+                _shapeStop = () => { foreach (var (t, r) in stars) { r.BeginAnimation(RotateTransform.AngleProperty, null); r.Angle = 0; t.BeginAnimation(UIElement.OpacityProperty, null); t.Opacity = 1; } };
+                break;
+            }
+        }
+        return host;
     }
 
     void BuildFace()
@@ -314,13 +399,11 @@ public partial class IslandWindow
         if (_faceBuilt == style && Math.Abs(_faceBuiltH - h) < 0.5 && FaceBox.Child is not null) return;
         StopFaceAnimation();
         _faceBuilt = style; _faceBuiltH = h;
-        _blinks.Clear(); _emoticon = null;
+        _blinks.Clear(); _emoticon = null; _shapeStart = null; _shapeStop = null;
 
-        if (style == IslandFaceStyle.Emoticon)
+        if (IsShape(style))
         {
-            _emoticon = new TextBlock { Text = Emoticons[0], FontSize = Math.Max(14, h * 0.78), FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center };
-            _emoticon.SetResourceReference(TextBlock.ForegroundProperty, "NovaOnSurface");
-            FaceBox.Child = _emoticon;
+            FaceBox.Child = MakeShape(style, h);
             return;
         }
 
@@ -329,27 +412,28 @@ public partial class IslandWindow
         row.RenderTransform = _look;
         for (int i = 0; i < 2; i++)
         {
-            FrameworkElement eye = style == IslandFaceStyle.Sleepy ? MakeSleepyEye(h) : MakeEye(style, h);
+            FrameworkElement eye = MakeEye(style, h);
             var scale = new ScaleTransform(1, 1);
             eye.RenderTransform = scale;
             _blinks.Add(scale);
             row.Children.Add(eye);
-        }
-        if (style == IslandFaceStyle.Sleepy)
-        {
-            var z = Lbl("z", Math.Max(10, h * 0.45), 0.6, bold: true);
-            z.VerticalAlignment = VerticalAlignment.Top;
-            row.Children.Add(z);
         }
         FaceBox.Child = row;
     }
 
     void StartFaceAnimation()
     {
-        if (_faceAnimating || ReducedMotion || _blinks.Count == 0) return;
+        if (_faceAnimating || ReducedMotion) return;
+        if (_shapeStart is not null)   // a moving shape has its own animation (no blinking, no head moves)
+        {
+            _faceAnimating = true;
+            _shapeStart();
+            return;
+        }
+        if (_blinks.Count == 0) return;
         _faceAnimating = true;
         _moodTimer.Start();
-        bool sleepy = _faceBuilt == IslandFaceStyle.Sleepy;
+        bool sleepy = false;
         foreach (var scale in _blinks)
         {
             if (sleepy)
@@ -390,6 +474,7 @@ public partial class IslandWindow
     {
         if (!_faceAnimating) return;
         _faceAnimating = false;
+        _shapeStop?.Invoke();
         _moodTimer.Stop();
         _faceScale.BeginAnimation(ScaleTransform.ScaleXProperty, null); _faceScale.BeginAnimation(ScaleTransform.ScaleYProperty, null);
         _faceRot.BeginAnimation(RotateTransform.AngleProperty, null);
