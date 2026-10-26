@@ -78,9 +78,17 @@
                       ToolTip="Halaman berikutnya" AutomationProperties.Name="Halaman berikutnya" Click="OnPageNext"/>
             </StackPanel>
           </StackPanel>
-          <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Right" AutomationProperties.Name="Waktu">
-            <TextBlock x:Name="HdrTime" HorizontalAlignment="Right" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource NovaOnSurface}"/>
-            <TextBlock x:Name="HdrDate" HorizontalAlignment="Right" FontSize="10" Opacity="0.75" Foreground="{DynamicResource NovaOnSurface}"/>
+          <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Right">
+            <!-- Weather beside the clock: icon + temperature only (the full text is in the tooltip). Hidden when weather is off. -->
+            <StackPanel x:Name="WeatherChip" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,10,0" Visibility="Collapsed"
+                        AutomationProperties.Name="Cuaca">
+              <TextBlock x:Name="WeatherIcon" FontSize="14" Margin="0,0,4,0" VerticalAlignment="Center"/>
+              <TextBlock x:Name="WeatherText" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="{DynamicResource NovaOnSurface}"/>
+            </StackPanel>
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Right" AutomationProperties.Name="Waktu">
+              <TextBlock x:Name="HdrTime" HorizontalAlignment="Right" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource NovaOnSurface}"/>
+              <TextBlock x:Name="HdrDate" HorizontalAlignment="Right" FontSize="10" Opacity="0.75" Foreground="{DynamicResource NovaOnSurface}"/>
+            </StackPanel>
           </StackPanel>
         </Grid>
 
@@ -174,14 +182,6 @@
                 </StackPanel>
               </Border>
             </UniformGrid>
-            <!-- Weather: always has its place on page 1 (a hint when it is switched off) -->
-            <Border CornerRadius="10" Padding="10,6" Margin="0,8,0,0" Background="#14FFFFFF">
-              <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                <TextBlock x:Name="WeatherGlyph" FontSize="16" Margin="0,0,8,0" VerticalAlignment="Center" Text="&#x1F324;"/>
-                <TextBlock x:Name="WeatherText" VerticalAlignment="Center" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" MaxWidth="300" FontSize="12"
-                           Foreground="{DynamicResource NovaOnSurface}" AutomationProperties.Name="Cuaca"/>
-              </StackPanel>
-            </Border>
           </StackPanel>   <!-- /QuickMain -->
 
             <!-- Wi-Fi / Bluetooth: on/off switch and a list to find and connect, right here (no trip to Windows Settings) -->

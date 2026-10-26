@@ -236,8 +236,8 @@ public void SetTimeline(NovaMediaTimeline? t)
         SetEqualizer(playing);
 
         bool hasWeather = _s.WeatherEnabled && !string.IsNullOrWhiteSpace(_weather);
-        WeatherText.Text = hasWeather ? _weather : _s.WeatherEnabled ? "Cuaca: memuat…" : "Cuaca nonaktif · aktifkan di Pengaturan";
-        WeatherText.Opacity = hasWeather ? 1 : 0.6;
+        WeatherChip.Visibility = hasWeather ? Visibility.Visible : Visibility.Collapsed;
+        if (hasWeather) ShowWeatherChip(_weather!);
 
         ClipboardButton.Visibility = _s.ClipboardHistoryEnabled ? Visibility.Visible : Visibility.Collapsed;
         if (_expanded) StartStatus();
@@ -246,6 +246,18 @@ public void SetTimeline(NovaMediaTimeline? t)
         UpdatePosTimer();
         UpdateCompactText();
         UpdateWave();
+    }
+
+    /// <summary>"Pemalang: 28°C, Partly cloudy" becomes "⛅ 28°C"; the whole sentence stays in the tooltip.</summary>
+    void ShowWeatherChip(string full)
+    {
+        var m = System.Text.RegularExpressions.Regex.Match(full, @"-?\d+\s?°[CF]");
+        WeatherText.Text = m.Success ? m.Value.Replace(" ", "") : full.Contains("unavailable", StringComparison.OrdinalIgnoreCase) ? "–" : full.Length > 12 ? full[..11] + "…" : full;
+        var f = full.ToLowerInvariant();
+        WeatherIcon.Text = f.Contains("thunder") ? "\u26C8" : f.Contains("snow") ? "\u2744" : f.Contains("rain") || f.Contains("drizzle") ? "\U0001F327"
+            : f.Contains("fog") ? "\U0001F32B" : f.Contains("overcast") ? "\u2601" : f.Contains("partly") || f.Contains("mainly") ? "\u26C5"
+            : f.Contains("clear") ? "\u2600" : f.Contains("unavailable") ? "\u2014" : "\U0001F324";
+        WeatherChip.ToolTip = full;
     }
 
     void SetEqualizer(bool on)
