@@ -51,6 +51,7 @@ public static class SettingsValidator
         s.ClockFontSize = Clamp(s.ClockFontSize, 12, 72, d.ClockFontSize);
         s.IslandTopOffset = Clamp(s.IslandTopOffset, 0, 4000, d.IslandTopOffset);
         s.IslandOpacity = Clamp(s.IslandOpacity, 0.2, 1.0, d.IslandOpacity);
+        s.DockOpacity = Clamp(s.DockOpacity, 0.2, 1.0, d.DockOpacity);
         s.IslandOffsetX = Clamp(s.IslandOffsetX, -4000, 4000, d.IslandOffsetX);
         s.DockBottomOffset = Clamp(s.DockBottomOffset, 0, 400, d.DockBottomOffset);
         s.DockIconSize = Clamp(s.DockIconSize, 24, 96, d.DockIconSize);

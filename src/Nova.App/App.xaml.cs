@@ -103,7 +103,7 @@ public partial class App : Application
         Microsoft.Win32.SystemEvents.UserPreferenceChanged += OnUserPreferenceChanged;
         Microsoft.Win32.SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
 
-        bool opaque = _settings.OpaqueFallback || _safeMode;
+        bool opaque = _settings.OpaqueFallback;   // safe mode keeps the normal see-through windows; only this setting makes them solid
 
         // Each feature is isolated: a failure in one must not take down the others.
         Guard("dock", () =>
@@ -168,6 +168,7 @@ public partial class App : Application
         Guard("shape", () => ApplyShape(_settings));
         Guard("eco", () => ApplyEco(_settings));
 
+        if (_settings.OpaqueFallback && !_safeMode) Notify("Solid windows are on (Settings → Use opaque windows). Turn it off and restart NOVA for the see-through Island, the rounded dock and icon zoom.", true);
         if (_safeMode) Notify("Safe mode: clock and dock only, default layout, nothing is saved.", true);
         if (load.Warning is not null) Notify("Your settings file was unreadable, so defaults were restored.", true);
     }

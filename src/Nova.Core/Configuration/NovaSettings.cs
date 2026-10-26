@@ -54,6 +54,8 @@ public sealed class NovaSettings
     public double IslandOpacity { get; set; } = 1.0;
     /// <summary>v2.5: sideways shift of the floating Island from the centre of its monitor, in device-independent pixels (set by dragging it).</summary>
     public double IslandOffsetX { get; set; } = 0;
+    /// <summary>v2.6: how solid the dock's background is (0.2 = almost clear, 1 = solid). Icons stay sharp in the transparent mode.</summary>
+    public double DockOpacity { get; set; } = 0.35;
     public bool TemporaryNotices { get; set; } = false;
     /// <summary>Windows device name such as \\.\DISPLAY2. Empty = primary monitor.</summary>
     public string IslandMonitor { get; set; } = "";

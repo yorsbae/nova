@@ -82,7 +82,7 @@ public partial class IslandWindow
         {
             SaveData();
             RingAlarms(rung);
-            if (_expanded && _pageIndex == AlarmPage) RebuildAlarms();
+            if (_expanded && _pageIndex == Calendar && _calView == 2) RebuildAlarms();
         }
         CheckPrayer(now);
         CheckWater(now);

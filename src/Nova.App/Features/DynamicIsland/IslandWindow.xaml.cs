@@ -103,6 +103,7 @@ public partial class IslandWindow : Window
         Pill.PreviewMouseLeftButtonDown += OnPillDragDown;
         Pill.PreviewMouseMove += OnPillDragMove;
         Pill.PreviewMouseLeftButtonUp += OnPillDragUp;
+        SizeChanged += (_, _) => ClipSolidWindow();
         Pill.LostMouseCapture += (_, _) => { _winDragArmed = false; _winDragging = false; };
         InitFace();
         InitExtras();
@@ -733,6 +734,13 @@ public void SetTimeline(NovaMediaTimeline? t)
         return Math.Clamp(h / 2, 14, 30);
     }
 
+    /// <summary>Solid-window fallback only: cuts the window's square corners off so it looks like the rounded pill.</summary>
+    void ClipSolidWindow()
+    {
+        if (AllowsTransparency) return;
+        NativeMethods.ApplyRoundShape(this, FlushNotch ? 0 : Pill.CornerRadius.TopLeft);
+    }
+
     void UpdateCompactRadius()
     {
         if (_expanded || !NotchActive || FlushNotch) return;
@@ -745,6 +753,12 @@ public void SetTimeline(NovaMediaTimeline? t)
     {
         bool highContrast = SystemParameters.HighContrast || _s.HighContrastOverride;
         double k = highContrast ? 1 : Math.Clamp(_s.IslandOpacity, 0.2, 1.0);   // only the background fades; text and icons stay sharp
+        if (!AllowsTransparency)
+        {
+            // Solid-window fallback: the whole window fades (never below half, so text stays readable) and is clipped to the pill's shape.
+            NativeMethods.SetWindowAlpha(this, Math.Max(0.5, k));
+            Dispatcher.BeginInvoke(new Action(ClipSolidWindow), DispatcherPriority.Loaded);
+        }
         if (NotchActive && !highContrast && (_expanded || !FlushNotch))
         {
             var fill = _expanded

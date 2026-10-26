@@ -2,6 +2,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows;
 using System.Windows.Interop;
+using System.Windows.Media;
 
 namespace Nova.App.Integrations.Windows;
 
@@ -303,6 +304,33 @@ internal static class NativeMethods
         var h = new WindowInteropHelper(w).EnsureHandle();
         int doNotRound = 1;   // DWMWCP_DONOTROUND
         try { DwmSetWindowAttribute(h, 33, ref doNotRound, sizeof(int)); } catch { /* Windows 10: attribute unknown, nothing to do */ }
+    }
+
+    [DllImport("gdi32.dll")] static extern IntPtr CreateRoundRectRgn(int left, int top, int right, int bottom, int ellipseWidth, int ellipseHeight);
+    [DllImport("user32.dll")] static extern int SetWindowRgn(IntPtr hWnd, IntPtr region, bool redraw);
+    [DllImport("user32.dll")] static extern bool SetLayeredWindowAttributes(IntPtr hWnd, uint colorKey, byte alpha, uint flags);
+
+    /// <summary>
+    /// For the solid-window fallback: clips the window to a rounded rectangle, so no square corners show.
+    /// <paramref name="radiusDip"/> 0 removes the clip. Windows owns the region after this call.
+    /// </summary>
+    internal static void ApplyRoundShape(Window w, double radiusDip)
+    {
+        var h = new WindowInteropHelper(w).Handle;
+        if (h == IntPtr.Zero || w.ActualWidth < 2 || w.ActualHeight < 2) return;
+        var dpi = VisualTreeHelper.GetDpi(w);
+        int width = (int)Math.Ceiling(w.ActualWidth * dpi.DpiScaleX), height = (int)Math.Ceiling(w.ActualHeight * dpi.DpiScaleY);
+        if (radiusDip <= 0) { SetWindowRgn(h, IntPtr.Zero, true); return; }
+        int d = (int)Math.Round(radiusDip * 2 * dpi.DpiScaleX);
+        SetWindowRgn(h, CreateRoundRectRgn(0, 0, width + 1, height + 1, d, d), true);
+    }
+
+    /// <summary>Makes the whole window see-through by a fixed amount (1 = solid). Works for the solid-window fallback too.</summary>
+    internal static void SetWindowAlpha(Window w, double alpha)
+    {
+        var h = new WindowInteropHelper(w).EnsureHandle();
+        SetWindowLong(h, GWL_EXSTYLE, GetWindowLong(h, GWL_EXSTYLE) | 0x00080000 /* WS_EX_LAYERED */);
+        SetLayeredWindowAttributes(h, 0, (byte)Math.Round(255 * Math.Clamp(alpha, 0.2, 1.0)), 0x2 /* LWA_ALPHA */);
     }
 
     /// <summary>Re-asserts topmost order without moving, resizing or activating.</summary>

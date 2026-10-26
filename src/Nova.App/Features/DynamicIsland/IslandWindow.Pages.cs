@@ -23,14 +23,15 @@ public partial class IslandWindow
 {
     static readonly string[] PageTitles =
     {
-        "Wi-Fi, Suara & Pengaturan", "Musik", "Catatan & Clipboard", "Rencana",
-        "Pomodoro", "Kalender, Acara & Tugas", "Sistem & Alat",
-        "Minum Air", "Waktu Sholat", "Alarm"
+        "Wi-Fi, Suara & Pengaturan", "Musik", "Catatan & Clipboard",
+        "Pomodoro", "Kalender, Rencana & Alarm", "Sistem & Alat",
+        "Minum Air", "Waktu Sholat"
     };
-    const int Quick = 0, Music = 1, Notes = 2, Plan = 3, Pomo = 4, Calendar = 5, SystemPage = 6, Water = 7, PrayerPage = 8, AlarmPage = 9;
+    // Rencana (plan) and Alarm live inside the Kalender page as tabs, so there are 8 pages.
+    const int Quick = 0, Music = 1, Notes = 2, Pomo = 3, Calendar = 4, SystemPage = 5, Water = 6, PrayerPage = 7;
 
     UIElement[] _pages = Array.Empty<UIElement>();
-    readonly Ellipse[] _dots = new Ellipse[10];
+    readonly Ellipse[] _dots = new Ellipse[8];
     int _pageIndex, _sub;
     Point _swipeStart; bool _swipeArmed;
 
@@ -62,8 +63,9 @@ public partial class IslandWindow
 
     void InitPages()
     {
-        _pages = new UIElement[] { PageQuick, PageMusic, PageNotes, PagePlan, PagePomo, PageCalendar, PageSystem, BuildWaterPage(), BuildPrayerPage(), BuildAlarmPage() };
-        foreach (var extra in _pages.Skip(7)) { extra.Visibility = Visibility.Collapsed; PageHost.Children.Add(extra); }
+        BuildCalendarTabs();
+        _pages = new UIElement[] { PageQuick, PageMusic, PageNotes, PagePomo, PageCalendar, PageSystem, BuildWaterPage(), BuildPrayerPage() };
+        foreach (var extra in _pages.Skip(6)) { extra.Visibility = Visibility.Collapsed; PageHost.Children.Add(extra); }
         BuildUsagePanel();
         for (int i = 0; i < _dots.Length; i++)
         {
@@ -122,13 +124,11 @@ public partial class IslandWindow
         {
             case Quick: ApplyQuickBasics(); RefreshQuick(); break;
             case Notes: SetSub(_sub, morph: false); break;
-            case Plan: RebuildPlan(); break;
             case Pomo: UpdatePomoUi(); break;
-            case Calendar: RebuildCalendar(); RebuildAgenda(); break;
+            case Calendar: SetCalView(_calView, morph: false); break;
             case SystemPage: UpdateStatus(); LoadBrightness(); BuildShortcuts(); break;
             case Water: RefreshWater(); break;
             case PrayerPage: RefreshPrayer(); break;
-            case AlarmPage: RebuildAlarms(); break;
         }
     }
 
@@ -592,7 +592,53 @@ public partial class IslandWindow
     public event Action? EnableLyricsRequested;
     void OnEnableLyrics(object sender, RoutedEventArgs e) => EnableLyricsRequested?.Invoke();
 
-    // ---- 6: calendar ----
+    // ---- 6: calendar, plan and alarms in one page ----
+
+    int _calView;   // 0 calendar, 1 plan, 2 alarms
+    readonly Button[] _calTabs = new Button[3];
+
+    /// <summary>The calendar page gets three tabs: Kalender (month + agenda), Rencana (today's plan) and Alarm. Plan and alarms used to be pages of their own.</summary>
+    void BuildCalendarTabs()
+    {
+        var calendarView = new StackPanel();
+        foreach (var child in PageCalendar.Children.Cast<UIElement>().ToList()) { PageCalendar.Children.Remove(child); calendarView.Children.Add(child); }
+        PageHost.Children.Remove(PagePlan);
+        PagePlan.Visibility = Visibility.Collapsed;
+        var alarmView = (StackPanel)BuildAlarmPage();
+        alarmView.Visibility = Visibility.Collapsed;
+        _calViews = new UIElement[] { calendarView, PagePlan, alarmView };
+
+        var tabs = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 0, 0, 6) };
+        string[] names = { "Kalender", "Rencana", "Alarm" };
+        for (int i = 0; i < 3; i++)
+        {
+            int index = i;
+            _calTabs[i] = TabBtn(names[i], (_, _) => SetCalView(index, morph: true), "Tampilan " + names[i], on: i == 0);
+            tabs.Children.Add(_calTabs[i]);
+        }
+        PageCalendar.Children.Add(tabs);
+        foreach (var view in _calViews) PageCalendar.Children.Add(view);
+    }
+
+    UIElement[] _calViews = Array.Empty<UIElement>();
+
+    void SetCalView(int view, bool morph)
+    {
+        var from = CurrentSize();
+        _calView = Math.Clamp(view, 0, 2);
+        for (int i = 0; i < 3; i++)
+        {
+            _calViews[i].Visibility = i == _calView ? Visibility.Visible : Visibility.Collapsed;
+            _calTabs[i].Tag = i == _calView ? "on" : null;
+        }
+        switch (_calView)
+        {
+            case 0: RebuildCalendar(); RebuildAgenda(); break;
+            case 1: RebuildPlan(); break;
+            default: RebuildAlarms(); break;
+        }
+        if (morph && _expanded) Morph(from);
+    }
 
     void OnCalPrev(object sender, RoutedEventArgs e) { _calMonth = _calMonth.AddMonths(-1); RebuildCalendar(); }
     void OnCalNext(object sender, RoutedEventArgs e) { _calMonth = _calMonth.AddMonths(1); RebuildCalendar(); }
@@ -647,6 +693,9 @@ public partial class IslandWindow
         }
     }
 
+    /// <summary>A day's tasks; for today also the undated ones and unfinished older ones, as on the plan tab.</summary>
+    IEnumerable<PlanTask> DayTasks(DateTime day) => day.Date == DateTime.Today ? _data.TodayTasks(day) : _data.TasksOn(day);
+
     void RebuildAgenda()
     {
         var culture = CultureInfo.CurrentCulture;
@@ -664,15 +713,15 @@ public partial class IslandWindow
             AgendaList.Children.Add(BuildRow(item.Title, item.Start.ToString("HH:mm", culture), dot: dot,
                 onDelete: () => { _data.Events.Remove(item); SaveData(); UpdateRemTimer(); RebuildAgenda(); RebuildCalendar(); }, deleteName: "Hapus acara"));
         }
-        foreach (var t in _data.TasksOn(_calDay).Take(4).ToList())
+        foreach (var t in DayTasks(_calDay).Take(4).ToList())
         {
             var task = t;
             AgendaList.Children.Add(BuildRow((task.Priority > 0 ? "! " : "") + task.Title, task.Time,
-                onDelete: () => { _data.Tasks.Remove(task); SaveData(); RebuildAgenda(); RebuildCalendar(); if (_pageIndex == Plan) RebuildPlan(); }, deleteName: "Hapus tugas",
+                onDelete: () => { _data.Tasks.Remove(task); SaveData(); RebuildAgenda(); RebuildCalendar(); if (_calView == 1) RebuildPlan(); }, deleteName: "Hapus tugas",
                 check: task.Done ? "\uE73A" : "\uE739", onCheck: () => { task.Done = !task.Done; SaveData(); RebuildAgenda(); },
                 strike: task.Done, accent: task.Priority > 0 && !task.Done));
         }
-        if (!_data.EventsOn(_calDay).Any() && !_data.TasksOn(_calDay).Any()) AgendaList.Children.Add(Hint("Tidak ada acara atau tugas."));
+        if (!_data.EventsOn(_calDay).Any() && !DayTasks(_calDay).Any()) AgendaList.Children.Add(Hint("Tidak ada acara atau tugas."));
     }
 
     bool _addTask;

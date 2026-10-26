@@ -131,10 +131,10 @@ Settings → "Use opaque windows" → restart NOVA → Island and dock are solid
 
 ## U. v2.6 changes
 1. Settings → Island: *clock and face* (20 s / 8 s): the face replaces the clock for a few seconds, blinks and looks sideways; try each of the six styles; *face only*; *clock only* returns to the old look. The Island does not change size when the face appears. During music/timer/notice the clock text logic is unchanged.
-2. Page 8 *Minum Air*: +1 / −1 change the count and drops; turn the reminder on, pick 30 min: a "💧 Waktunya minum" notice appears at the right time (test with a short interval); +1 postpones the next one; nothing outside the hours set.
-3. Page 9 *Waktu Sholat*: times for your city look right against a local timetable (±3 min); the next prayer is highlighted with a countdown; *Adzan: Aktif* shows a notice and plays a sound at the time; clicking the notice stops the sound; a custom wav/mp3 in Settings plays.
-4. Page 10 *Alarm*: add 06:30 with days Sen–Jum; add a one-shot a minute ahead: it rings (sound + notice), the tick turns off; clicking the notice silences it; the tick toggles an alarm; delete works; after restart alarms are still there.
-5. Calendar page: switch *Acara* → *Tugas*, add a task on a future day: the day gets a dot, its agenda shows the task with a check box; today's plan page does not show future tasks.
+2. Page 7 *Minum Air*: +1 / −1 change the count and drops; turn the reminder on, pick 30 min: a "💧 Waktunya minum" notice appears at the right time (test with a short interval); +1 postpones the next one; nothing outside the hours set.
+3. Page 8 *Waktu Sholat*: times for your city look right against a local timetable (±3 min); the next prayer is highlighted with a countdown; *Adzan: Aktif* shows a notice and plays a sound at the time; clicking the notice stops the sound; a custom wav/mp3 in Settings plays.
+4. Calendar page → *Alarm* tab: add 06:30 with days Sen–Jum; add a one-shot a minute ahead: it rings (sound + notice), the tick turns off; clicking the notice silences it; the tick toggles an alarm; delete works; after restart alarms are still there.
+5. Calendar page → *Kalender* tab: switch *Acara* → *Tugas*, add a task on a future day: the day gets a dot, its agenda shows the task with a check box; today's plan page does not show future tasks.
 6. *Sistem & Alat*: bars for CPU, RAM, disk, battery and network speed move every 2 s; a bar turns red above 85% (battery below 20%). Settings → *Show CPU and RAM use under the clock*: the compact Island shows the line.
 7. The lock button in the Island's button row locks the PC.
 

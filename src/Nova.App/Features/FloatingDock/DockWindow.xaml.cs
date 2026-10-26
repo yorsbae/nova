@@ -43,6 +43,7 @@ public partial class DockWindow : Window
         _s = settings; _persist = persist; _notify = notify;
         InitializeComponent();
         OverlayChrome.Configure(this, opaque);
+        SizeChanged += (_, _) => ClipSolidWindow();
         _hideTimer.Tick += (_, _) => { _hideTimer.Stop(); TryHide(); };
         _runTimer.Tick += (_, _) => PollRunning();
         _edgeTimer.Tick += (_, _) => PollEdge();
@@ -122,7 +123,7 @@ public partial class DockWindow : Window
         if (_s.DockGlass && AllowsTransparency && !highContrast)
         {
             var c = (Application.Current.Resources["NovaWindow"] as SolidColorBrush)?.Color ?? Colors.Black;
-            c.A = 0x59;
+            c.A = (byte)Math.Round(255 * Math.Clamp(_s.DockOpacity, 0.2, 1.0));
             var fill = new SolidColorBrush(c); fill.Freeze();
             var edge = new SolidColorBrush(Color.FromArgb(0x38, 0xFF, 0xFF, 0xFF)); edge.Freeze();
             Panel.Background = fill;
@@ -133,6 +134,17 @@ public partial class DockWindow : Window
             Panel.SetResourceReference(Border.BackgroundProperty, "NovaSurface");
             Panel.SetResourceReference(Border.BorderBrushProperty, "NovaBorder");
         }
+        if (!AllowsTransparency)
+        {
+            // Solid-window fallback: the window fades a little (icons included) and is clipped to the dock's rounded shape.
+            NativeMethods.SetWindowAlpha(this, 0.5 + 0.5 * Math.Clamp(_s.DockOpacity, 0.2, 1.0));
+            ClipSolidWindow();
+        }
+    }
+
+    void ClipSolidWindow()
+    {
+        if (!AllowsTransparency) NativeMethods.ApplyRoundShape(this, Panel.CornerRadius.TopLeft);
     }
 
     /// <summary>A full-screen app or game started or stopped: the dock steps aside so it never covers it.</summary>

@@ -68,6 +68,7 @@ public partial class SettingsWindow : Window
         AddCombo<IslandBehavior>("Island behavior", nameof(NovaSettings.IslandBehavior));
         AddMonitor("Island monitor", nameof(NovaSettings.IslandMonitor));
         AddSlider("Island transparency: how much of the windows behind it shows through (100% = solid, only the background fades)", nameof(NovaSettings.IslandOpacity), 0.2, 1.0, 0.05, "P0");
+        AddSlider("Dock transparency: 20% = almost clear glass, 100% = solid (the see-through look needs transparent windows, not the solid fallback)", nameof(NovaSettings.DockOpacity), 0.2, 1.0, 0.05, "P0");
         AddSlider("Distance from top of screen (Island-only mode and classic floating mode; you can also drag the Island with the mouse)", nameof(NovaSettings.IslandTopOffset), 0, 2200, 1, "0");
         AddSlider("Sideways shift from the centre (negative = left, positive = right)", nameof(NovaSettings.IslandOffsetX), -2500, 2500, 1, "0");
         var resetIsland = SmallButton("Put the Island back at the top centre", "Reset the Island's position to the top centre of the screen");
@@ -100,14 +101,14 @@ public partial class SettingsWindow : Window
         AddCheck("Media controls for the app that is playing", nameof(NovaSettings.ShowMedia));
         AddCheck("System status: CPU, memory, battery (updates only while expanded)", nameof(NovaSettings.ShowSystemStatus));
 
-        Header("Drink reminder (Island page 8)");
+        Header("Drink reminder (Island page 7)");
         AddCheck("Remind me to drink water with a notice on the Island", nameof(NovaSettings.HydrationEnabled));
         AddSlider("Minutes between reminders", nameof(NovaSettings.HydrationIntervalMinutes), 15, 240, 5, "0");
         AddSlider("Daily goal (glasses)", nameof(NovaSettings.HydrationGoalGlasses), 1, 20, 1, "0");
         AddSlider("Remind from (hour)", nameof(NovaSettings.HydrationFromHour), 0, 23, 1, "0");
         AddSlider("Remind until (hour)", nameof(NovaSettings.HydrationToHour), 0, 24, 1, "0");
 
-        Header("Prayer times and adzan (Island page 9, worked out on this PC, no internet)");
+        Header("Prayer times and adzan (Island page 8, worked out on this PC, no internet)");
         AddCheck("Show a notice (and play a sound) at each prayer time", nameof(NovaSettings.PrayerNotify));
         AddCheck("Play a sound with the adzan notice", nameof(NovaSettings.PrayerSound));
         var city = new ComboBox { ItemsSource = PrayerPlaces.All.Select(p => p.Name).Append(PrayerPlaces.Custom).ToList(), MinWidth = 200 };
@@ -118,7 +119,7 @@ public partial class SettingsWindow : Window
         AddSlider("Longitude when City is Custom (negative = west)", nameof(NovaSettings.PrayerLongitude), -180, 180, 0.01, "0.00");
         AddText("Adzan sound file (wav or mp3, empty = system sound)", nameof(NovaSettings.PrayerSoundPath));
 
-        Header("Alarms (Island page 10)");
+        Header("Alarms (Calendar page, Alarm tab)");
         AddText("Alarm sound file (wav or mp3, empty = system sound)", nameof(NovaSettings.AlarmSoundPath));
 
         Header("Lyrics (optional, uses the internet)");
