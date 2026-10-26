@@ -594,40 +594,35 @@ public partial class IslandWindow
 
     // ---- 6: calendar, plan and alarms in one page ----
 
-    int _calView;   // kept for older call sites; the page has no tabs any more
+    int _calView;   // kept for older call sites; the page has no tabs
 
     /// <summary>
-    /// One page, no tabs: the month and the day's agenda on top, and below them today's plan and the alarms side by side.
-    /// (Plan and Alarm used to be tabs of this page.)
+    /// Plan and Alarm live INSIDE the calendar: one month view, one agenda for the chosen day that lists events, tasks and alarms together,
+    /// and one add row whose kind button cycles Acara → Tugas → Alarm (the weekday chips appear only for alarms).
     /// </summary>
     void BuildCalendarTabs()
     {
-        var calendarView = new StackPanel();
-        foreach (var child in PageCalendar.Children.Cast<UIElement>().ToList()) { PageCalendar.Children.Remove(child); calendarView.Children.Add(child); }
         PageHost.Children.Remove(PagePlan);
-        PagePlan.Visibility = Visibility.Visible;
-        var alarmView = (StackPanel)BuildAlarmPage();
-        alarmView.Visibility = Visibility.Visible;
-        _calViews = new UIElement[] { calendarView, PagePlan, alarmView };
-
-        var lower = new Grid { Margin = new Thickness(0, 8, 0, 0) };
-        lower.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        lower.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        PagePlan.Margin = new Thickness(0, 0, 6, 0);
-        alarmView.Margin = new Thickness(6, 0, 0, 0);
-        Grid.SetColumn(PagePlan, 0); Grid.SetColumn(alarmView, 1);
-        lower.Children.Add(PagePlan); lower.Children.Add(alarmView);
-        PageCalendar.Children.Add(calendarView);
-        PageCalendar.Children.Add(lower);
+        PagePlan.Visibility = Visibility.Collapsed;
+        _alarmList = new StackPanel();   // not shown any more; alarms are listed in the agenda
+        _alarmDaysRow = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 6, 0, 0), Visibility = Visibility.Collapsed };
+        for (int i = 0; i < 7; i++)
+        {
+            var btn = TabBtn(DayInitials[i], (sender, _) => { var b = (Button)sender; b.Tag = b.Tag as string == "on" ? null : "on"; }, "Ulangi setiap hari " + DayNames[i]);
+            btn.ToolTip = DayNames[i];
+            _alarmDays[i] = btn;
+            _alarmDaysRow.Children.Add(btn);
+        }
+        PageCalendar.Children.Add(_alarmDaysRow);
     }
 
-    UIElement[] _calViews = Array.Empty<UIElement>();
+    StackPanel _alarmDaysRow = null!;
 
-    /// <summary>Refreshes everything on the merged page (the three parts are always visible).</summary>
+    /// <summary>Refreshes the merged page.</summary>
     void SetCalView(int view, bool morph)
     {
         var from = CurrentSize();
-        RebuildCalendar(); RebuildAgenda(); RebuildPlan(); RebuildAlarms();
+        RebuildCalendar(); RebuildAgenda();
         if (morph && _expanded) Morph(from);
     }
 
@@ -687,6 +682,7 @@ public partial class IslandWindow
     /// <summary>A day's tasks; for today also the undated ones and unfinished older ones, as on the plan tab.</summary>
     IEnumerable<PlanTask> DayTasks(DateTime day) => day.Date == DateTime.Today ? _data.TodayTasks(day) : _data.TasksOn(day);
 
+    /// <summary>The chosen day: events, tasks and alarms in one list, in time order.</summary>
     void RebuildAgenda()
     {
         var culture = CultureInfo.CurrentCulture;
@@ -697,37 +693,69 @@ public partial class IslandWindow
         AgendaList.Children.Clear();
         var palette = new[] { "#FF7C5CFF", "#FF3DA5FF", "#FFFFB020", "#FF3DD68C" };
         int n = 0;
-        foreach (var ev in _data.EventsOn(_calDay).Take(4).ToList())
+        var rows = new List<(string Key, UIElement Row)>();
+        foreach (var ev in _data.EventsOn(_calDay).ToList())
         {
             var item = ev;
             var dot = (Brush)new BrushConverter().ConvertFromString(palette[n++ % palette.Length])!;
-            AgendaList.Children.Add(BuildRow(item.Title, item.Start.ToString("HH:mm", culture), dot: dot,
-                onDelete: () => { _data.Events.Remove(item); SaveData(); UpdateRemTimer(); RebuildAgenda(); RebuildCalendar(); }, deleteName: "Hapus acara"));
+            rows.Add((item.Start.ToString("HH:mm", culture), BuildRow(item.Title, item.Start.ToString("HH:mm", culture), dot: dot,
+                onDelete: () => { _data.Events.Remove(item); SaveData(); UpdateRemTimer(); RebuildAgenda(); RebuildCalendar(); }, deleteName: "Hapus acara")));
         }
-        foreach (var t in DayTasks(_calDay).Take(4).ToList())
+        foreach (var t in DayTasks(_calDay).ToList())
         {
             var task = t;
-            AgendaList.Children.Add(BuildRow((task.Priority > 0 ? "! " : "") + task.Title, task.Time,
-                onDelete: () => { _data.Tasks.Remove(task); SaveData(); RebuildAgenda(); RebuildCalendar(); RebuildPlan(); }, deleteName: "Hapus tugas",
+            rows.Add((string.IsNullOrWhiteSpace(task.Time) ? "99:99" : task.Time, BuildRow((task.Priority > 0 ? "! " : "") + task.Title, task.Time,
+                onDelete: () => { _data.Tasks.Remove(task); SaveData(); RebuildAgenda(); RebuildCalendar(); }, deleteName: "Hapus tugas",
                 check: task.Done ? "\uE73A" : "\uE739", onCheck: () => { task.Done = !task.Done; SaveData(); RebuildAgenda(); },
-                strike: task.Done, accent: task.Priority > 0 && !task.Done));
+                strike: task.Done, accent: task.Priority > 0 && !task.Done)));
         }
-        if (!_data.EventsOn(_calDay).Any() && !DayTasks(_calDay).Any()) AgendaList.Children.Add(Hint("Tidak ada acara atau tugas."));
+        foreach (var a in _data.Alarms.Where(a => a.Days == 0 ? _calDay.Date == DateTime.Today : a.RepeatsOn(_calDay.DayOfWeek)).ToList())
+        {
+            var alarm = a;
+            rows.Add((alarm.Time, BuildRow("⏰ " + (alarm.Label.Length > 0 ? alarm.Label : "Alarm"), alarm.Time + " · " + alarm.DaysText(),
+                onDelete: () => { _data.Alarms.Remove(alarm); SaveData(); UpdateExtraTimer(); RebuildAgenda(); }, deleteName: "Hapus alarm",
+                check: alarm.Enabled ? "\uE73A" : "\uE739",
+                onCheck: () => { alarm.Enabled = !alarm.Enabled; if (alarm.Enabled) alarm.LastRang = null; SaveData(); UpdateExtraTimer(); RebuildAgenda(); },
+                strike: !alarm.Enabled)));
+        }
+        foreach (var r in rows.OrderBy(r => r.Key, StringComparer.Ordinal).Take(6)) AgendaList.Children.Add(r.Row);
+        if (rows.Count > 6) AgendaList.Children.Add(Hint($"+{rows.Count - 6} lainnya"));
+        if (rows.Count == 0) AgendaList.Children.Add(Hint("Tidak ada acara, tugas, atau alarm."));
     }
 
-    bool _addTask;
+    int _addKind;   // 0 acara, 1 tugas, 2 alarm
+    static readonly string[] KindNames = { "Acara", "Tugas", "Alarm" };
 
     void OnEventKind(object sender, RoutedEventArgs e)
     {
-        _addTask = !_addTask;
-        EventKind.Content = _addTask ? "Tugas" : "Acara";
-        EventInput.Tag = _addTask ? "Tugas baru (akhiri dengan ! = penting)" : "Acara baru";
-        AutomationProperties.SetName(EventKind, "Jenis yang ditambah: " + (_addTask ? "tugas" : "acara"));
+        var from = CurrentSize();
+        _addKind = (_addKind + 1) % 3;
+        EventKind.Content = KindNames[_addKind];
+        EventInput.Tag = _addKind switch { 1 => "Tugas baru (akhiri dengan ! = penting)", 2 => "Nama alarm (boleh kosong)", _ => "Acara baru" };
+        EventTime.Tag = _addKind == 2 ? "06:30" : "14:30";
+        _alarmDaysRow.Visibility = _addKind == 2 ? Visibility.Visible : Visibility.Collapsed;
+        AutomationProperties.SetName(EventKind, "Jenis yang ditambah: " + KindNames[_addKind].ToLowerInvariant());
+        if (_expanded) Morph(from);
     }
 
     void OnEventAdd(object sender, RoutedEventArgs e)
     {
-        if (_addTask)
+        if (_addKind == 2)
+        {
+            int mask = 0;
+            for (int i = 0; i < 7; i++) if (_alarmDays[i].Tag as string == "on") mask |= 1 << DayOrder[i];
+            if (!_data.AddAlarm(string.IsNullOrWhiteSpace(EventTime.Text) ? "06:00" : EventTime.Text, EventInput.Text ?? "", mask))
+            {
+                ShowNotice(_data.Alarms.Count >= UserData.MaxAlarms ? "Alarm sudah penuh." : "Jam tidak dikenali. Contoh: 06:30", important: true);
+                return;
+            }
+            EventInput.Clear(); EventTime.Clear();
+            if (mask == 0) { _calDay = DateTime.Today; _calMonth = new DateTime(_calDay.Year, _calDay.Month, 1); }   // a one-time alarm is listed under today
+            SaveData(); UpdateExtraTimer();
+            RebuildAgenda(); RebuildCalendar();
+            return;
+        }
+        if (_addKind == 1)
         {
             var title = (EventInput.Text ?? "").Trim();
             int priority = title.EndsWith('!') ? 1 : 0;

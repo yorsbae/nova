@@ -31,6 +31,10 @@ Package (portable zip + Inno Setup installer): `.\build\publish.ps1` (add `-Self
 
 On exit NOVA gives the screen space back, and puts the taskbar (and the Windows theme, if you used it) back exactly as it found them. If NOVA was force-killed and the taskbar stays hidden: start NOVA again and exit normally. Or press `Ctrl+Shift+Esc` → Task Manager → *Windows Explorer* → *Restart*, which brings the taskbar back immediately.
 
+## New in v2.9
+- **Plan and Alarm are inside the Calendar:** one month view, one agenda per day that lists events, tasks and alarms together (time order, check to finish a task or switch an alarm on/off, × to delete), and one add row. The kind button cycles *Acara → Tugas → Alarm*; the weekday chips show only for alarms (no day = rings once, listed under today).
+- **Dock, Mac style again:** a glass shelf that keeps its small resting height; icons sit on it, and grow upward out of it (the shelf widens with them) when the pointer comes near. The v2.7 shrink-and-dim effect is gone.
+
 ## New in v2.8
 - **Calendar, Plan and Alarm are one page with no tabs:** month and day agenda on top, today's plan and the alarms side by side below.
 - **More face animations:** on top of blinking and looking around, the face now randomly hops, tilts, pops, shakes, nods, squishes, sways or spins, and changes its emoticon.

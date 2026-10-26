@@ -33,10 +33,6 @@ public partial class DockWindow : Window
     readonly List<Tile> _tiles = new();
     double _restPanelHeight = 40, _baseItemsWidth, _sigma = 40, _icon = 26;
     bool _magHooked;
-    // The dock rests slightly smaller and dimmer, and swells to full size while the pointer is on it.
-    readonly ScaleTransform _panelScale = new(1, 1);
-    double _swell = 1;
-    const double RestShrink = 0.86, RestOpacity = 0.78;
     IReadOnlyList<RunningApp> _apps = Array.Empty<RunningApp>();
     string _appsKey = "";
     NovaSettings _s;
@@ -48,8 +44,6 @@ public partial class DockWindow : Window
         InitializeComponent();
         OverlayChrome.Configure(this, opaque);
         SizeChanged += (_, _) => ClipSolidWindow();
-        Panel.RenderTransformOrigin = new Point(0.5, 1);
-        Panel.RenderTransform = _panelScale;
         _hideTimer.Tick += (_, _) => { _hideTimer.Stop(); TryHide(); };
         _runTimer.Tick += (_, _) => PollRunning();
         _edgeTimer.Tick += (_, _) => PollEdge();
@@ -112,7 +106,6 @@ public partial class DockWindow : Window
         else { _runTimer.Stop(); _apps = Array.Empty<RunningApp>(); _appsKey = ""; }
         ApplyGlass();
         if (!MagnifyOn) ResetZoom();
-        RestSwell();
         Rebuild();
         _edgeTicks = _awayTicks = 0;
         if (RevealMode) _edgeTimer.Start(); else _edgeTimer.Stop();
@@ -133,13 +126,13 @@ public partial class DockWindow : Window
             c.A = (byte)Math.Round(255 * Math.Clamp(_s.DockOpacity, 0.2, 1.0));
             var fill = new SolidColorBrush(c); fill.Freeze();
             var edge = new SolidColorBrush(Color.FromArgb(0x38, 0xFF, 0xFF, 0xFF)); edge.Freeze();
-            Panel.Background = fill;
-            Panel.BorderBrush = edge;
+            Shelf.Background = fill;
+            Shelf.BorderBrush = edge;
         }
         else
         {
-            Panel.SetResourceReference(Border.BackgroundProperty, "NovaSurface");
-            Panel.SetResourceReference(Border.BorderBrushProperty, "NovaBorder");
+            Shelf.SetResourceReference(Border.BackgroundProperty, "NovaSurface");
+            Shelf.SetResourceReference(Border.BorderBrushProperty, "NovaBorder");
         }
         if (!AllowsTransparency)
         {
@@ -347,7 +340,8 @@ public partial class DockWindow : Window
         }
         _baseItemsWidth = x;
         // Worked out from the icons, not from the panel, so it is right even while the panel is hidden (reveal mode).
-        _restPanelHeight = Math.Max(1, Items.DesiredSize.Height + Panel.Padding.Top + Panel.Padding.Bottom + Panel.BorderThickness.Top + Panel.BorderThickness.Bottom);
+        _restPanelHeight = Math.Max(1, Items.DesiredSize.Height + Items.Margin.Top + Items.Margin.Bottom + 2);
+        Shelf.Height = _restPanelHeight;   // the shelf never grows with the zoom: the icons rise out of it, like the Mac Dock
     }
 
     /// <summary>One dock tile: just the icon (the name is in the tooltip), with a dot underneath when the app is open. Its content can be zoomed.</summary>
@@ -719,19 +713,7 @@ public partial class DockWindow : Window
     void ResetZoom()
     {
         foreach (var t in _tiles) { t.Scale = 1; t.Zoom.ScaleX = 1; t.Zoom.ScaleY = 1; }
-        RestSwell();
         StopZoomLoop();
-    }
-
-    /// <summary>Puts the dock panel back to its resting size: small when the zoom is on, full size when it is off.</summary>
-    void RestSwell() => ApplySwell(MagnifyOn ? 0 : 1);
-
-    void ApplySwell(double s)
-    {
-        _swell = s;
-        double k = RestShrink + (1 - RestShrink) * s;
-        _panelScale.ScaleX = k; _panelScale.ScaleY = k;
-        Panel.Opacity = RestOpacity + (1 - RestOpacity) * s;
     }
 
     void OnZoomFrame(object? sender, EventArgs e)
@@ -754,9 +736,6 @@ public partial class DockWindow : Window
             if (next != t.Scale) { t.Scale = next; t.Zoom.ScaleX = next; t.Zoom.ScaleY = next; }
             if (next != 1) resting = false;
         }
-        double nextSwell = DockMagnify.Approach(_swell, inside ? 1 : 0, 0.22);
-        if (nextSwell != _swell) ApplySwell(nextSwell);
-        if (nextSwell != 0) resting = false;
         if (!inside && resting) StopZoomLoop();
     }
 

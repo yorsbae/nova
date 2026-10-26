@@ -715,21 +715,8 @@ public partial class IslandWindow
         return page;
     }
 
-    void RebuildAlarms()
-    {
-        _alarmList.Children.Clear();
-        foreach (var a in _data.Alarms.ToList())
-        {
-            var alarm = a;
-            var title = alarm.Label.Length > 0 ? $"{alarm.Time}  {alarm.Label}" : alarm.Time;
-            _alarmList.Children.Add(BuildRow(title, alarm.DaysText(),
-                onDelete: () => { _data.Alarms.Remove(alarm); SaveData(); UpdateExtraTimer(); RebuildAlarms(); }, deleteName: "Hapus alarm",
-                check: alarm.Enabled ? "\uE73A" : "\uE739",
-                onCheck: () => { alarm.Enabled = !alarm.Enabled; if (alarm.Enabled) alarm.LastRang = null; SaveData(); UpdateExtraTimer(); RebuildAlarms(); },
-                strike: !alarm.Enabled));
-        }
-        if (_data.Alarms.Count == 0) _alarmList.Children.Add(Hint("Belum ada alarm. Isi jam di bawah, lalu tekan +."));
-    }
+    /// <summary>Alarms are part of the calendar agenda now.</summary>
+    void RebuildAlarms() => RebuildAgenda();
 
     void OnAlarmKey(object sender, KeyEventArgs e) { if (e.Key == Key.Enter) { OnAlarmAdd(sender, e); e.Handled = true; } }
 
