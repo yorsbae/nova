@@ -33,6 +33,9 @@ public partial class DockWindow : Window
     readonly List<Tile> _tiles = new();
     double _restPanelHeight = 40, _baseItemsWidth, _sigma = 40, _icon = 26;
     bool _magHooked;
+    // Auto-hide animation: the dock slides down and fades out, and slides back up and fades in (like the Mac Dock).
+    readonly TranslateTransform _slide = new();
+    int _slideVersion;
     IReadOnlyList<RunningApp> _apps = Array.Empty<RunningApp>();
     string _appsKey = "";
     NovaSettings _s;
@@ -44,6 +47,7 @@ public partial class DockWindow : Window
         InitializeComponent();
         OverlayChrome.Configure(this, opaque);
         SizeChanged += (_, _) => ClipSolidWindow();
+        Panel.RenderTransform = _slide;
         _hideTimer.Tick += (_, _) => { _hideTimer.Stop(); TryHide(); };
         _runTimer.Tick += (_, _) => PollRunning();
         _edgeTimer.Tick += (_, _) => PollEdge();
@@ -122,10 +126,12 @@ public partial class DockWindow : Window
         bool highContrast = SystemParameters.HighContrast || _s.HighContrastOverride;
         if (_s.DockGlass && AllowsTransparency && !highContrast)
         {
-            var c = (Application.Current.Resources["NovaWindow"] as SolidColorBrush)?.Color ?? Colors.Black;
-            c.A = (byte)Math.Round(255 * Math.Clamp(_s.DockOpacity, 0.2, 1.0));
-            var fill = new SolidColorBrush(c); fill.Freeze();
-            var edge = new SolidColorBrush(Color.FromArgb(0x38, 0xFF, 0xFF, 0xFF)); edge.Freeze();
+            // Frosted glass like the Mac Dock: a light, see-through tint with a brighter top edge. DockOpacity sets how strong the tint is.
+            double k = Math.Clamp(_s.DockOpacity, 0.2, 1.0);
+            byte top = (byte)Math.Round(255 * Math.Min(1, k * 0.62)), bottom = (byte)Math.Round(255 * Math.Min(1, k * 0.34));
+            var fill = new LinearGradientBrush(Color.FromArgb(top, 0xFF, 0xFF, 0xFF), Color.FromArgb(bottom, 0xE6, 0xEE, 0xFF), 90); fill.Freeze();
+            // A bright rim along the top that fades towards the bottom: the "glass shelf" edge of the Mac Dock.
+            var edge = new LinearGradientBrush(Color.FromArgb(0xA0, 0xFF, 0xFF, 0xFF), Color.FromArgb(0x30, 0xFF, 0xFF, 0xFF), 90); edge.Freeze();
             Shelf.Background = fill;
             Shelf.BorderBrush = edge;
         }
@@ -172,11 +178,44 @@ public partial class DockWindow : Window
 
     void SetRevealed(bool revealed)
     {
+        bool was = _revealed;
         _revealed = revealed || !RevealMode;
         if (!_revealed) ResetZoom();
-        Panel.Visibility = _revealed ? Visibility.Visible : Visibility.Collapsed;
-        Handle.Visibility = !_revealed ? Visibility.Visible : Visibility.Collapsed;
-        Reposition();
+        int version = ++_slideVersion;
+        double dist = _restPanelHeight + _s.DockBottomOffset + 10;
+        bool animate = RevealMode && was != _revealed && IsVisible && IsLoaded && !MotionOff;
+
+        if (!animate)
+        {
+            // Instant: first layout, settings change, reduced motion.
+            Panel.BeginAnimation(OpacityProperty, null); _slide.BeginAnimation(TranslateTransform.YProperty, null);
+            Panel.Opacity = 1; _slide.Y = 0;
+            Panel.Visibility = _revealed ? Visibility.Visible : Visibility.Collapsed;
+            Reposition();
+            return;
+        }
+
+        var ease = new CubicEase { EasingMode = _revealed ? EasingMode.EaseOut : EasingMode.EaseIn };
+        if (_revealed)
+        {
+            if (Panel.Visibility != Visibility.Visible) { Panel.Opacity = 0; _slide.Y = dist; Panel.Visibility = Visibility.Visible; }
+            Reposition();
+            _slide.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(0, TimeSpan.FromMilliseconds(260)) { EasingFunction = ease });
+            Panel.BeginAnimation(OpacityProperty, new DoubleAnimation(1, TimeSpan.FromMilliseconds(200)));
+        }
+        else
+        {
+            var slide = new DoubleAnimation(dist, TimeSpan.FromMilliseconds(220)) { EasingFunction = ease };
+            slide.Completed += (_, _) =>
+            {
+                if (version != _slideVersion || _revealed) return;   // reopened in the meantime
+                Panel.BeginAnimation(OpacityProperty, null); _slide.BeginAnimation(TranslateTransform.YProperty, null);
+                Panel.Visibility = Visibility.Collapsed; Panel.Opacity = 1; _slide.Y = 0;
+                Reposition();
+            };
+            _slide.BeginAnimation(TranslateTransform.YProperty, slide);
+            Panel.BeginAnimation(OpacityProperty, new DoubleAnimation(0, TimeSpan.FromMilliseconds(200)));
+        }
     }
 
     void TryHide()

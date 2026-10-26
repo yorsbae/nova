@@ -27,9 +27,9 @@ public sealed class LayoutProfile
     public IslandBehavior IslandBehavior { get; set; } = IslandBehavior.AlwaysCompact;
     public double IslandTopOffset { get; set; } = 8;
     public DockVisibility DockVisibility { get; set; } = DockVisibility.AlwaysVisible;
-    public double DockBottomOffset { get; set; } = 6;
-    public double DockIconSize { get; set; } = 26;
-    public double DockSpacing { get; set; } = 6;
+    public double DockBottomOffset { get; set; } = 5;
+    public double DockIconSize { get; set; } = 24;
+    public double DockSpacing { get; set; } = 3;
     public string IslandMonitor { get; set; } = "";
     public string DockMonitor { get; set; } = "";
 }
@@ -37,7 +37,7 @@ public sealed class LayoutProfile
 /// <summary>User settings. Every default here is the "known-good layout" used by Reset.</summary>
 public sealed class NovaSettings
 {
-    public int SchemaVersion { get; set; } = 6;
+    public int SchemaVersion { get; set; } = 7;
     public LayoutPreset Preset { get; set; } = LayoutPreset.Balanced;
     public ThemeMode Theme { get; set; } = ThemeMode.System;
     public string AccentColor { get; set; } = "#4C8DFF";
@@ -63,9 +63,9 @@ public sealed class NovaSettings
     public string IslandMonitor { get; set; } = "";
 
     public DockVisibility DockVisibility { get; set; } = DockVisibility.RevealOnEdgeHover;
-    public double DockBottomOffset { get; set; } = 6;
-    public double DockIconSize { get; set; } = 26;
-    public double DockSpacing { get; set; } = 6;
+    public double DockBottomOffset { get; set; } = 5;
+    public double DockIconSize { get; set; } = 24;
+    public double DockSpacing { get; set; } = 3;
     public string DockMonitor { get; set; } = "";
     /// <summary>Reserves the strip the dock occupies (like the taskbar does), so maximized windows such as the browser stop above it instead of going under it.</summary>
     public bool DockReservesSpace { get; set; } = true;

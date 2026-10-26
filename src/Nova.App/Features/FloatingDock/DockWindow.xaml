@@ -10,21 +10,16 @@
   <!-- In the normal (transparent) mode this window is as wide as the screen and has see-through room above the dock:
        icons grow into that room when the pointer comes near, and clicks on the see-through parts fall through to the windows below.
        The dock itself sits at the bottom centre. -->
-  <Grid x:Name="Root">
-    <!-- Edge handle, shown only in "reveal on edge hover" mode while the dock is hidden -->
-    <Border x:Name="Handle" Visibility="Collapsed" Width="180" Height="14" VerticalAlignment="Bottom" HorizontalAlignment="Center"
-            Background="#01000000" AutomationProperties.Name="Reveal app dock">
-      <Border Height="5" CornerRadius="3" VerticalAlignment="Bottom" Margin="0,0,0,2"
-              Background="{DynamicResource NovaAccent}"/>
-    </Border>
+  <Grid x:Name="Root" MinWidth="1" MinHeight="1">
+    <!-- No edge handle: when auto-hide has hidden the dock nothing is left on screen (like Windows). The pointer touching the bottom edge brings it back. -->
     <!-- Mac-style: the glass shelf keeps its resting height; the icons sit on it and grow UP out of it (and the shelf widens with them). -->
-    <Border x:Name="Panel" CornerRadius="18" Padding="0" BorderThickness="0" AllowDrop="True"
+    <Border x:Name="Panel" CornerRadius="16" Padding="0" BorderThickness="0" AllowDrop="True"
             HorizontalAlignment="Center" VerticalAlignment="Bottom" Background="{x:Null}"
             DragOver="OnPanelDragOver" Drop="OnPanelDrop">
       <Grid>
-        <Border x:Name="Shelf" CornerRadius="18" BorderThickness="1" VerticalAlignment="Bottom" Height="40" IsHitTestVisible="True"
+        <Border x:Name="Shelf" CornerRadius="16" BorderThickness="1" VerticalAlignment="Bottom" Height="40" IsHitTestVisible="True"
                 Background="{DynamicResource NovaSurface}" BorderBrush="{DynamicResource NovaBorder}"/>
-        <StackPanel x:Name="Items" Orientation="Horizontal" VerticalAlignment="Bottom" Margin="8,6,8,5" KeyboardNavigation.DirectionalNavigation="Cycle"/>
+        <StackPanel x:Name="Items" Orientation="Horizontal" VerticalAlignment="Bottom" Margin="7,5,7,4" KeyboardNavigation.DirectionalNavigation="Cycle"/>
       </Grid>
     </Border>
   </Grid>

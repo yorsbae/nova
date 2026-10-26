@@ -115,7 +115,7 @@ public class Rev23SettingsTests
         Assert.False(s.ShowTopBar);
         Assert.False(s.ReserveTopSpace);   // v2.4: the Island floats above the windows, no strip kept free
         Assert.True(s.DockMagnify);
-        Assert.Equal(26, s.DockIconSize);
+        Assert.Equal(24, s.DockIconSize);
         Assert.False(s.LyricsEnabled);   // sends data off the PC: stays opt-in
     }
 
@@ -123,10 +123,10 @@ public class Rev23SettingsTests
     public void Old_default_icon_size_shrinks_once_but_chosen_sizes_stay()
     {
         var old = SettingsValidator.Normalize(new NovaSettings { SchemaVersion = 4, DockIconSize = 32, DockSpacing = 6 });
-        Assert.Equal(26, old.DockIconSize);
+        Assert.Equal(24, old.DockIconSize);
         var custom = SettingsValidator.Normalize(new NovaSettings { SchemaVersion = 4, DockIconSize = 40, DockSpacing = 6 });
         Assert.Equal(40, custom.DockIconSize);
-        var chosenLater = SettingsValidator.Normalize(new NovaSettings { SchemaVersion = 5, DockIconSize = 32, DockSpacing = 6 });
+        var chosenLater = SettingsValidator.Normalize(new NovaSettings { SchemaVersion = 7, DockIconSize = 32, DockSpacing = 6 });
         Assert.Equal(32, chosenLater.DockIconSize);
     }
 
@@ -182,5 +182,21 @@ public class Rev24Tests
         Assert.Equal(40, SettingsValidator.Normalize(s).WindowCornerRadius);
         s.WindowCornerRadius = double.NaN;
         Assert.Equal(new NovaSettings().WindowCornerRadius, SettingsValidator.Normalize(s).WindowCornerRadius);
+    }
+}
+
+public class MacDockMigrationTests
+{
+    [Fact]
+    public void Old_dock_look_moves_once_to_the_small_auto_hide_dock_but_chosen_sizes_stay()
+    {
+        var old = SettingsValidator.Normalize(new NovaSettings { SchemaVersion = 6, DockIconSize = 26, DockSpacing = 6, DockVisibility = DockVisibility.AlwaysVisible });
+        Assert.Equal(24, old.DockIconSize);
+        Assert.Equal(3, old.DockSpacing);
+        Assert.True(old.DockAutoHide);
+        var custom = SettingsValidator.Normalize(new NovaSettings { SchemaVersion = 6, DockIconSize = 48 });
+        Assert.Equal(48, custom.DockIconSize);
+        var later = SettingsValidator.Normalize(new NovaSettings { SchemaVersion = 7, DockVisibility = DockVisibility.AlwaysVisible });
+        Assert.False(later.DockAutoHide);
     }
 }

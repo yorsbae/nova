@@ -31,6 +31,16 @@ Package (portable zip + Inno Setup installer): `.\build\publish.ps1` (add `-Self
 
 On exit NOVA gives the screen space back, and puts the taskbar (and the Windows theme, if you used it) back exactly as it found them. If NOVA was force-killed and the taskbar stays hidden: start NOVA again and exit normally. Or press `Ctrl+Shift+Esc` → Task Manager → *Windows Explorer* → *Restart*, which brings the taskbar back immediately.
 
+## New in v2.12
+- **Dock like the Mac Dock:** small icons (24) close together on a frosted-glass shelf with a bright top rim, auto-hide, and a smoother, wider zoom curve so neighbouring icons grow and shrink gradually as the pointer glides along. Settings files from earlier versions are moved to this look once (sizes you picked yourself are kept; change anything in Settings → Dock afterwards).
+
+## New in v2.11
+- **Auto-hide leaves nothing behind:** the little blue edge bar is gone. When the dock is hidden nothing is drawn at the bottom of the screen, like Windows' own auto-hide; touch the bottom edge to bring it back.
+
+## New in v2.10
+- **Dock opens and closes with an animation:** with auto-hide on, the dock slides down and fades out when the pointer leaves, and slides up and fades in when you touch the bottom edge (off when reduced motion is on).
+- **Transparent frosted-glass dock:** a light see-through tint with a brighter top edge instead of a dark panel; *Dock transparency* in Settings sets how strong it is. (Needs transparent windows: leave *Use opaque windows* off.)
+
 ## New in v2.9
 - **Plan and Alarm are inside the Calendar:** one month view, one agenda per day that lists events, tasks and alarms together (time order, check to finish a task or switch an alarm on/off, × to delete), and one add row. The kind button cycles *Acara → Tugas → Alarm*; the weekday chips show only for alarms (no day = rings once, listed under today).
 - **Dock, Mac style again:** a glass shelf that keeps its small resting height; icons sit on it, and grow upward out of it (the shelf widens with them) when the pointer comes near. The v2.7 shrink-and-dim effect is gone.

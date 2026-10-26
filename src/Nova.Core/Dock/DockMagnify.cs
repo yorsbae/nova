@@ -21,7 +21,7 @@ public static class DockMagnify
 
     /// <summary>How far (in DIPs) the zoom reaches to each side: about one and a bit icon widths.</summary>
     public static double Sigma(double icon, double spacing)
-        => Math.Max(8, (icon + DockLayout.TileChrome + spacing) * 1.3);
+        => Math.Max(8, (icon + DockLayout.TileChrome + spacing) * 1.7);
 
     /// <summary>Transparent room the window needs above the resting dock so the biggest icon is never cut off.</summary>
     public static double HeadroomFor(double icon, double maxScale)
@@ -32,7 +32,7 @@ public static class DockMagnify
     }
 
     /// <summary>One animation step towards the target (exponential ease). Snaps when it is close enough, so animation can stop.</summary>
-    public static double Approach(double current, double target, double rate = 0.28)
+    public static double Approach(double current, double target, double rate = 0.32)
     {
         if (double.IsNaN(current)) return target;
         double next = current + (target - current) * Math.Min(1, Math.Max(0.01, rate));

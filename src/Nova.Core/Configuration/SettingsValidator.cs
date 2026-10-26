@@ -46,6 +46,19 @@ public static class SettingsValidator
             if (s.IslandTopOffset == 8) s.IslandTopOffset = d.IslandTopOffset;
         }
 
+        // v6 -> v7: the Mac-style dock (small icons close together on a frosted shelf, auto-hide, zoom). Saved files keep the old look
+        // because a saved value overrides a new default, so move them once; sizes the user picked on purpose are kept.
+        if (s.SchemaVersion < 7)
+        {
+            if (s.DockIconSize == 26 || s.DockIconSize == 32) s.DockIconSize = d.DockIconSize;
+            if (s.DockSpacing == 6) s.DockSpacing = d.DockSpacing;
+            if (s.DockBottomOffset == 6) s.DockBottomOffset = d.DockBottomOffset;
+            s.DockVisibility = DockVisibility.RevealOnEdgeHover;
+            s.DockMagnify = true;
+            s.DockGlass = true;
+            if (s.DockMagnifyScale < 1.95) s.DockMagnifyScale = d.DockMagnifyScale;
+        }
+
         s.SchemaVersion = d.SchemaVersion;
         s.Opacity = Clamp(s.Opacity, 0.7, 1.0, d.Opacity);
         s.ClockFontSize = Clamp(s.ClockFontSize, 12, 72, d.ClockFontSize);
