@@ -82,7 +82,7 @@ public partial class IslandWindow
         {
             SaveData();
             RingAlarms(rung);
-            if (_expanded && _pageIndex == Calendar && _calView == 2) RebuildAlarms();
+            if (_expanded && _pageIndex == Calendar) RebuildAlarms();
         }
         CheckPrayer(now);
         CheckWater(now);
@@ -101,7 +101,54 @@ public partial class IslandWindow
     bool _faceAnimating;
     static readonly string[] Emoticons = { "(•‿•)", "(^‿^)", "(◕‿◕)", "(¬‿¬)", "(•ᴗ•)", "(o_o)", "(^_^)", "(-_-)", "(>_<)" };
 
-    void InitFace() => _faceTimer.Tick += (_, _) => FaceTick();
+    void InitFace()
+    {
+        _faceTimer.Tick += (_, _) => FaceTick();
+        FaceBox.RenderTransformOrigin = new Point(0.5, 0.5);
+        var group = new TransformGroup();
+        group.Children.Add(_faceScale); group.Children.Add(_faceRot); group.Children.Add(_faceMove);
+        FaceBox.RenderTransform = group;
+        _moodTimer.Tick += (_, _) => MoodTick();
+    }
+
+    // Random little actions on top of blinking and looking around, so the face does not repeat itself.
+    readonly DispatcherTimer _moodTimer = new() { Interval = TimeSpan.FromSeconds(2.2) };
+    readonly ScaleTransform _faceScale = new(1, 1);
+    readonly RotateTransform _faceRot = new(0);
+    readonly TranslateTransform _faceMove = new();
+    readonly Random _rng = new();
+    int _lastMood = -1;
+
+    void MoodTick()
+    {
+        if (!_faceAnimating || ReducedMotion) return;
+        int m; do { m = _rng.Next(8); } while (m == _lastMood);
+        _lastMood = m;
+        _moodTimer.Interval = TimeSpan.FromSeconds(1.4 + _rng.NextDouble() * 2.2);
+        double dir = _rng.Next(2) == 0 ? 1 : -1;
+        DoubleAnimationUsingKeyFrames Keys(params (double v, double t)[] k)
+        {
+            var a = new DoubleAnimationUsingKeyFrames { Duration = TimeSpan.FromSeconds(k[^1].t) };
+            foreach (var (v, t) in k) a.KeyFrames.Add(new EasingDoubleKeyFrame(v, TimeSpan.FromSeconds(t), new SineEase()));
+            return a;
+        }
+        switch (m)
+        {
+            case 0: _faceMove.BeginAnimation(TranslateTransform.YProperty, Keys((-4, 0.18), (0, 0.36), (-2, 0.5), (0, 0.64))); break;       // hop
+            case 1: _faceRot.BeginAnimation(RotateTransform.AngleProperty, Keys((12 * dir, 0.3), (12 * dir, 0.9), (0, 1.2))); break;          // tilt head
+            case 2: _faceScale.BeginAnimation(ScaleTransform.ScaleXProperty, Keys((1.22, 0.2), (1, 0.45)));
+                    _faceScale.BeginAnimation(ScaleTransform.ScaleYProperty, Keys((1.22, 0.2), (1, 0.45))); break;                           // pop
+            case 3: _faceRot.BeginAnimation(RotateTransform.AngleProperty, Keys((-8, 0.1), (8, 0.2), (-6, 0.3), (6, 0.4), (0, 0.5))); break;  // shake
+            case 4: _faceMove.BeginAnimation(TranslateTransform.YProperty, Keys((3, 0.2), (0, 0.4), (3, 0.6), (0, 0.8))); break;              // nod
+            case 5: _faceScale.BeginAnimation(ScaleTransform.ScaleXProperty, Keys((1.25, 0.18), (1, 0.4)));
+                    _faceScale.BeginAnimation(ScaleTransform.ScaleYProperty, Keys((0.78, 0.18), (1, 0.4))); break;                           // squish
+            case 6: _faceRot.BeginAnimation(RotateTransform.AngleProperty, Keys((360 * dir, 0.8))); break;                                    // spin
+            default:
+                _faceMove.BeginAnimation(TranslateTransform.XProperty, Keys((4 * dir, 0.3), (-4 * dir, 0.7), (0, 1.0)));                        // sway
+                break;
+        }
+        if (_emoticon is not null) _emoticon.Text = Emoticons[_rng.Next(Emoticons.Length)];
+    }
 
     /// <summary>Called whenever settings change: (re)builds the face and starts or stops the clock-and-face rhythm.</summary>
     void ApplyFace()
@@ -298,6 +345,7 @@ public partial class IslandWindow
     {
         if (_faceAnimating || ReducedMotion || _blinks.Count == 0) return;
         _faceAnimating = true;
+        _moodTimer.Start();
         bool sleepy = _faceBuilt == IslandFaceStyle.Sleepy;
         foreach (var scale in _blinks)
         {
@@ -339,6 +387,11 @@ public partial class IslandWindow
     {
         if (!_faceAnimating) return;
         _faceAnimating = false;
+        _moodTimer.Stop();
+        _faceScale.BeginAnimation(ScaleTransform.ScaleXProperty, null); _faceScale.BeginAnimation(ScaleTransform.ScaleYProperty, null);
+        _faceRot.BeginAnimation(RotateTransform.AngleProperty, null);
+        _faceMove.BeginAnimation(TranslateTransform.XProperty, null); _faceMove.BeginAnimation(TranslateTransform.YProperty, null);
+        _faceScale.ScaleX = _faceScale.ScaleY = 1; _faceRot.Angle = 0; _faceMove.X = _faceMove.Y = 0;
         foreach (var scale in _blinks) { scale.BeginAnimation(ScaleTransform.ScaleYProperty, null); scale.ScaleY = 1; }
         if (_look is not null) { _look.BeginAnimation(TranslateTransform.XProperty, null); _look.X = 0; }
     }

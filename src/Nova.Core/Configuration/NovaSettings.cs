@@ -51,7 +51,9 @@ public sealed class NovaSettings
     public IslandBehavior IslandBehavior { get; set; } = IslandBehavior.AlwaysCompact;
     public double IslandTopOffset { get; set; } = 10;
     /// <summary>v2.5: how see-through the Island's glass is (0.2 = almost clear, 1 = solid). Only the background fades, never the text.</summary>
-    public double IslandOpacity { get; set; } = 1.0;
+    public double IslandOpacity { get; set; } = 0.65;
+    /// <summary>v2.7: while the Island is open its background is never more see-through than 60%, so text stays readable; the compact Island uses <see cref="IslandOpacity"/> as is. Ctrl + mouse wheel on the Island changes it.</summary>
+    public bool IslandDynamicOpacity { get; set; } = true;
     /// <summary>v2.5: sideways shift of the floating Island from the centre of its monitor, in device-independent pixels (set by dragging it).</summary>
     public double IslandOffsetX { get; set; } = 0;
     /// <summary>v2.6: how solid the dock's background is (0.2 = almost clear, 1 = solid). Icons stay sharp in the transparent mode.</summary>

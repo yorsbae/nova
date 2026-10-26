@@ -106,6 +106,7 @@ public partial class IslandWindow : Window
         SizeChanged += (_, _) => ClipSolidWindow();
         Pill.LostMouseCapture += (_, _) => { _winDragArmed = false; _winDragging = false; };
         InitFace();
+        Pill.PreviewMouseWheel += OnPillWheel;
         InitExtras();
         InitPages();
         ApplyCore(settings);
@@ -753,6 +754,8 @@ public void SetTimeline(NovaMediaTimeline? t)
     {
         bool highContrast = SystemParameters.HighContrast || _s.HighContrastOverride;
         double k = highContrast ? 1 : Math.Clamp(_s.IslandOpacity, 0.2, 1.0);   // only the background fades; text and icons stay sharp
+        // Dynamic opacity: the compact Island is as see-through as chosen; the open panel never goes below 60% so its text stays readable.
+        if (!highContrast && _expanded && _s.IslandDynamicOpacity) k = Math.Max(k, 0.6);
         if (!AllowsTransparency)
         {
             // Solid-window fallback: the whole window fades (never below half, so text stays readable) and is clipped to the pill's shape.
@@ -904,6 +907,17 @@ public void SetTimeline(NovaMediaTimeline? t)
 
     /// <summary>Raised once when a drag ends: the new sideways offset and distance from the top (device-independent pixels), for saving.</summary>
     public event Action<double, double>? PositionChanged;
+    /// <summary>Raised after Ctrl + mouse wheel on the Island changed its transparency (the new value is already applied).</summary>
+    public event Action<double>? OpacityChanged;
+
+    void OnPillWheel(object sender, MouseWheelEventArgs e)
+    {
+        if ((Keyboard.Modifiers & ModifierKeys.Control) == 0) return;
+        _s.IslandOpacity = Math.Round(Math.Clamp(_s.IslandOpacity + (e.Delta > 0 ? 0.05 : -0.05), 0.2, 1.0), 2);
+        ApplyGlassLook();
+        OpacityChanged?.Invoke(_s.IslandOpacity);
+        e.Handled = true;
+    }
 
     bool _winDragArmed, _winDragging;
     int _dragCursorX, _dragCursorY, _dragWinX, _dragWinY;

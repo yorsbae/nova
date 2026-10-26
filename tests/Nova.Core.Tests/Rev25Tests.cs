@@ -165,7 +165,7 @@ public class IslandPlacementSettingsTests
     public void The_Island_starts_solid_and_centred()
     {
         var s = new NovaSettings();
-        Assert.Equal(1.0, s.IslandOpacity);
+        Assert.Equal(0.65, s.IslandOpacity);   // v2.7: see-through by default
         Assert.Equal(0, s.IslandOffsetX);
     }
 

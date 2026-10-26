@@ -134,6 +134,7 @@ public partial class App : Application
                 c.ClipboardHistoryEnabled = true;   // the user tapped "Aktifkan riwayat clipboard", which sits next to the privacy note
                 ApplySettings(c, keepCurrentDock: true);
             };
+            _island.OpacityChanged += v => { _settings.IslandOpacity = v; Persist(_settings); };
             _island.PositionChanged += (x, y) =>
             {
                 // The Island has already moved itself; remember where it is (the same two numbers Settings shows).

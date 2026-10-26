@@ -31,6 +31,11 @@ Package (portable zip + Inno Setup installer): `.\build\publish.ps1` (add `-Self
 
 On exit NOVA gives the screen space back, and puts the taskbar (and the Windows theme, if you used it) back exactly as it found them. If NOVA was force-killed and the taskbar stays hidden: start NOVA again and exit normally. Or press `Ctrl+Shift+Esc` → Task Manager → *Windows Explorer* → *Restart*, which brings the taskbar back immediately.
 
+## New in v2.8
+- **Calendar, Plan and Alarm are one page with no tabs:** month and day agenda on top, today's plan and the alarms side by side below.
+- **More face animations:** on top of blinking and looking around, the face now randomly hops, tilts, pops, shakes, nods, squishes, sways or spins, and changes its emoticon.
+- **Dynamic Island opacity:** the Island background is see-through by default (65%). Hold **Ctrl and scroll** over the Island to change it (saved). While the Island is open it stays at least 60% solid so text is readable (Settings → Island → *Dynamic Island opacity*).
+
 ## New in v2.7
 - **Dock like before:** auto-hide is on by default (touch the bottom edge, a 6 px strip, to bring it up). The dock rests slightly smaller and dimmer and swells to full size, with the icon zoom (now 2.0x), when the pointer is on it.
 - **Minimal Island, all modules:** Settings → Island → *all modules* takes turns between clock, face, water progress and the next prayer (water only when reminders are on).

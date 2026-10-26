@@ -594,49 +594,40 @@ public partial class IslandWindow
 
     // ---- 6: calendar, plan and alarms in one page ----
 
-    int _calView;   // 0 calendar, 1 plan, 2 alarms
-    readonly Button[] _calTabs = new Button[3];
+    int _calView;   // kept for older call sites; the page has no tabs any more
 
-    /// <summary>The calendar page gets three tabs: Kalender (month + agenda), Rencana (today's plan) and Alarm. Plan and alarms used to be pages of their own.</summary>
+    /// <summary>
+    /// One page, no tabs: the month and the day's agenda on top, and below them today's plan and the alarms side by side.
+    /// (Plan and Alarm used to be tabs of this page.)
+    /// </summary>
     void BuildCalendarTabs()
     {
         var calendarView = new StackPanel();
         foreach (var child in PageCalendar.Children.Cast<UIElement>().ToList()) { PageCalendar.Children.Remove(child); calendarView.Children.Add(child); }
         PageHost.Children.Remove(PagePlan);
-        PagePlan.Visibility = Visibility.Collapsed;
+        PagePlan.Visibility = Visibility.Visible;
         var alarmView = (StackPanel)BuildAlarmPage();
-        alarmView.Visibility = Visibility.Collapsed;
+        alarmView.Visibility = Visibility.Visible;
         _calViews = new UIElement[] { calendarView, PagePlan, alarmView };
 
-        var tabs = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 0, 0, 6) };
-        string[] names = { "Kalender", "Rencana", "Alarm" };
-        for (int i = 0; i < 3; i++)
-        {
-            int index = i;
-            _calTabs[i] = TabBtn(names[i], (_, _) => SetCalView(index, morph: true), "Tampilan " + names[i], on: i == 0);
-            tabs.Children.Add(_calTabs[i]);
-        }
-        PageCalendar.Children.Add(tabs);
-        foreach (var view in _calViews) PageCalendar.Children.Add(view);
+        var lower = new Grid { Margin = new Thickness(0, 8, 0, 0) };
+        lower.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        lower.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        PagePlan.Margin = new Thickness(0, 0, 6, 0);
+        alarmView.Margin = new Thickness(6, 0, 0, 0);
+        Grid.SetColumn(PagePlan, 0); Grid.SetColumn(alarmView, 1);
+        lower.Children.Add(PagePlan); lower.Children.Add(alarmView);
+        PageCalendar.Children.Add(calendarView);
+        PageCalendar.Children.Add(lower);
     }
 
     UIElement[] _calViews = Array.Empty<UIElement>();
 
+    /// <summary>Refreshes everything on the merged page (the three parts are always visible).</summary>
     void SetCalView(int view, bool morph)
     {
         var from = CurrentSize();
-        _calView = Math.Clamp(view, 0, 2);
-        for (int i = 0; i < 3; i++)
-        {
-            _calViews[i].Visibility = i == _calView ? Visibility.Visible : Visibility.Collapsed;
-            _calTabs[i].Tag = i == _calView ? "on" : null;
-        }
-        switch (_calView)
-        {
-            case 0: RebuildCalendar(); RebuildAgenda(); break;
-            case 1: RebuildPlan(); break;
-            default: RebuildAlarms(); break;
-        }
+        RebuildCalendar(); RebuildAgenda(); RebuildPlan(); RebuildAlarms();
         if (morph && _expanded) Morph(from);
     }
 
@@ -717,7 +708,7 @@ public partial class IslandWindow
         {
             var task = t;
             AgendaList.Children.Add(BuildRow((task.Priority > 0 ? "! " : "") + task.Title, task.Time,
-                onDelete: () => { _data.Tasks.Remove(task); SaveData(); RebuildAgenda(); RebuildCalendar(); if (_calView == 1) RebuildPlan(); }, deleteName: "Hapus tugas",
+                onDelete: () => { _data.Tasks.Remove(task); SaveData(); RebuildAgenda(); RebuildCalendar(); RebuildPlan(); }, deleteName: "Hapus tugas",
                 check: task.Done ? "\uE73A" : "\uE739", onCheck: () => { task.Done = !task.Done; SaveData(); RebuildAgenda(); },
                 strike: task.Done, accent: task.Priority > 0 && !task.Done));
         }
