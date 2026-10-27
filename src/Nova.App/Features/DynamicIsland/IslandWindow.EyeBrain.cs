@@ -50,6 +50,7 @@ public partial class IslandWindow
         _blinkIn = 1.2 + _rng.NextDouble() * 2; _wanderIn = 1.5; _actIn = 4 + _rng.NextDouble() * 5; _still = 0; _lastMx = int.MinValue;
         _mood = EyeMood.Normal; _moodTicks = 0; _batterySec = 999;
         UpdateEyeMood(force: true);
+        for (int i = 0; i < _realEyes.Count; i++) _realEyes[i].Awaken(0.05 * i);   // open from a slit, like waking up
         _eyeTimer.Start();
     }
 

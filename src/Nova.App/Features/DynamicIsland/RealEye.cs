@@ -15,7 +15,7 @@ internal sealed record EyeLook(
     string? Aura = null,
     double Slant = 0, double IrisW = 0.52, double PupilSize = 0.40,
     bool Slit = false, bool Wing = true, bool Lashes = true, bool Bags = false, bool Sparkle = false, bool Highlights = true,
-    EyeKind Kind = EyeKind.Plain, string? Accent = null);
+    EyeKind Kind = EyeKind.Plain, string? Accent = null, string? Halo = null);
 
 internal static class EyeLooks
 {
@@ -28,10 +28,10 @@ internal static class EyeLooks
         Aura: "#FFB9C6FF", Slant: 8, IrisW: 0.50, PupilSize: 0, Bags: true, Highlights: false);                                  // black eye, glowing white iris
 
     // The special eyes: same anime lids and lashes, only the iris is different.
-    static readonly EyeLook Sharingan = new("#FFFF4B3E", "#FFC80F0F", Sclera: "#FFF4F2F2", Lid: "#FF1B0E10", Pupil: "#FF120000",
-        IrisW: 0.64, PupilSize: 0.28, Highlights: false, Kind: EyeKind.Sharingan);                                               // red iris, three tomoe circling
-    static readonly EyeLook Rinnegan = new("#FFE4DAF8", "#FFA48EE0", Sclera: "#FFEDE8F7", Lid: "#FF241838", Pupil: "#FF2A1456",
-        IrisW: 0.66, PupilSize: 0.14, Highlights: false, Kind: EyeKind.Rinnegan);                                                // lilac iris, rippling rings
+    static readonly EyeLook Sharingan = new("#FFE5271F", "#FF9E0707", Sclera: "#FFFFFFFF", Lid: "#FF0B0506", Pupil: "#FF0A0000",
+        IrisW: 0.66, PupilSize: 0.12, Highlights: false, Kind: EyeKind.Sharingan, Accent: "#FFD81414", Halo: "#FFFF2A1A");        // red iris: three tomoe, then the turning Mangekyo
+    static readonly EyeLook Rinnegan = new("#FFCFC4E6", "#FF9C90C4", Sclera: "#FFFFFFFF", Lid: "#FF0B0A12", Pupil: "#FF17102E",
+        IrisW: 0.66, PupilSize: 0.12, Highlights: false, Kind: EyeKind.Rinnegan, Accent: "#FF5A4C86", Halo: "#FFFFFFFF");        // lilac iris, many fine rings rippling outward, tiny tomoe
     static readonly EyeLook GhoulLeft = new("#FFE4E7EC", "#FF9AA1AD", Sclera: "#FFEDEDED", Lid: "#FF1E1E22", Pupil: "#FF222222",
         IrisW: 0.52, PupilSize: 0.28);                                                                                           // an ordinary pale eye
     static readonly EyeLook GhoulRight = new("#FFFF5560", "#FFC4101A", Sclera: "#FF070707", Lid: "#FF2A0A0C", Pupil: "#FF110000",
@@ -103,6 +103,7 @@ internal sealed class RealEye : FrameworkElement
     public static readonly DependencyProperty BoltProperty = Reg(nameof(Bolt), 0.0);          // lightning clock, 0 … 1 and round again
     public static readonly DependencyProperty VanishProperty = Reg(nameof(Vanish), 0.0);      // 0 visible … 1 gone (below 0 = pops back a little too big)
     public static readonly DependencyProperty PopProperty = Reg(nameof(Pop), 1.0);            // whole-eye size, for the little surprise pop
+    public static readonly DependencyProperty EvolveProperty = Reg(nameof(Evolve), 0.0);      // Sharingan: 0 three tomoe … 1 Mangekyo
 
     public double Open { get => (double)GetValue(OpenProperty); set => SetValue(OpenProperty, value); }
     public double Blink { get => (double)GetValue(BlinkProperty); set => SetValue(BlinkProperty, value); }
@@ -120,6 +121,7 @@ internal sealed class RealEye : FrameworkElement
     public double Bolt { get => (double)GetValue(BoltProperty); set => SetValue(BoltProperty, value); }
     public double Vanish { get => (double)GetValue(VanishProperty); set => SetValue(VanishProperty, value); }
     public double Pop { get => (double)GetValue(PopProperty); set => SetValue(PopProperty, value); }
+    public double Evolve { get => (double)GetValue(EvolveProperty); set => SetValue(EvolveProperty, value); }
 
     readonly EyeLook _look;
     readonly bool _mirror;
@@ -131,11 +133,12 @@ internal sealed class RealEye : FrameworkElement
     readonly Pen _tailPen;
     readonly Geometry _bolt;
     readonly Geometry? _wing;
-    readonly Geometry _star;
+    readonly Geometry _star, _tomoe, _blade;
+    readonly Pen _haloPen;
 
     public RealEye(EyeLook look, double h, int idx)
     {
-        _look = look; _idx = idx; _mirror = idx == 1; _h = h; _w = h * 1.05;
+        _look = look; _idx = idx; _mirror = idx == 1; _h = h; _w = h * 1.60;   // long, sharp anime eye
         Width = _w; Height = _h;
         IsHitTestVisible = false;
         SnapsToDevicePixels = false;
@@ -181,15 +184,44 @@ internal sealed class RealEye : FrameworkElement
 
         if (look.Wing)
         {
+            // the lash line flicks out past the outer corner in a long, sharp tail
             var sg = new StreamGeometry();
             using (var c = sg.Open())
             {
-                c.BeginFigure(new Point(0.05 * _w, 0.46 * _h), true, true);
-                c.QuadraticBezierTo(new Point(-0.06 * _w, 0.37 * _h), new Point(-0.17 * _w, 0.21 * _h), true, false);
-                c.QuadraticBezierTo(new Point(0.04 * _w, 0.26 * _h), new Point(0.26 * _w, 0.12 * _h), true, false);
+                c.BeginFigure(new Point(0.05 * _w, 0.40 * _h), true, true);
+                c.QuadraticBezierTo(new Point(-0.03 * _w, 0.30 * _h), new Point(-0.11 * _w, 0.10 * _h), true, false);
+                c.QuadraticBezierTo(new Point(0.08 * _w, 0.17 * _h), new Point(0.26 * _w, 0.07 * _h), true, false);
             }
             sg.Freeze(); _wing = sg;
         }
+
+        // the soft outline that glows around the lids (white, or the look's own colour)
+        var halo = Parse(look.Halo ?? look.Aura ?? "#FFFFFFFF");
+        _haloPen = new Pen(Fz(new SolidColorBrush(halo)), 1) { LineJoin = PenLineJoin.Round }; _haloPen.Freeze();
+
+        // one tomoe in unit size: a round head at the origin and a tail that curves clockwise along the circle it sits on
+        var tomoe = new StreamGeometry();
+        using (var c = tomoe.Open())
+        {
+            c.BeginFigure(new Point(0.15, -1.0), true, true);
+            c.BezierTo(new Point(1.0, -1.1), new Point(1.0, 0.0), new Point(0.95, 0.35), true, false);   // head's top, round the right side
+            c.BezierTo(new Point(1.9, -0.55), new Point(2.7, -0.55), new Point(3.6, 0.9), true, false);  // outer edge of the tail out to its tip
+            c.BezierTo(new Point(2.5, -0.05), new Point(1.6, 0.30), new Point(0.55, 0.92), true, false); // back along the inner edge
+            c.BezierTo(new Point(-0.6, 1.1), new Point(-1.2, -0.3), new Point(0.15, -1.0), true, false); // underside of the head
+        }
+        tomoe.Freeze(); _tomoe = tomoe;
+
+        // one Mangekyo blade (Sasuke's eternal): a pointed crown with curved sides, three of them turn around the pupil
+        var blade = new StreamGeometry();
+        using (var c = blade.Open())
+        {
+            c.BeginFigure(new Point(0, -0.20), true, true);
+            c.QuadraticBezierTo(new Point(-0.46, -0.22), new Point(-0.64, -0.60), true, false);
+            c.QuadraticBezierTo(new Point(-0.26, -0.52), new Point(0, -0.84), true, false);
+            c.QuadraticBezierTo(new Point(0.26, -0.52), new Point(0.64, -0.60), true, false);
+            c.QuadraticBezierTo(new Point(0.46, -0.22), new Point(0, -0.20), true, false);
+        }
+        blade.Freeze(); _blade = blade;
 
         // 4-point star for the sparkle
         var star = new StreamGeometry();
@@ -271,7 +303,7 @@ internal sealed class RealEye : FrameworkElement
         }
 
         // how open: mood opening, closed down by the blink
-        double o = Clamp(Open * (1 - Clamp(Blink, 0, 1)), 0, 1.25);
+        double o = Clamp(Open * (1 - Clamp(Blink, -0.15, 1)), 0, 1.25);
         double om = Math.Min(o, 1), over = Math.Max(0, o - 1);
         double sq = Clamp(Squint, 0, 1);
         double gx = Clamp(GazeX, -1, 1) * (_mirror ? -1 : 1), gy = Clamp(GazeY, -1, 1);
@@ -290,13 +322,26 @@ internal sealed class RealEye : FrameworkElement
         dc.PushTransform(new RotateTransform(_look.Slant + Tilt, w / 2, h / 2));
 
         // the two lid curves: the upper one sweeps down as the eye closes, the lower one rises
-        var A = new Point(0.02 * w, 0.50 * h);
-        var B = new Point(0.98 * w, 0.66 * h);
-        double lowY = h * (1.0 - 0.24 * sq - 0.10 * (1 - om));
-        var U1 = new Point(Lerp(0.30 * w, 0.20 * w, om), Lerp(lowY, 0.0 - over * 0.3 * h, om));
-        var U2 = new Point(Lerp(0.78 * w, 0.72 * w, om), Lerp(lowY, -0.02 * h - over * 0.3 * h, om));
-        var L1 = new Point(0.78 * w, lowY);
-        var L2 = new Point(0.30 * w, lowY);
+        var A = new Point(0.0 * w, 0.38 * h);      // outer corner: sharp, high
+        var B = new Point(1.0 * w, 0.64 * h);      // inner corner: low
+        double lowY = h * (0.92 - 0.20 * sq - 0.10 * (1 - om));
+        var U1 = new Point(Lerp(0.30 * w, 0.24 * w, om), Lerp(lowY, -0.10 * h - over * 0.3 * h, om));
+        var U2 = new Point(Lerp(0.78 * w, 0.64 * w, om), Lerp(lowY, -0.04 * h - over * 0.3 * h, om));
+        var L1 = new Point(0.80 * w, lowY - 0.02 * h);
+        var L2 = new Point(0.34 * w, lowY - 0.10 * h);
+
+        // the glow that hugs the lids (stacked soft outlines, fainter the further out)
+        {
+            var hg = Almond(A, U1, U2, B, L1, L2);
+            double hv = Clamp(Glow, 0, 1.6) * (0.75 + 0.25 * Clamp(Pulse, 0, 1.2)) * (0.30 + 0.70 * om);
+            for (int i = 4; i >= 1; i--)
+            {
+                var pen = new Pen(_haloPen.Brush, h * 0.07 * i) { LineJoin = PenLineJoin.Round };
+                dc.PushOpacity(Math.Min(1, 0.16 * hv / (1 + 0.35 * i)));
+                dc.DrawGeometry(null, pen, hg);
+                dc.Pop();
+            }
+        }
 
         // eye bags: a dark crescent under the lid for the creepy looks
         if (_look.Bags)
@@ -313,8 +358,8 @@ internal sealed class RealEye : FrameworkElement
             dc.PushClip(eyeGeo);
             dc.DrawGeometry(_sclera, null, eyeGeo);
 
-            double irx = w * _look.IrisW * 0.5, iry = h * 0.56;
-            double cx = 0.52 * w + gx * w * 0.15, cy = 0.50 * h + gy * h * 0.10;
+            double irx = h * 0.78 * _look.IrisW, iry = irx * (_look.Kind == EyeKind.Plain ? 1.06 : 1.0);   // round iris, cut by the lids
+            double cx = 0.54 * w + gx * w * 0.13, cy = 0.46 * h + gy * h * 0.10;
             var ctr = new Point(cx, cy);
             bool flick = _look.Kind == EyeKind.Ghoul;
             if (flick) dc.PushOpacity(Clamp(Flicker, 0, 1));
@@ -326,7 +371,7 @@ internal sealed class RealEye : FrameworkElement
                 dc.DrawEllipse(_pupil, null, new Point(cx, cy + 0.02 * h), Math.Min(irx * 0.9, irx * 0.13 * ps), iry * 0.95);
             else if (_look.PupilSize > 0 && _look.Kind == EyeKind.Plain)
                 dc.DrawEllipse(_pupil, null, new Point(cx, cy + 0.04 * h), Math.Min(irx * 0.95, irx * _look.PupilSize * ps), Math.Min(iry * 0.95, iry * Math.Max(0.28, _look.PupilSize * 1.2) * ps));
-            else if (_look.PupilSize > 0)
+            else if (_look.PupilSize > 0 && _look.Kind != EyeKind.Sharingan && _look.Kind != EyeKind.Rinnegan)
             {
                 double pr = Math.Min(irx, iry) * _look.PupilSize * Math.Min(ps, 1.6);   // special eyes keep a round pupil
                 dc.DrawEllipse(_pupil, null, ctr, pr, pr);
@@ -335,7 +380,7 @@ internal sealed class RealEye : FrameworkElement
 
             // the lashes shade the top of the eye (under the shine, so the shine stays white)
             double peakY = Bezier(A, U1, U2, B, 0.5).Y;
-            dc.DrawRectangle(_shadow, null, new Rect(0, peakY - 0.05 * h, w, 0.42 * h));
+            dc.DrawRectangle(_shadow, null, new Rect(0, peakY - 0.05 * h, w, 0.50 * h));
 
             if (_look.Highlights)
             {
@@ -370,13 +415,13 @@ internal sealed class RealEye : FrameworkElement
         if (_look.Lashes)
         {
             var lashPen = new Pen(_lid, Math.Max(1.1, h * 0.045)) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round };
-            foreach (var (t, len) in new[] { (0.10, 0.17), (0.24, 0.20), (0.38, 0.19), (0.52, 0.15) })
+            foreach (var (t, len) in new[] { (0.04, 0.26), (0.10, 0.30), (0.17, 0.26), (0.25, 0.24), (0.34, 0.20), (0.44, 0.16), (0.56, 0.12) })
             {
                 var p = Bezier(A, U1, U2, B, t); var q = Bezier(A, U1, U2, B, t + 0.02);
                 double dx = q.X - p.X, dy = q.Y - p.Y, l = Math.Max(0.001, Math.Sqrt(dx * dx + dy * dy));
                 double nx = dy / l, ny = -dx / l;                        // the normal that points up
                 double side = om * 2 - 1;                               // +1 open: lashes up … −1 shut: lashes droop down
-                double ox = nx * side - 0.55, oy = ny * side;
+                double ox = nx * side - 0.85, oy = ny * side;   // swept back toward the outer corner
                 double ol = Math.Max(0.001, Math.Sqrt(ox * ox + oy * oy)); ox /= ol; oy /= ol;
                 dc.DrawLine(lashPen, p, new Point(p.X + ox * h * len, p.Y + oy * h * len));
             }
@@ -389,7 +434,7 @@ internal sealed class RealEye : FrameworkElement
         if (wrap) { dc.Pop(); dc.Pop(); }   // size, opacity
     }
 
-    static readonly double[] RinneganRings = { 0.85, 0.64, 0.43, 0.22 };
+    static readonly double[] RinneganRings = { 0.95, 0.86, 0.77, 0.68, 0.59, 0.50, 0.41 };
     static readonly double[] WebRings = { 0.85, 0.58, 0.32 };
 
     /// <summary>What makes the special eyes special: drawn on the iris, under the pupil's shine and inside the lids.</summary>
@@ -398,25 +443,64 @@ internal sealed class RealEye : FrameworkElement
         double R = Math.Min(irx, iry);
         switch (_look.Kind)
         {
-            case EyeKind.Sharingan:   // three tomoe circling the pupil
+            case EyeKind.Sharingan:   // three tomoe that bloom into the turning Mangekyo
             {
-                double ring = R * 0.68, tr = R * 0.20;
-                dc.DrawEllipse(null, _ringPen, c, ring, ring);
-                dc.PushTransform(new RotateTransform(Spin, c.X, c.Y));
-                for (int i = 0; i < 3; i++)
+                double ev = Clamp(Evolve, 0, 1);
+                // the dark rim of the iris
+                dc.DrawEllipse(null, _irisPen, c, R * 0.97, R * 0.97);
+                if (ev < 0.999)
                 {
-                    double a = i * 2 * Math.PI / 3, sa = Math.Sin(a), ca = Math.Cos(a);
-                    var p = new Point(c.X + ring * sa, c.Y - ring * ca);
-                    dc.DrawEllipse(_pupil, null, p, tr, tr);
-                    dc.DrawLine(_tailPen, p, new Point(p.X + ca * tr * 2.2, p.Y + sa * tr * 2.2));   // the comma's tail, along the circle
+                    dc.PushOpacity(1 - ev);
+                    double ring = R * 0.60, tr = R * 0.17;
+                    dc.DrawEllipse(null, _ringPen, c, ring, ring);
+                    for (int i = 0; i < 3; i++)
+                    {
+                        dc.PushTransform(new TranslateTransform(c.X, c.Y));
+                        dc.PushTransform(new RotateTransform(Spin * 0.5 + i * 120));
+                        dc.PushTransform(new TranslateTransform(0, -ring));
+                        dc.PushTransform(new ScaleTransform(tr, tr));
+                        dc.DrawGeometry(_pupil, null, _tomoe);
+                        dc.Pop(); dc.Pop(); dc.Pop(); dc.Pop();
+                    }
+                    dc.Pop();
                 }
-                dc.Pop();
+                if (ev > 0.001)
+                {
+                    dc.PushOpacity(ev);
+                    double grow = 0.55 + 0.45 * ev;                       // the pattern swells out of the pupil as it blooms
+                    dc.DrawEllipse(_pupil, null, c, R * 0.80 * grow, R * 0.80 * grow);   // black disc the blades sit on
+                    for (int i = 0; i < 3; i++)
+                    {
+                        dc.PushTransform(new TranslateTransform(c.X, c.Y));
+                        dc.PushTransform(new RotateTransform(-Spin + i * 120 + (1 - ev) * 90));
+                        dc.PushTransform(new ScaleTransform(R * 0.80 * grow, R * 0.80 * grow));
+                        dc.DrawGeometry(_accent, null, _blade);
+                        dc.Pop(); dc.Pop(); dc.Pop();
+                    }
+                    dc.DrawEllipse(_pupil, _accentPen, c, R * 0.17, R * 0.17);          // the pupil with its red ring
+                    dc.Pop();
+                }
                 break;
             }
-            case EyeKind.Rinnegan:   // rippling rings
+            case EyeKind.Rinnegan:   // many fine rings rippling outward, a tiny pupil and small tomoe
             {
-                double b = Clamp(Breathe, 0.9, 1.3);
-                foreach (var f in RinneganRings) dc.DrawEllipse(null, _ringPen, c, R * f * b, R * f * b);
+                double ph = Spin * Math.PI / 90;                              // two ripples per turn of Spin
+                for (int i = 0; i < RinneganRings.Length; i++)
+                {
+                    double f = RinneganRings[i] + 0.022 * Math.Sin(ph - i * 0.9);
+                    dc.DrawEllipse(null, _ringPen, c, R * f, R * f);
+                }
+                double ring = R * 0.30, tr = R * 0.075;
+                for (int i = 0; i < 3; i++)
+                {
+                    dc.PushTransform(new TranslateTransform(c.X, c.Y));
+                    dc.PushTransform(new RotateTransform(Spin + i * 120));
+                    dc.PushTransform(new TranslateTransform(0, -ring));
+                    dc.PushTransform(new ScaleTransform(tr, tr));
+                    dc.DrawGeometry(_pupil, null, _tomoe);
+                    dc.Pop(); dc.Pop(); dc.Pop(); dc.Pop();
+                }
+                dc.DrawEllipse(_pupil, null, c, R * 0.11, R * 0.11);
                 break;
             }
             case EyeKind.Void:   // one red ring that glows slowly
@@ -499,6 +583,17 @@ internal sealed class RealEye : FrameworkElement
 
     // ---- life: animations that run only while the face is on show ----
 
+    /// <summary>The eye wakes up: it opens from a thin slit, a touch wider than normal, and settles (the opening of the reference clip).</summary>
+    public void Awaken(double delay = 0)
+    {
+        var a = new DoubleAnimationUsingKeyFrames { FillBehavior = FillBehavior.Stop, BeginTime = Sec(delay) };
+        a.KeyFrames.Add(new DiscreteDoubleKeyFrame(0.88, Sec(0)));
+        a.KeyFrames.Add(new EasingDoubleKeyFrame(0.88, Sec(0.25)));
+        a.KeyFrames.Add(new EasingDoubleKeyFrame(-0.04, Sec(0.75), new CubicEase { EasingMode = EasingMode.EaseOut }));
+        a.KeyFrames.Add(new EasingDoubleKeyFrame(0, Sec(0.95), new SineEase { EasingMode = EasingMode.EaseInOut }));
+        BeginAnimation(BlinkProperty, a);
+    }
+
     /// <summary>One blink. <paramref name="slow"/> is for sleepy eyes.</summary>
     public void BlinkOnce(bool slow = false)
     {
@@ -522,8 +617,17 @@ internal sealed class RealEye : FrameworkElement
 
         switch (_look.Kind)
         {
-            case EyeKind.Sharingan: BeginAnimation(SpinProperty, Loop(0, 360, 3.2, false)); break;
-            case EyeKind.Rinnegan: BeginAnimation(BreatheProperty, Loop(1.0, 1.14, 1.3, true, new SineEase())); break;
+            case EyeKind.Sharingan:
+            {
+                BeginAnimation(SpinProperty, Loop(0, 360, 7.2, false));
+                // 0.0-0.9 s three tomoe, bloom into the Mangekyo by 1.6 s, hold, back to tomoe at 6.2 s
+                var ev = new DoubleAnimationUsingKeyFrames { Duration = Sec(7.2), RepeatBehavior = RepeatBehavior.Forever };
+                foreach (var (v, t) in new[] { (0.0, 0.0), (0.0, 0.9), (1.0, 1.6), (1.0, 5.8), (0.0, 6.4), (0.0, 7.2) })
+                    ev.KeyFrames.Add(new EasingDoubleKeyFrame(v, Sec(t), new SineEase { EasingMode = EasingMode.EaseInOut }));
+                BeginAnimation(EvolveProperty, ev);
+                break;
+            }
+            case EyeKind.Rinnegan: BeginAnimation(SpinProperty, Loop(0, 360, 7.2, false)); break;
             case EyeKind.Alchemy: BeginAnimation(SpinProperty, Loop(0, 360, 7, false)); break;
             case EyeKind.Web: BeginAnimation(SpinProperty, Loop(0, _idx == 1 ? -360 : 360, 9, false)); break;
             case EyeKind.Galaxy: BeginAnimation(SpinProperty, Loop(0, 360, 6, false)); break;
@@ -545,10 +649,10 @@ internal sealed class RealEye : FrameworkElement
     public void StopLife()
     {
         foreach (var p in new[] { BlinkProperty, PulseProperty, TwinkleProperty, PupilScaleProperty, OpenProperty, SquintProperty, TiltProperty, GlowProperty,
-                                  SpinProperty, BreatheProperty, FlickerProperty, BoltProperty, VanishProperty, PopProperty })
+                                  SpinProperty, BreatheProperty, FlickerProperty, BoltProperty, VanishProperty, PopProperty, EvolveProperty })
             BeginAnimation(p, null);
         Blink = 0; Pulse = 1; Twinkle = 1; PupilScale = 1; Open = 1; Squint = 0; Tilt = 0; Glow = 1; GazeX = 0; GazeY = 0;
-        Spin = 0; Breathe = 1; Flicker = 1; Bolt = 0; Vanish = 0; Pop = 1;
+        Spin = 0; Breathe = 1; Flicker = 1; Bolt = 0; Vanish = 0; Pop = 1; Evolve = 0;
     }
 
     static TimeSpan Sec(double s) => TimeSpan.FromSeconds(s);
