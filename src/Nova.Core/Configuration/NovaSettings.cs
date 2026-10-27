@@ -194,6 +194,14 @@ public sealed class NovaSettings
     public string PageHotkeyPrefix { get; set; } = "Ctrl+Alt";
     /// <summary>v2.14: hides the Island completely (nothing is shown, not even the pill) and brings it back. Empty = off.</summary>
     public string ToggleHotkey { get; set; } = "Ctrl+Alt+H";
+    /// <summary>v2.15: opens the quick launcher (type to find an app, folder or web address, or do a sum). Empty = off.</summary>
+    public string LauncherHotkey { get; set; } = "Ctrl+Alt+Space";
+    /// <summary>v2.15: the eyes look at the mouse pointer (otherwise they glance around by themselves).</summary>
+    public bool IslandEyeFollowMouse { get; set; } = true;
+    /// <summary>v2.15: the eyes react: sleepy at low battery or late at night, narrowed while a Pomodoro focus runs, wide-eyed for notices, glowing with music.</summary>
+    public bool IslandEyeMoods { get; set; } = true;
+    /// <summary>v2.15: the eye style follows the time of day (evening: glowing aura, night: Hollow) instead of always using the chosen style.</summary>
+    public bool IslandEyeAutoTheme { get; set; } = false;
 
     /// <summary>Deep copy, so a settings dialog can edit without touching live state.</summary>
     public NovaSettings Clone()

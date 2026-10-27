@@ -2,6 +2,7 @@ using System.Windows;
 using Nova.App.Features.ClipboardPanel;
 using Nova.App.Features.DynamicIsland;
 using Nova.App.Features.FloatingDock;
+using Nova.App.Features.Launcher;
 using Nova.App.Features.TopBar;
 using Nova.App.Integrations.Windows;
 using Nova.App.Settings;
@@ -33,6 +34,8 @@ public partial class App : Application
     HotkeyService? _hotkey;
     readonly List<HotkeyService> _pageHotkeys = new();
     HotkeyService? _toggleHotkey;   // hides / shows the whole Island
+    HotkeyService? _launcherHotkey; // opens the quick launcher
+    LauncherWindow? _launcher;
     TrayService? _tray;
     SettingsWindow? _settingsWindow;
     ClipboardWindow? _clipboardWindow;
@@ -171,10 +174,13 @@ public partial class App : Application
             _toggleHotkey = new HotkeyService(_island, () => _island.ToggleHidden(), 0x4E58);
             if (!RegisterToggleHotkey(_settings))
                 Notify($"Shortcut {_settings.ToggleHotkey} (hide / show the Island) is in use by another app. Change it in Settings.", true);
+            _launcherHotkey = new HotkeyService(_island, OpenLauncher, 0x4E59);
+            if (!RegisterLauncherHotkey(_settings))
+                Notify($"Shortcut {_settings.LauncherHotkey} (quick launcher) is in use by another app. Change it in Settings.", true);
         });
         Guard("tray", () => _tray = new TrayService(
             () => _island?.Invoke(), () => _dock?.FocusFirst(), OpenClipboard, OpenSettings, ResetLayout, () => Shutdown(),
-            () => _island?.ToggleHidden()));
+            () => _island?.ToggleHidden(), OpenLauncher));
         Guard("media", () => ApplyMedia(_settings));
         Guard("clipboard", () => ApplyClipboard(_settings));
         Guard("weather", () =>
@@ -388,6 +394,23 @@ public partial class App : Application
         return _toggleHotkey.Register(s.ToggleHotkey);
     }
 
+    /// <summary>Registers the quick launcher shortcut. An empty shortcut switches it off and counts as fine.</summary>
+    bool RegisterLauncherHotkey(NovaSettings s)
+    {
+        if (_launcherHotkey is null) return true;
+        if (s.LauncherHotkey.Length == 0) { _launcherHotkey.Register(""); return true; }
+        return _launcherHotkey.Register(s.LauncherHotkey);
+    }
+
+    /// <summary>Opens the quick launcher, or closes it if it is already open.</summary>
+    void OpenLauncher()
+    {
+        if (_launcher is not null) { _launcher.Close(); return; }
+        _launcher = new LauncherWindow(_settings.DockItems, Notify);
+        _launcher.Closed += (_, _) => _launcher = null;
+        _launcher.Show();
+    }
+
     void Persist(NovaSettings s) { if (!_safeMode) _store.Save(s); }
 
     // ---- applying settings ----
@@ -409,6 +432,7 @@ public partial class App : Application
         var hotkeyOk = _hotkey?.Register(s.Hotkey) ?? true;
         hotkeyOk &= RegisterPageHotkeys(s);
         hotkeyOk &= RegisterToggleHotkey(s);
+        hotkeyOk &= RegisterLauncherHotkey(s);
 
         ApplyMedia(s);
         ApplyClipboard(s);
@@ -676,6 +700,8 @@ public partial class App : Application
         _hotkey?.Dispose();
         foreach (var h in _pageHotkeys) h.Dispose();
         _toggleHotkey?.Dispose();
+        _launcherHotkey?.Dispose();
+        _launcher?.Close();
         _statusPoll.Stop();
         _alerts?.Dispose();
         _harmony?.Dispose();   // puts every window's title bar back as it was

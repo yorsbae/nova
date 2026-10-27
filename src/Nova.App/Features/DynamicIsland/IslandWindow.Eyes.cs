@@ -78,19 +78,10 @@ public partial class IslandWindow
     }
 
     /// <summary>One eye of the given style; <paramref name="idx"/> is 0 (left) or 1 (right), because some characters have two different eyes.</summary>
-    Grid MakeEye(IslandFaceStyle style, double h, int idx)
+    FrameworkElement MakeEye(IslandFaceStyle style, double h, int idx)
     {
-        switch (style)
-        {
-            // Anime eyes are almond-shaped with lash line, lashes, gradient iris and shine (see IslandWindow.AnimeEyes.cs)
-            case IslandFaceStyle.AnimeA: return AlmondEye(LookAnimeA, h, idx);          // A: calm blue
-            case IslandFaceStyle.AnimeB: return AlmondEye(LookAnimeB, h, idx);          // B: violet
-            case IslandFaceStyle.AnimeC: return AlmondEye(LookAnimeC, h, idx);          // C: green with a star sparkle
-            case IslandFaceStyle.AnimeAura: return AlmondEye(LookAnimeAura, h, idx);    // glowing cyan aura
-            case IslandFaceStyle.Yandere: return AlmondEye(LookYandere, h, idx);        // tiny pupil, no shine, throbbing red aura
-            case IslandFaceStyle.Demon: return AlmondEye(LookDemon, h, idx);            // black eye, golden slit that widens, angry tilt
-            case IslandFaceStyle.Hollow: return AlmondEye(LookHollow, h, idx);          // black eye, glowing white iris that glitches
-        }
+        // The anime eyes (A/B/C, Aura, Yandere, Demon, Hollow) are real eyes with moving lids: see RealEye.cs and IslandWindow.EyeBrain.cs
+        if (RealLook(style) is { } look) return new RealEye(look, h, idx);
 
         var g = new Grid { Width = h * 0.92, Height = h, RenderTransformOrigin = new Point(0.5, 0.5), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(h * 0.04, 0, h * 0.04, 0) };
         void Ball(string sclera) => g.Children.Add(Blob(h * 0.84, h * 0.62, h * 0.31, null, Solid(sclera)));

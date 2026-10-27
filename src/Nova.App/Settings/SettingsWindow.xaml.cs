@@ -84,6 +84,9 @@ public partial class SettingsWindow : Window
         _cur.Children.Add(resetIsland);
         AddCombo<IslandFaceMode>("Compact (minimal) Island: clock only, clock and face taking turns, face only, or all modules taking turns (clock, face, water, prayer)", nameof(NovaSettings.IslandFaceMode));
         AddCombo<IslandFaceStyle>("Eye style: Pet, Anime A/B/C and AnimeAura (almond eyes with lashes and glow), scary eyes (Yandere, Demon, Hollow), or special eyes (Sharingan, Rinnegan, Ghoul, Void, Alchemy, Web, Cat, Galaxy, Zone and ShadowMonarch with lightning)", nameof(NovaSettings.IslandFaceStyle));
+        AddCheck("Eyes look at the mouse pointer (when it rests, they glance around by themselves)", nameof(NovaSettings.IslandEyeFollowMouse));
+        AddCheck("Eyes show moods: sleepy at low battery or late at night, narrowed during a Pomodoro focus, wide for notices, glowing with music", nameof(NovaSettings.IslandEyeMoods));
+        AddCheck("Eye style follows the time of day (evening: glowing aura, night: Hollow)", nameof(NovaSettings.IslandEyeAutoTheme));
         AddSlider("Seconds the clock stays before the face shows (clock-and-face mode)", nameof(NovaSettings.IslandFaceClockSeconds), 5, 120, 1, "0");
         AddSlider("Seconds the face stays before the clock returns", nameof(NovaSettings.IslandFaceShowSeconds), 3, 60, 1, "0");
         AddCheck("Show CPU and RAM use under the clock in the compact Island (read every 3 seconds while it is shown)", nameof(NovaSettings.IslandShowUsage));
@@ -92,6 +95,7 @@ public partial class SettingsWindow : Window
         AddCheck("File shelf: drop files on the Island to hold them for a moment, drag them out later", nameof(NovaSettings.ShelfEnabled));
         AddCheck("Show temporary notices (including 'now playing' in Adaptive mode)", nameof(NovaSettings.TemporaryNotices));
         AddText("Keyboard shortcut (e.g. Ctrl+Alt+N)", nameof(NovaSettings.Hotkey));
+        AddText("Quick launcher: type to open an app, folder or web address, or do a sum (e.g. Ctrl+Alt+Space; empty = off)", nameof(NovaSettings.LauncherHotkey));
         AddText("Hide / show the whole Island (e.g. Ctrl+Alt+H; empty = off). While hidden, only important notices such as alarms appear", nameof(NovaSettings.ToggleHotkey));
         AddText("Page shortcuts: this prefix + 1…6 opens the Island on that page (Ctrl+Alt → Ctrl+Alt+1 … Ctrl+Alt+6; empty = off)", nameof(NovaSettings.PageHotkeyPrefix));
 

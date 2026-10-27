@@ -31,6 +31,13 @@ Package (portable zip + Inno Setup installer): `.\build\publish.ps1` (add `-Self
 
 On exit NOVA gives the screen space back, and puts the taskbar (and the Windows theme, if you used it) back exactly as it found them. If NOVA was force-killed and the taskbar stays hidden: start NOVA again and exit normally. Or press `Ctrl+Shift+Esc` → Task Manager → *Windows Explorer* → *Restart*, which brings the taskbar back immediately.
 
+## New in v2.15
+- **Eyes that behave like real eyes (anime styles A / B / C / AnimeAura / Yandere / Demon / Hollow):** the eye is now drawn with a moving upper and lower lid instead of a squashed picture. A blink sweeps the lid down over the iris and the lashes droop while it is shut; the iris and pupil move *inside* the lids; the aura breathes. Blinks come at random (sometimes twice, slower when sleepy).
+- **Eyes look at your mouse pointer** while it moves, and glance around by themselves when it rests (Settings → Island → *Eyes look at the mouse pointer*).
+- **Eye moods** (Settings → *Eyes show moods*): sleepy at low battery or between midnight and 5 am, narrowed during a Pomodoro focus, wide-eyed for a notice, and a faster glowing aura while music plays.
+- **Eye style follows the time of day** (off by default): AnimeAura in the evening (from 17:30), Hollow at night (22:00 to 05:00).
+- **Quick launcher, `Ctrl+Alt+Space`** (or tray → *Quick launcher*): type a few letters to open a Start-menu program, a dock app, a common folder or a calculator; paste a web address (http/https only) to open it; type a sum like `12*(3+4)` and press Enter to copy the answer. `Esc` or a click elsewhere closes it. The shortcut can be changed or switched off in Settings.
+
 ## New in v2.14
 - **Real anime eyes:** *Anime A / B / C* are no longer round balls. They are almond-shaped with a thick lash line that flicks out at the outer corner, lashes, a tall gradient iris cut by the lid, shadow under the lid and shine. New styles: **AnimeAura** (glowing cyan aura and twinkling star), and three scary ones: **Yandere** (tiny pupil, no shine, throbbing red aura), **Demon** (black eye, golden slit pupil that widens, angry tilt) and **Hollow** (black eye, glowing white iris that glitches). Pick them in Settings → Island → *Eye style*.
 - **Hide / show the Island with one shortcut:** `Ctrl+Alt+H` (Settings → Island → *Hide / show the whole Island*; empty = off), or tray → *Hide / show island*. While hidden nothing is drawn and ordinary notices stay quiet; important ones (alarms, errors, end of a Pomodoro session) still appear for a moment and the Island hides again. `Ctrl+Alt+N`, the page shortcuts and the tray *Open / close island* bring it back.

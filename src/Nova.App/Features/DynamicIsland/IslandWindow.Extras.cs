@@ -112,6 +112,7 @@ public partial class IslandWindow
         group.Children.Add(_faceScale); group.Children.Add(_faceRot); group.Children.Add(_faceMove);
         FaceBox.RenderTransform = group;
         _moodTimer.Tick += (_, _) => MoodTick();
+        _eyeTimer.Tick += (_, _) => EyeBrainTick();
     }
 
     // Random little actions on top of blinking and looking around, so the face does not repeat itself.
@@ -191,6 +192,7 @@ public partial class IslandWindow
         }
         if (_faceVisible && _emoticon is not null && _faceSec % 4 == 0)
             _emoticon.Text = Emoticons[(_faceSec / 4) % Emoticons.Length];
+        if (_s.IslandEyeAutoTheme && _faceSec % 30 == 0) RefreshEyeTheme();   // evening / night: the eyes change style by themselves
         if (was != _faceVisible || wasModule != _moduleText) UpdateCompactText();
     }
 
@@ -289,12 +291,12 @@ public partial class IslandWindow
 
     void BuildFace()
     {
-        var style = _s.IslandFaceStyle;
+        var style = EffectiveFaceStyle();
         double h = Math.Max(20, _s.ClockFontSize * 1.2);
         if (_faceBuilt == style && Math.Abs(_faceBuiltH - h) < 0.5 && FaceBox.Child is not null) return;
         StopFaceAnimation();
         _faceBuilt = style; _faceBuiltH = h;
-        _blinks.Clear(); _emoticon = null; _shapeStart = null; _shapeStop = null;
+        _blinks.Clear(); _realEyes.Clear(); _emoticon = null; _shapeStart = null; _shapeStop = null;
 
         var row = new StackPanel { Orientation = Orientation.Horizontal, Height = h, HorizontalAlignment = HorizontalAlignment.Center };
         _look = new TranslateTransform();
@@ -302,6 +304,7 @@ public partial class IslandWindow
         for (int i = 0; i < 2; i++)
         {
             FrameworkElement eye = style == IslandFaceStyle.Pet ? PetEye(h) : MakeEye(style, h, i);
+            if (eye is RealEye real) { _realEyes.Add(real); row.Children.Add(real); continue; }   // real eyes blink with their own lids
             var scale = new ScaleTransform(1, 1);
             eye.RenderTransform = scale;
             _blinks.Add(scale);
@@ -313,7 +316,7 @@ public partial class IslandWindow
     void StartFaceAnimation()
     {
         if (_faceAnimating || ReducedMotion) return;
-        if (_blinks.Count == 0) return;
+        if (_blinks.Count == 0 && _realEyes.Count == 0) return;
         _faceAnimating = true;
         _moodTimer.Start();
         bool sleepy = false;
@@ -337,7 +340,8 @@ public partial class IslandWindow
             scale.BeginAnimation(ScaleTransform.ScaleYProperty, blink);
         }
         _shapeStart?.Invoke();   // the style's own animation: spinning tomoe, flickering eye, lightning...
-        if (_look is not null && !sleepy)
+        StartRealEyes();         // real anime eyes: gaze, blinks, mood, aura
+        if (_look is not null && !sleepy && _realEyes.Count == 0)
         {
             double d = _faceBuiltH * 0.16;
             var look = new DoubleAnimationUsingKeyFrames { Duration = TimeSpan.FromSeconds(7.4), RepeatBehavior = RepeatBehavior.Forever };
@@ -359,6 +363,7 @@ public partial class IslandWindow
         if (!_faceAnimating) return;
         _faceAnimating = false;
         _shapeStop?.Invoke();
+        StopRealEyes();
         _moodTimer.Stop();
         _faceScale.BeginAnimation(ScaleTransform.ScaleXProperty, null); _faceScale.BeginAnimation(ScaleTransform.ScaleYProperty, null);
         _faceRot.BeginAnimation(RotateTransform.AngleProperty, null);

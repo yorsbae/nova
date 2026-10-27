@@ -108,6 +108,11 @@ public static class SettingsValidator
         s.ToggleHotkey = (s.ToggleHotkey ?? "").Trim();
         if (s.ToggleHotkey.Length > 0 && (!HotkeyParser.TryParse(s.ToggleHotkey, out _) || string.Equals(s.ToggleHotkey, s.Hotkey, StringComparison.OrdinalIgnoreCase)))
             s.ToggleHotkey = string.Equals(d.ToggleHotkey, s.Hotkey, StringComparison.OrdinalIgnoreCase) ? "" : d.ToggleHotkey;
+        // Quick launcher shortcut: same rules, and it must differ from both other shortcuts.
+        s.LauncherHotkey = (s.LauncherHotkey ?? "").Trim();
+        bool Taken(string k) => string.Equals(k, s.Hotkey, StringComparison.OrdinalIgnoreCase) || string.Equals(k, s.ToggleHotkey, StringComparison.OrdinalIgnoreCase);
+        if (s.LauncherHotkey.Length > 0 && (!HotkeyParser.TryParse(s.LauncherHotkey, out _) || Taken(s.LauncherHotkey)))
+            s.LauncherHotkey = Taken(d.LauncherHotkey) ? "" : d.LauncherHotkey;
 
         s.IslandMonitor = CleanText(s.IslandMonitor, 64);
         s.DockMonitor = CleanText(s.DockMonitor, 64);
