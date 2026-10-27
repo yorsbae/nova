@@ -16,22 +16,12 @@ public partial class IslandWindow
     readonly List<RealEye> _realEyes = new();
     readonly DispatcherTimer _eyeTimer = new() { Interval = TimeSpan.FromMilliseconds(40) };
 
-    double _gazeX, _gazeY, _gazeTX, _gazeTY, _blinkIn = 2.5, _wanderIn = 1.5, _still;
+    double _gazeX, _gazeY, _gazeTX, _gazeTY, _blinkIn = 2.5, _wanderIn = 1.5, _still, _actIn = 6;
     int _lastMx = int.MinValue, _lastMy, _moodTicks;
     EyeMood _mood = EyeMood.Normal;
 
-    /// <summary>The eye styles that are drawn as real eyes; null for the older shape-based styles.</summary>
-    static EyeLook? RealLook(IslandFaceStyle style) => style switch
-    {
-        IslandFaceStyle.AnimeA => EyeLooks.AnimeA,
-        IslandFaceStyle.AnimeB => EyeLooks.AnimeB,
-        IslandFaceStyle.AnimeC => EyeLooks.AnimeC,
-        IslandFaceStyle.AnimeAura => EyeLooks.AnimeAura,
-        IslandFaceStyle.Yandere => EyeLooks.Yandere,
-        IslandFaceStyle.Demon => EyeLooks.Demon,
-        IslandFaceStyle.Hollow => EyeLooks.Hollow,
-        _ => null
-    };
+    /// <summary>The look of one eye of a style; null only for Pet, which keeps its own simple round eyes.</summary>
+    static EyeLook? RealLook(IslandFaceStyle style, int idx) => EyeLooks.For(style, idx);
 
     /// <summary>The chosen style, or (with "follow the time of day") a glowing aura in the evening and Hollow at night.</summary>
     IslandFaceStyle EffectiveFaceStyle()
@@ -57,7 +47,7 @@ public partial class IslandWindow
     {
         if (_realEyes.Count == 0) return;
         _gazeX = _gazeY = _gazeTX = _gazeTY = 0;
-        _blinkIn = 1.2 + _rng.NextDouble() * 2; _wanderIn = 1.5; _still = 0; _lastMx = int.MinValue;
+        _blinkIn = 1.2 + _rng.NextDouble() * 2; _wanderIn = 1.5; _actIn = 4 + _rng.NextDouble() * 5; _still = 0; _lastMx = int.MinValue;
         _mood = EyeMood.Normal; _moodTicks = 0; _batterySec = 999;
         UpdateEyeMood(force: true);
         _eyeTimer.Start();
@@ -122,8 +112,34 @@ public partial class IslandWindow
             if (_rng.NextDouble() < 0.18) _blinkIn = 0.30;   // a quick double blink
         }
 
-        // 3. mood, once a second
+        // 3. now and then something livelier: the eyes vanish and come back, one winks, both pop
+        _actIn -= dt;
+        if (_actIn <= 0)
+        {
+            _actIn = 6 + _rng.NextDouble() * 9;
+            if (_mood != EyeMood.Alert) EyeAction();
+        }
+
+        // 4. mood, once a second
         if (++_moodTicks >= 25) { _moodTicks = 0; UpdateEyeMood(force: false); }
+    }
+
+    /// <summary>A random little show: both eyes vanish and reappear, they vanish one after the other, one eye winks, or both pop wide.</summary>
+    void EyeAction()
+    {
+        if (_realEyes.Count == 0) return;
+        double r = _rng.NextDouble();
+        if (r < 0.40)
+        {
+            double hidden = 0.35 + _rng.NextDouble() * 0.5;
+            foreach (var e in _realEyes) e.VanishOnce(0, hidden);
+        }
+        else if (r < 0.60)
+        {
+            for (int i = 0; i < _realEyes.Count; i++) _realEyes[i].VanishOnce(i * 0.20, 0.4);
+        }
+        else if (r < 0.80) _realEyes[_rng.Next(_realEyes.Count)].WinkOnce();
+        else foreach (var e in _realEyes) e.PopOnce();
     }
 
     int _batterySec = 999;

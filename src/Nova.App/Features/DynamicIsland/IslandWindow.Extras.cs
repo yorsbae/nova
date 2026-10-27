@@ -296,7 +296,7 @@ public partial class IslandWindow
         if (_faceBuilt == style && Math.Abs(_faceBuiltH - h) < 0.5 && FaceBox.Child is not null) return;
         StopFaceAnimation();
         _faceBuilt = style; _faceBuiltH = h;
-        _blinks.Clear(); _realEyes.Clear(); _emoticon = null; _shapeStart = null; _shapeStop = null;
+        _blinks.Clear(); _realEyes.Clear(); _emoticon = null;
 
         var row = new StackPanel { Orientation = Orientation.Horizontal, Height = h, HorizontalAlignment = HorizontalAlignment.Center };
         _look = new TranslateTransform();
@@ -339,8 +339,7 @@ public partial class IslandWindow
             blink.KeyFrames.Add(new LinearDoubleKeyFrame(1, TimeSpan.FromSeconds(4.4)));
             scale.BeginAnimation(ScaleTransform.ScaleYProperty, blink);
         }
-        _shapeStart?.Invoke();   // the style's own animation: spinning tomoe, flickering eye, lightning...
-        StartRealEyes();         // real anime eyes: gaze, blinks, mood, aura
+        StartRealEyes();         // anime eyes: gaze, blinks, mood, the style's own animation, vanishing and winking
         if (_look is not null && !sleepy && _realEyes.Count == 0)
         {
             double d = _faceBuiltH * 0.16;
@@ -362,7 +361,6 @@ public partial class IslandWindow
     {
         if (!_faceAnimating) return;
         _faceAnimating = false;
-        _shapeStop?.Invoke();
         StopRealEyes();
         _moodTimer.Stop();
         _faceScale.BeginAnimation(ScaleTransform.ScaleXProperty, null); _faceScale.BeginAnimation(ScaleTransform.ScaleYProperty, null);

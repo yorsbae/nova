@@ -7,8 +7,12 @@ public enum DockVisibility { AlwaysVisible, RevealOnEdgeHover }
 public enum LayoutPreset { Minimal, Balanced, Custom }
 /// <summary>What the compact Island shows when nothing else (music, timer, alert) is using it.</summary>
 public enum IslandFaceMode { ClockOnly, Alternate, FaceOnly, AllModules }
-/// <summary>Eyes for the compact Island: Pet, three anime characters, and special eyes (each with its own animation; Zone and ShadowMonarch crackle with lightning).</summary>
-public enum IslandFaceStyle { Pet, AnimeA, AnimeB, AnimeC, Sharingan, Rinnegan, Ghoul, Void, Alchemy, Web, Cat, Galaxy, Zone, ShadowMonarch, AnimeAura, Yandere, Demon, Hollow }
+/// <summary>
+/// Eyes for the compact Island: Pet (round, simple) and anime eyes. Every style except Pet is drawn in the anime almond shape with moving lids;
+/// the special ones (Sharingan, Rinnegan, ...) differ in the iris and have their own animation. The old AnimeA / AnimeB / AnimeC were removed:
+/// settings that still name them load as AnimeAura (see <see cref="IslandFaceStyleConverter"/>).
+/// </summary>
+public enum IslandFaceStyle { Pet, Sharingan, Rinnegan, Ghoul, Void, Alchemy, Web, Cat, Galaxy, Zone, ShadowMonarch, AnimeAura, Yandere, Demon, Hollow }
 
 public sealed class DockItem
 {
@@ -156,6 +160,7 @@ public sealed class NovaSettings
     // --- v2.6: face, reminders, alarms, usage ---
     /// <summary>Clock only, clock and a little animated face taking turns, or the face only.</summary>
     public IslandFaceMode IslandFaceMode { get; set; } = IslandFaceMode.Alternate;
+    [System.Text.Json.Serialization.JsonConverter(typeof(IslandFaceStyleConverter))]
     public IslandFaceStyle IslandFaceStyle { get; set; } = IslandFaceStyle.Pet;
     /// <summary>In Alternate mode: seconds the clock stays, then seconds the face stays.</summary>
     public int IslandFaceClockSeconds { get; set; } = 20;

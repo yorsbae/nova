@@ -5,19 +5,20 @@ using System.Windows.Media.Animation;
 
 namespace Nova.App.Features.DynamicIsland;
 
+/// <summary>What is drawn on the iris, besides the normal pupil and shine. Every kind sits inside the same almond-shaped lids.</summary>
+internal enum EyeKind { Plain, Sharingan, Rinnegan, Ghoul, Void, Alchemy, Web, Galaxy, Zone, Monarch }
+
 /// <summary>How an eye is coloured and shaped. One look per eye style (see <see cref="EyeLooks"/>).</summary>
 internal sealed record EyeLook(
     string Iris1, string Iris2,
     string Sclera = "#FFF8F8FF", string Lid = "#FF1B1226", string Pupil = "#FF0B0B12",
     string? Aura = null,
     double Slant = 0, double IrisW = 0.52, double PupilSize = 0.40,
-    bool Slit = false, bool Wing = true, bool Lashes = true, bool Bags = false, bool Sparkle = false, bool Highlights = true);
+    bool Slit = false, bool Wing = true, bool Lashes = true, bool Bags = false, bool Sparkle = false, bool Highlights = true,
+    EyeKind Kind = EyeKind.Plain, string? Accent = null);
 
 internal static class EyeLooks
 {
-    public static readonly EyeLook AnimeA = new("#FF9BDCFF", "#FF2457D6");                                                       // calm blue
-    public static readonly EyeLook AnimeB = new("#FFE3B8FF", "#FF6A28C4", Lid: "#FF140A22", IrisW: 0.50);                         // violet
-    public static readonly EyeLook AnimeC = new("#FFC2FFDC", "#FF1C9A5E", Sparkle: true, IrisW: 0.56);                            // green, star sparkle
     public static readonly EyeLook AnimeAura = new("#FFE0FFFF", "#FF1AA3D9", Aura: "#FF4FE8FF", Sparkle: true, IrisW: 0.54);      // glowing cyan
     public static readonly EyeLook Yandere = new("#FFFF6B8A", "#FF6E0016", Sclera: "#FFF4E6EC", Lid: "#FF2A0008", Pupil: "#FF1A0005",
         Aura: "#FFFF1744", Slant: 5, IrisW: 0.60, PupilSize: 0.20, Bags: true, Highlights: false);                               // tiny pupil, no shine, red aura
@@ -25,6 +26,51 @@ internal static class EyeLooks
         Aura: "#FFFF7A1A", Slant: 15, IrisW: 0.58, Slit: true, Bags: true, Highlights: false);                                   // black eye, gold slit, angry
     public static readonly EyeLook Hollow = new("#FFFFFFFF", "#FFA9B8FF", Sclera: "#FF050508", Lid: "#FF8F9AD0", Pupil: "#FF000000",
         Aura: "#FFB9C6FF", Slant: 8, IrisW: 0.50, PupilSize: 0, Bags: true, Highlights: false);                                  // black eye, glowing white iris
+
+    // The special eyes: same anime lids and lashes, only the iris is different.
+    static readonly EyeLook Sharingan = new("#FFFF4B3E", "#FFC80F0F", Sclera: "#FFF4F2F2", Lid: "#FF1B0E10", Pupil: "#FF120000",
+        IrisW: 0.64, PupilSize: 0.28, Highlights: false, Kind: EyeKind.Sharingan);                                               // red iris, three tomoe circling
+    static readonly EyeLook Rinnegan = new("#FFE4DAF8", "#FFA48EE0", Sclera: "#FFEDE8F7", Lid: "#FF241838", Pupil: "#FF2A1456",
+        IrisW: 0.66, PupilSize: 0.14, Highlights: false, Kind: EyeKind.Rinnegan);                                                // lilac iris, rippling rings
+    static readonly EyeLook GhoulLeft = new("#FFE4E7EC", "#FF9AA1AD", Sclera: "#FFEDEDED", Lid: "#FF1E1E22", Pupil: "#FF222222",
+        IrisW: 0.52, PupilSize: 0.28);                                                                                           // an ordinary pale eye
+    static readonly EyeLook GhoulRight = new("#FFFF5560", "#FFC4101A", Sclera: "#FF070707", Lid: "#FF2A0A0C", Pupil: "#FF110000",
+        Aura: "#FFFF1E2D", IrisW: 0.56, PupilSize: 0.30, Bags: true, Highlights: false, Kind: EyeKind.Ghoul);                    // black eye, glowing red iris that flickers
+    static readonly EyeLook Void = new("#FF2A0000", "#FF0C0000", Sclera: "#FF050505", Lid: "#FF2A0A0A", Pupil: "#FF000000",
+        Aura: "#FFFF2A2A", IrisW: 0.60, PupilSize: 0, Highlights: false, Kind: EyeKind.Void, Accent: "#FFFF2A2A");                 // black eye, one red ring
+    static readonly EyeLook AlchemyLeft = new("#FF9CC4F4", "#FF2F66C0", Sclera: "#FFFAFAFA", IrisW: 0.46, PupilSize: 0.34);       // small blue iris
+    static readonly EyeLook AlchemyRight = new("#FFFFE8E8", "#FFD01F1F", Sclera: "#FFFAFAFA", IrisW: 0.66, PupilSize: 0,
+        Highlights: false, Kind: EyeKind.Alchemy, Accent: "#FFD01F1F");                                                          // a red transmutation circle that turns
+    static readonly EyeLook Web = new("#FF9CC2FF", "#FF3D7BFF", Sclera: "#FFF7F7F7", Lid: "#FF0E1A3A", Pupil: "#FF0A1A44",
+        IrisW: 0.62, PupilSize: 0.16, Highlights: false, Kind: EyeKind.Web, Accent: "#FFE4EEFF");                                // blue iris with a shimmering web
+    static readonly EyeLook CatLeft = new("#FFFFB0CF", "#FFFF4D8D", Sclera: "#FFFAFAFA", IrisW: 0.62, Slit: true);                // pink, slit pupil
+    static readonly EyeLook CatRight = new("#FFFFE08A", "#FFFFA31A", Sclera: "#FFFAFAFA", IrisW: 0.62, Slit: true);              // amber, slit pupil
+    static readonly EyeLook Galaxy = new("#FFC77DFF", "#FF8E2DE2", Sclera: "#FFF3EEFA", Lid: "#FF1A0F2E", Pupil: "#FF1A0F2E",
+        IrisW: 0.60, PupilSize: 0, Highlights: false, Kind: EyeKind.Galaxy);                                                     // purple iris with a turning star
+    static readonly EyeLook Zone = new("#FFE8FAFF", "#FF59C8FF", Sclera: "#FFF2FAFF", Lid: "#FF0E2A40", Pupil: "#FF06324F",
+        Aura: "#FF59C8FF", IrisW: 0.56, PupilSize: 0.30, Kind: EyeKind.Zone, Accent: "#FFB5EEFF");                               // light blue, crackling with lightning
+    static readonly EyeLook Monarch = new("#FFE9D0FF", "#FFA24BFF", Sclera: "#FF14081F", Lid: "#FF2A1048", Pupil: "#FFF2E3FF",
+        Aura: "#FF8A2BFF", Slant: 6, IrisW: 0.58, PupilSize: 0.30, Highlights: false, Kind: EyeKind.Monarch, Accent: "#FFD2A6FF"); // dark eye, violet lightning
+
+    /// <summary>The look of one eye of a style; <paramref name="idx"/> is 0 (left) or 1 (right) because some characters have two different eyes. Null for Pet.</summary>
+    public static EyeLook? For(Nova.Core.Configuration.IslandFaceStyle style, int idx) => style switch
+    {
+        Nova.Core.Configuration.IslandFaceStyle.AnimeAura => AnimeAura,
+        Nova.Core.Configuration.IslandFaceStyle.Yandere => Yandere,
+        Nova.Core.Configuration.IslandFaceStyle.Demon => Demon,
+        Nova.Core.Configuration.IslandFaceStyle.Hollow => Hollow,
+        Nova.Core.Configuration.IslandFaceStyle.Sharingan => Sharingan,
+        Nova.Core.Configuration.IslandFaceStyle.Rinnegan => Rinnegan,
+        Nova.Core.Configuration.IslandFaceStyle.Ghoul => idx == 0 ? GhoulLeft : GhoulRight,
+        Nova.Core.Configuration.IslandFaceStyle.Void => Void,
+        Nova.Core.Configuration.IslandFaceStyle.Alchemy => idx == 0 ? AlchemyLeft : AlchemyRight,
+        Nova.Core.Configuration.IslandFaceStyle.Web => Web,
+        Nova.Core.Configuration.IslandFaceStyle.Cat => idx == 0 ? CatLeft : CatRight,
+        Nova.Core.Configuration.IslandFaceStyle.Galaxy => Galaxy,
+        Nova.Core.Configuration.IslandFaceStyle.Zone => Zone,
+        Nova.Core.Configuration.IslandFaceStyle.ShadowMonarch => Monarch,
+        _ => null
+    };
 }
 
 /// <summary>What the eyes are "feeling". The Island picks one from what is going on (battery, Pomodoro, music, notices, the hour).</summary>
@@ -51,6 +97,12 @@ internal sealed class RealEye : FrameworkElement
     public static readonly DependencyProperty TwinkleProperty = Reg(nameof(Twinkle), 1.0);    // star sparkle size, 0.3 … 1
     public static readonly DependencyProperty GazeXProperty = Reg(nameof(GazeX), 0.0);        // −1 left … 1 right (as seen on screen)
     public static readonly DependencyProperty GazeYProperty = Reg(nameof(GazeY), 0.0);        // −1 up … 1 down
+    public static readonly DependencyProperty SpinProperty = Reg(nameof(Spin), 0.0);          // degrees: tomoe, transmutation circle, web, star
+    public static readonly DependencyProperty BreatheProperty = Reg(nameof(Breathe), 1.0);    // Rinnegan rings swelling, 1 … 1.14
+    public static readonly DependencyProperty FlickerProperty = Reg(nameof(Flicker), 1.0);    // the ghoul eye's glitching iris, 0 … 1
+    public static readonly DependencyProperty BoltProperty = Reg(nameof(Bolt), 0.0);          // lightning clock, 0 … 1 and round again
+    public static readonly DependencyProperty VanishProperty = Reg(nameof(Vanish), 0.0);      // 0 visible … 1 gone (below 0 = pops back a little too big)
+    public static readonly DependencyProperty PopProperty = Reg(nameof(Pop), 1.0);            // whole-eye size, for the little surprise pop
 
     public double Open { get => (double)GetValue(OpenProperty); set => SetValue(OpenProperty, value); }
     public double Blink { get => (double)GetValue(BlinkProperty); set => SetValue(BlinkProperty, value); }
@@ -62,18 +114,28 @@ internal sealed class RealEye : FrameworkElement
     public double Twinkle { get => (double)GetValue(TwinkleProperty); set => SetValue(TwinkleProperty, value); }
     public double GazeX { get => (double)GetValue(GazeXProperty); set => SetValue(GazeXProperty, value); }
     public double GazeY { get => (double)GetValue(GazeYProperty); set => SetValue(GazeYProperty, value); }
+    public double Spin { get => (double)GetValue(SpinProperty); set => SetValue(SpinProperty, value); }
+    public double Breathe { get => (double)GetValue(BreatheProperty); set => SetValue(BreatheProperty, value); }
+    public double Flicker { get => (double)GetValue(FlickerProperty); set => SetValue(FlickerProperty, value); }
+    public double Bolt { get => (double)GetValue(BoltProperty); set => SetValue(BoltProperty, value); }
+    public double Vanish { get => (double)GetValue(VanishProperty); set => SetValue(VanishProperty, value); }
+    public double Pop { get => (double)GetValue(PopProperty); set => SetValue(PopProperty, value); }
 
     readonly EyeLook _look;
     readonly bool _mirror;
+    readonly int _idx;
     readonly double _w, _h;
     readonly Brush _sclera, _iris, _shadow, _lid, _auraOuter, _auraInner, _pupil, _white, _whiteSoft;
-    readonly Pen _irisPen, _bagPen, _creasePen;
+    readonly Pen _irisPen, _bagPen, _creasePen, _ringPen, _accentPen, _lightPen, _boltPen;
+    readonly Brush _accent;
+    readonly Pen _tailPen;
+    readonly Geometry _bolt;
     readonly Geometry? _wing;
     readonly Geometry _star;
 
     public RealEye(EyeLook look, double h, int idx)
     {
-        _look = look; _mirror = idx == 1; _h = h; _w = h * 1.05;
+        _look = look; _idx = idx; _mirror = idx == 1; _h = h; _w = h * 1.05;
         Width = _w; Height = _h;
         IsHitTestVisible = false;
         SnapsToDevicePixels = false;
@@ -99,6 +161,13 @@ internal sealed class RealEye : FrameworkElement
         _pupil = Fz(new SolidColorBrush(Parse(look.Pupil)));
         _white = Fz(new SolidColorBrush(Colors.White));
         _whiteSoft = Fz(new SolidColorBrush(Color.FromArgb(0xD8, 255, 255, 255)));
+        _tailPen = new Pen(_pupil, Math.Max(1, h * 0.045)) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round }; _tailPen.Freeze();
+        var accent = Parse(look.Accent ?? look.Iris2);
+        _accent = Fz(new SolidColorBrush(accent));
+        _ringPen = new Pen(Fz(new SolidColorBrush(Alpha(Darken(iris2, 0.5), 0xD0))), Math.Max(1, h * 0.03)); _ringPen.Freeze();
+        _accentPen = new Pen(_accent, Math.Max(1.2, h * 0.045)) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round, LineJoin = PenLineJoin.Round }; _accentPen.Freeze();
+        _lightPen = new Pen(Fz(new SolidColorBrush(Alpha(accent, 0xC0))), Math.Max(1, h * 0.028)) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round }; _lightPen.Freeze();
+        _boltPen = new Pen(_accent, Math.Max(1.2, h * 0.055)) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round, LineJoin = PenLineJoin.Round }; _boltPen.Freeze();
         _bagPen = new Pen(Fz(new SolidColorBrush(Alpha(lid, 0x66))), Math.Max(1.5, h * 0.09)) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round }; _bagPen.Freeze();
         _creasePen = new Pen(Fz(new SolidColorBrush(Alpha(lid, 0x70))), Math.Max(1, h * 0.03)) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round }; _creasePen.Freeze();
 
@@ -134,6 +203,15 @@ internal sealed class RealEye : FrameworkElement
             c.LineTo(new Point(-inner * 0.7, -inner * 0.7), true, false);
         }
         star.Freeze(); _star = star;
+
+        // a zig-zag lightning bolt (drawn for the Zone and ShadowMonarch eyes), in units of the eye's height
+        var bolt = new StreamGeometry();
+        using (var c = bolt.Open())
+        {
+            c.BeginFigure(new Point(0, 0), false, false);
+            c.PolyLineTo(new[] { new Point(0.10 * h, 0.18 * h), new Point(0.02 * h, 0.22 * h), new Point(0.14 * h, 0.46 * h), new Point(0.06 * h, 0.50 * h), new Point(0.20 * h, 0.80 * h) }, true, true);
+        }
+        bolt.Freeze(); _bolt = bolt;
     }
 
     // ---- small helpers ----
@@ -179,6 +257,19 @@ internal sealed class RealEye : FrameworkElement
     protected override void OnRender(DrawingContext dc)
     {
         double w = _w, h = _h;
+
+        // vanishing and popping: the whole eye fades and shrinks (or swells a little) around its centre
+        double vanish = Clamp(Vanish, -0.3, 1);
+        double vis = 1 - Clamp(vanish, 0, 1);
+        if (vis < 0.01) return;
+        bool wrap = vanish != 0 || Math.Abs(Pop - 1) > 0.001;
+        if (wrap)
+        {
+            double sc = Math.Max(0.05, Pop * (1 - 0.55 * vanish));
+            dc.PushOpacity(vis);
+            dc.PushTransform(new ScaleTransform(sc, sc, w / 2, h / 2));
+        }
+
         // how open: mood opening, closed down by the blink
         double o = Clamp(Open * (1 - Clamp(Blink, 0, 1)), 0, 1.25);
         double om = Math.Min(o, 1), over = Math.Max(0, o - 1);
@@ -224,13 +315,23 @@ internal sealed class RealEye : FrameworkElement
 
             double irx = w * _look.IrisW * 0.5, iry = h * 0.56;
             double cx = 0.52 * w + gx * w * 0.15, cy = 0.50 * h + gy * h * 0.10;
-            dc.DrawEllipse(_iris, _irisPen, new Point(cx, cy), irx, iry);
+            var ctr = new Point(cx, cy);
+            bool flick = _look.Kind == EyeKind.Ghoul;
+            if (flick) dc.PushOpacity(Clamp(Flicker, 0, 1));
+            dc.DrawEllipse(_iris, _irisPen, ctr, irx, iry);
+            DrawDecor(dc, ctr, irx, iry);
 
             double ps = Clamp(PupilScale, 0.3, 3.5);
             if (_look.Slit)
                 dc.DrawEllipse(_pupil, null, new Point(cx, cy + 0.02 * h), Math.Min(irx * 0.9, irx * 0.13 * ps), iry * 0.95);
-            else if (_look.PupilSize > 0)
+            else if (_look.PupilSize > 0 && _look.Kind == EyeKind.Plain)
                 dc.DrawEllipse(_pupil, null, new Point(cx, cy + 0.04 * h), Math.Min(irx * 0.95, irx * _look.PupilSize * ps), Math.Min(iry * 0.95, iry * Math.Max(0.28, _look.PupilSize * 1.2) * ps));
+            else if (_look.PupilSize > 0)
+            {
+                double pr = Math.Min(irx, iry) * _look.PupilSize * Math.Min(ps, 1.6);   // special eyes keep a round pupil
+                dc.DrawEllipse(_pupil, null, ctr, pr, pr);
+            }
+            if (flick) dc.Pop();
 
             // the lashes shade the top of the eye (under the shine, so the shine stays white)
             double peakY = Bezier(A, U1, U2, B, 0.5).Y;
@@ -281,8 +382,119 @@ internal sealed class RealEye : FrameworkElement
             }
         }
 
+        DrawBolts(dc, h);
+
         dc.Pop();                      // rotation
         if (_mirror) dc.Pop();         // mirror
+        if (wrap) { dc.Pop(); dc.Pop(); }   // size, opacity
+    }
+
+    static readonly double[] RinneganRings = { 0.85, 0.64, 0.43, 0.22 };
+    static readonly double[] WebRings = { 0.85, 0.58, 0.32 };
+
+    /// <summary>What makes the special eyes special: drawn on the iris, under the pupil's shine and inside the lids.</summary>
+    void DrawDecor(DrawingContext dc, Point c, double irx, double iry)
+    {
+        double R = Math.Min(irx, iry);
+        switch (_look.Kind)
+        {
+            case EyeKind.Sharingan:   // three tomoe circling the pupil
+            {
+                double ring = R * 0.68, tr = R * 0.20;
+                dc.DrawEllipse(null, _ringPen, c, ring, ring);
+                dc.PushTransform(new RotateTransform(Spin, c.X, c.Y));
+                for (int i = 0; i < 3; i++)
+                {
+                    double a = i * 2 * Math.PI / 3, sa = Math.Sin(a), ca = Math.Cos(a);
+                    var p = new Point(c.X + ring * sa, c.Y - ring * ca);
+                    dc.DrawEllipse(_pupil, null, p, tr, tr);
+                    dc.DrawLine(_tailPen, p, new Point(p.X + ca * tr * 2.2, p.Y + sa * tr * 2.2));   // the comma's tail, along the circle
+                }
+                dc.Pop();
+                break;
+            }
+            case EyeKind.Rinnegan:   // rippling rings
+            {
+                double b = Clamp(Breathe, 0.9, 1.3);
+                foreach (var f in RinneganRings) dc.DrawEllipse(null, _ringPen, c, R * f * b, R * f * b);
+                break;
+            }
+            case EyeKind.Void:   // one red ring that glows slowly
+            {
+                dc.PushOpacity(Clamp(Pulse, 0.3, 1));
+                dc.DrawEllipse(null, _accentPen, c, R * 0.62, R * 0.62);
+                dc.DrawEllipse(null, _lightPen, c, R * 0.88, R * 0.88);
+                dc.DrawEllipse(_accent, null, c, R * 0.14, R * 0.14);
+                dc.Pop();
+                break;
+            }
+            case EyeKind.Alchemy:   // a transmutation circle with a turning hexagram
+            {
+                dc.DrawEllipse(null, _accentPen, c, R * 0.80, R * 0.80);
+                dc.PushTransform(new RotateTransform(Spin, c.X, c.Y));
+                for (int t = 0; t < 2; t++)
+                    for (int k = 0; k < 3; k++)
+                    {
+                        double a1 = (t * 60 + k * 120) * Math.PI / 180, a2 = (t * 60 + (k + 1) * 120) * Math.PI / 180;
+                        dc.DrawLine(_accentPen, new Point(c.X + R * 0.80 * Math.Sin(a1), c.Y - R * 0.80 * Math.Cos(a1)),
+                                                new Point(c.X + R * 0.80 * Math.Sin(a2), c.Y - R * 0.80 * Math.Cos(a2)));
+                    }
+                dc.Pop();
+                break;
+            }
+            case EyeKind.Web:   // a shimmering web of rings and threads
+            {
+                dc.PushTransform(new RotateTransform(Spin, c.X, c.Y));
+                foreach (var f in WebRings) dc.DrawEllipse(null, _lightPen, c, R * f, R * f);
+                dc.DrawLine(_lightPen, new Point(c.X - R * 0.9, c.Y), new Point(c.X + R * 0.9, c.Y));
+                dc.DrawLine(_lightPen, new Point(c.X, c.Y - R * 0.9), new Point(c.X, c.Y + R * 0.9));
+                dc.Pop();
+                break;
+            }
+            case EyeKind.Galaxy:   // a turning star that twinkles
+            {
+                double sr = R * 0.95 * (0.55 + 0.45 * Clamp(Twinkle, 0, 1));
+                dc.PushTransform(new TranslateTransform(c.X, c.Y));
+                dc.PushTransform(new RotateTransform(Spin));
+                dc.PushTransform(new ScaleTransform(sr, sr));
+                dc.DrawGeometry(_white, null, _star);
+                dc.Pop(); dc.Pop(); dc.Pop();
+                break;
+            }
+        }
+    }
+
+    static double Frac(double x) => x - Math.Floor(x);
+
+    /// <summary>One flash of a bolt: on, a flicker, on again, then dark until the next round (<paramref name="p"/> is 0 … 1 through the round).</summary>
+    static double BoltAlpha(double p) => p < 0.52 ? 0 : p < 0.58 ? 1 : p < 0.62 ? 0.15 : p < 0.72 ? 1 : 0;
+
+    void OneBolt(DrawingContext dc, double x, double y, double angle, double scale, double alpha)
+    {
+        if (alpha <= 0.01) return;
+        dc.PushOpacity(alpha);
+        dc.PushTransform(new TranslateTransform(x, y));
+        dc.PushTransform(new RotateTransform(angle));
+        dc.PushTransform(new ScaleTransform(scale, scale));
+        dc.DrawGeometry(null, _boltPen, _bolt);
+        dc.Pop(); dc.Pop(); dc.Pop(); dc.Pop();
+    }
+
+    /// <summary>Lightning around the Zone and ShadowMonarch eyes: each bolt flashes on its own beat, like crackling electricity.</summary>
+    void DrawBolts(DrawingContext dc, double h)
+    {
+        double t = Bolt, o = _idx * 0.15;
+        if (_look.Kind == EyeKind.Zone)
+        {
+            OneBolt(dc, 0.62 * h, -0.24 * h, 8, 1.0, BoltAlpha(Frac(t + o)));
+            OneBolt(dc, -0.06 * h, 0.50 * h, -18, 0.8, BoltAlpha(Frac(t + 0.37 + o)));
+        }
+        else if (_look.Kind == EyeKind.Monarch)
+        {
+            OneBolt(dc, 0.60 * h, -0.26 * h, 10, 1.0, BoltAlpha(Frac(t + o)));
+            OneBolt(dc, -0.10 * h, 0.46 * h, -22, 0.9, BoltAlpha(Frac(t + 0.41 + o)));
+            OneBolt(dc, 0.30 * h, -0.36 * h, -6, 0.6, BoltAlpha(Frac(2 * t + 0.20)));
+        }
     }
 
     // ---- life: animations that run only while the face is on show ----
@@ -298,23 +510,76 @@ internal sealed class RealEye : FrameworkElement
         BeginAnimation(BlinkProperty, a);
     }
 
-    /// <summary>Starts the aura's breathing, the sparkle's twinkle and (for slit eyes) the pupil widening.</summary>
+    static DoubleAnimation Loop(double from, double to, double seconds, bool autoReverse, IEasingFunction? ease = null)
+        => new(from, to, TimeSpan.FromSeconds(seconds)) { AutoReverse = autoReverse, RepeatBehavior = RepeatBehavior.Forever, EasingFunction = ease };
+
+    /// <summary>Starts the style's own animation: the aura breathing, the sparkle twinkling, a slit pupil widening, tomoe circling, rings rippling, lightning.</summary>
     public void StartLife(double pulseSeconds)
     {
-        if (_look.Aura is not null)
-            BeginAnimation(PulseProperty, new DoubleAnimation(0.5, 1.0, TimeSpan.FromSeconds(pulseSeconds)) { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever, EasingFunction = new SineEase() });
-        if (_look.Sparkle)
-            BeginAnimation(TwinkleProperty, new DoubleAnimation(0.3, 1.0, TimeSpan.FromSeconds(0.9)) { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever, EasingFunction = new SineEase() });
-        if (_look.Slit)
-            BeginAnimation(PupilScaleProperty, new DoubleAnimation(1.0, 2.6, TimeSpan.FromSeconds(1.6)) { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever, EasingFunction = new SineEase() });
+        if (_look.Aura is not null) BeginAnimation(PulseProperty, Loop(0.5, 1.0, pulseSeconds, true, new SineEase()));
+        if (_look.Sparkle || _look.Kind == EyeKind.Galaxy) BeginAnimation(TwinkleProperty, Loop(0.3, 1.0, 0.9, true, new SineEase()));
+        if (_look.Slit) BeginAnimation(PupilScaleProperty, Loop(1.0, 2.6, 1.6, true, new SineEase()));
+
+        switch (_look.Kind)
+        {
+            case EyeKind.Sharingan: BeginAnimation(SpinProperty, Loop(0, 360, 3.2, false)); break;
+            case EyeKind.Rinnegan: BeginAnimation(BreatheProperty, Loop(1.0, 1.14, 1.3, true, new SineEase())); break;
+            case EyeKind.Alchemy: BeginAnimation(SpinProperty, Loop(0, 360, 7, false)); break;
+            case EyeKind.Web: BeginAnimation(SpinProperty, Loop(0, _idx == 1 ? -360 : 360, 9, false)); break;
+            case EyeKind.Galaxy: BeginAnimation(SpinProperty, Loop(0, 360, 6, false)); break;
+            case EyeKind.Zone: BeginAnimation(BoltProperty, Loop(0, 1, 2.0, false)); break;
+            case EyeKind.Monarch: BeginAnimation(BoltProperty, Loop(0, 1, 2.2, false)); break;
+            case EyeKind.Void: break;   // glows with the aura's Pulse
+            case EyeKind.Ghoul:   // the red iris glitches now and then
+            {
+                var f = new DoubleAnimationUsingKeyFrames { Duration = TimeSpan.FromSeconds(2.4), RepeatBehavior = RepeatBehavior.Forever };
+                foreach (var (v, t) in new[] { (1.0, 0.0), (1.0, 1.2), (0.45, 1.26), (1.0, 1.32), (0.6, 1.4), (1.0, 1.46), (1.0, 2.4) })
+                    f.KeyFrames.Add(new DiscreteDoubleKeyFrame(v, TimeSpan.FromSeconds(t)));
+                BeginAnimation(FlickerProperty, f);
+                break;
+            }
+        }
     }
 
     /// <summary>Stops everything and puts the eye back to a calm, open, centred state.</summary>
     public void StopLife()
     {
-        foreach (var p in new[] { BlinkProperty, PulseProperty, TwinkleProperty, PupilScaleProperty, OpenProperty, SquintProperty, TiltProperty, GlowProperty })
+        foreach (var p in new[] { BlinkProperty, PulseProperty, TwinkleProperty, PupilScaleProperty, OpenProperty, SquintProperty, TiltProperty, GlowProperty,
+                                  SpinProperty, BreatheProperty, FlickerProperty, BoltProperty, VanishProperty, PopProperty })
             BeginAnimation(p, null);
         Blink = 0; Pulse = 1; Twinkle = 1; PupilScale = 1; Open = 1; Squint = 0; Tilt = 0; Glow = 1; GazeX = 0; GazeY = 0;
+        Spin = 0; Breathe = 1; Flicker = 1; Bolt = 0; Vanish = 0; Pop = 1;
+    }
+
+    static TimeSpan Sec(double s) => TimeSpan.FromSeconds(s);
+
+    /// <summary>The eye fades and shrinks away, stays gone for a moment, then pops back (a little too big first, then settling).</summary>
+    public void VanishOnce(double delay = 0, double hiddenSeconds = 0.5)
+    {
+        var a = new DoubleAnimationUsingKeyFrames { FillBehavior = FillBehavior.Stop, BeginTime = Sec(delay) };
+        a.KeyFrames.Add(new EasingDoubleKeyFrame(1, Sec(0.30), new QuadraticEase { EasingMode = EasingMode.EaseIn }));
+        a.KeyFrames.Add(new LinearDoubleKeyFrame(1, Sec(0.30 + hiddenSeconds)));
+        a.KeyFrames.Add(new EasingDoubleKeyFrame(0, Sec(0.30 + hiddenSeconds + 0.40), new BackEase { EasingMode = EasingMode.EaseOut, Amplitude = 0.7 }));
+        BeginAnimation(VanishProperty, a);
+    }
+
+    /// <summary>A small surprise: the eye swells and settles back.</summary>
+    public void PopOnce()
+    {
+        var a = new DoubleAnimationUsingKeyFrames { FillBehavior = FillBehavior.Stop };
+        a.KeyFrames.Add(new EasingDoubleKeyFrame(1.28, Sec(0.16), new QuadraticEase { EasingMode = EasingMode.EaseOut }));
+        a.KeyFrames.Add(new EasingDoubleKeyFrame(1.0, Sec(0.50), new ElasticEase { EasingMode = EasingMode.EaseOut, Oscillations = 2, Springiness = 6 }));
+        BeginAnimation(PopProperty, a);
+    }
+
+    /// <summary>One eye closes for a moment (a wink).</summary>
+    public void WinkOnce()
+    {
+        var a = new DoubleAnimationUsingKeyFrames { FillBehavior = FillBehavior.Stop };
+        a.KeyFrames.Add(new EasingDoubleKeyFrame(1, Sec(0.10), new QuadraticEase { EasingMode = EasingMode.EaseIn }));
+        a.KeyFrames.Add(new LinearDoubleKeyFrame(1, Sec(0.55)));
+        a.KeyFrames.Add(new EasingDoubleKeyFrame(0, Sec(0.75), new QuadraticEase { EasingMode = EasingMode.EaseOut }));
+        BeginAnimation(BlinkProperty, a);
     }
 
     /// <summary>Eases the eye into a mood (about a third of a second).</summary>

@@ -83,7 +83,7 @@ public partial class SettingsWindow : Window
         resetIsland.Click += (_, _) => { _work.IslandOffsetX = 0; _work.IslandTopOffset = new NovaSettings().IslandTopOffset; Refresh(); Status("Island position reset in the form. Press Apply to use it."); };
         _cur.Children.Add(resetIsland);
         AddCombo<IslandFaceMode>("Compact (minimal) Island: clock only, clock and face taking turns, face only, or all modules taking turns (clock, face, water, prayer)", nameof(NovaSettings.IslandFaceMode));
-        AddCombo<IslandFaceStyle>("Eye style: Pet, Anime A/B/C and AnimeAura (almond eyes with lashes and glow), scary eyes (Yandere, Demon, Hollow), or special eyes (Sharingan, Rinnegan, Ghoul, Void, Alchemy, Web, Cat, Galaxy, Zone and ShadowMonarch with lightning)", nameof(NovaSettings.IslandFaceStyle));
+        AddCombo<IslandFaceStyle>("Eye style: Pet (simple round eyes), AnimeAura (glowing almond anime eyes), scary eyes (Yandere, Demon, Hollow), or special anime eyes (Sharingan, Rinnegan, Ghoul, Void, Alchemy, Web, Cat, Galaxy, Zone and ShadowMonarch with lightning). The eyes blink, look around, vanish and reappear, wink and pop.", nameof(NovaSettings.IslandFaceStyle));
         AddCheck("Eyes look at the mouse pointer (when it rests, they glance around by themselves)", nameof(NovaSettings.IslandEyeFollowMouse));
         AddCheck("Eyes show moods: sleepy at low battery or late at night, narrowed during a Pomodoro focus, wide for notices, glowing with music", nameof(NovaSettings.IslandEyeMoods));
         AddCheck("Eye style follows the time of day (evening: glowing aura, night: Hollow)", nameof(NovaSettings.IslandEyeAutoTheme));

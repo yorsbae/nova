@@ -43,6 +43,7 @@ public partial class DockWindow : Window
         OverlayChrome.Configure(this, opaque);
         _hideTimer.Tick += (_, _) => { _hideTimer.Stop(); TryHide(); };
         _runTimer.Tick += (_, _) => PollRunning();
+        Panel.MouseLeave += (_, _) => { if (_pendingRefresh) Dispatcher.InvokeAsync(() => RefreshRunning(force: false), DispatcherPriority.Background); };
         _reserve.FullscreenChanged += SetFullscreen;
         _reserve.Repositioned += () => { if (!_placing) Reposition(); };
         Closed += (_, _) => { _hideTimer.Stop(); _runTimer.Stop(); StopZoomLoop(); _reserve.Close(); };
@@ -61,9 +62,42 @@ public partial class DockWindow : Window
         menu.Items.Add(taskMgr);
         menu.Opened += (_, _) => _modal = true;
         menu.Closed += (_, _) => { _modal = false; if (RevealMode) _hideTimer.Start(); };
+        AutoCloseWhenPointerLeaves(menu, Panel);
         Panel.ContextMenu = menu;
 
         ApplySettings(settings);
+    }
+
+    /// <summary>
+    /// A right-click menu closes by itself when the pointer has been away from both the menu and the icon it belongs to for a moment,
+    /// so it does not stay open (and keep the dock frozen) when the user simply moves on.
+    /// </summary>
+    void AutoCloseWhenPointerLeaves(ContextMenu menu, FrameworkElement owner)
+    {
+        var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(120) };
+        int outside = 0;
+        timer.Tick += (_, _) =>
+        {
+            try
+            {
+                if (!menu.IsOpen) { timer.Stop(); return; }
+                if (!NativeMethods.TryGetCursor(out int mx, out int my)) return;
+                double dpi = VisualTreeHelper.GetDpi(menu).DpiScaleX; if (dpi <= 0) dpi = 1;
+                const double margin = 14;
+                bool Inside(FrameworkElement el)
+                {
+                    if (el.ActualWidth <= 0 || !el.IsVisible) return false;
+                    var tl = el.PointToScreen(new Point(0, 0));
+                    return mx >= tl.X - margin && mx <= tl.X + el.ActualWidth * dpi + margin &&
+                           my >= tl.Y - margin && my <= tl.Y + el.ActualHeight * dpi + margin;
+                }
+                if (Inside(menu) || Inside(owner)) { outside = 0; return; }
+                if (++outside >= 4) { outside = 0; timer.Stop(); menu.IsOpen = false; }   // about half a second away
+            }
+            catch (InvalidOperationException) { timer.Stop(); }
+        };
+        menu.Opened += (_, _) => { outside = 0; timer.Start(); };
+        menu.Closed += (_, _) => timer.Stop();
     }
 
     /// <summary>One icon in the dock, with what the zoom animation needs to know about it.</summary>
@@ -167,23 +201,50 @@ public partial class DockWindow : Window
 
     static string AppsKey(IEnumerable<RunningApp> apps) => string.Join("|", apps.Select(a => a.Hwnd.ToInt64()));
 
-    /// <summary>Checks which apps are open (every 2 s, only while the dock is enabled) and redraws only if that changed.</summary>
-    void PollRunning()
+    bool _pendingRefresh;
+    DockItem? _dragItem;                                  // the pinned app being dragged to a new place
+    readonly Dictionary<Button, DockItem> _pinnedButtons = new();
+
+    /// <summary>Checks which apps are open (every 4 s, only while the dock is enabled) and redraws only if that changed.</summary>
+    void PollRunning() => RefreshRunning(force: false);
+
+    /// <summary>
+    /// Reads the open apps and redraws when they changed. A normal refresh waits while the pointer or keyboard is on the dock (the buttons must not
+    /// move under it), but remembers that it is due and runs when the pointer leaves; <paramref name="force"/> is used right after a click
+    /// (launch, close), where the dock must show the result at once. A forced refresh still never rebuilds under an open menu or dialog.
+    /// </summary>
+    void RefreshRunning(bool force)
     {
-        if (_modal || _fullscreen) return;
+        if (_modal || _fullscreen || _dragItem is not null) return;
         var snap = _running.Snapshot();
         var key = AppsKey(snap);
-        if (key == _appsKey) return;
-        if (IsKeyboardFocusWithin || Panel.IsMouseOver) return;   // never pull the buttons away from a keyboard or mouse user; try again next tick
+        if (key == _appsKey) { _pendingRefresh = false; return; }
+        if (!force && (IsKeyboardFocusWithin || Panel.IsMouseOver)) { _pendingRefresh = true; return; }
+        _pendingRefresh = false;
         _apps = snap; _appsKey = key;
         Rebuild();
+    }
+
+    /// <summary>A program that is starting needs a moment before its window exists, so look again a few times instead of waiting for the slow poll.</summary>
+    void RefreshSoon()
+    {
+        foreach (var ms in new[] { 500, 1300, 2600, 5000 })
+        {
+            var t = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(ms) };
+            t.Tick += (_, _) => { t.Stop(); RefreshRunning(force: true); };
+            t.Start();
+        }
     }
 
     static bool Matches(DockItem item, RunningApp app)
     {
         if (app.ExePath is not { } exe) return false;
+        var target = ShortcutResolver.ExeOf(item.Path);   // a pinned .lnk is matched by the program it starts
+        string appName = System.IO.Path.GetFileNameWithoutExtension(exe);
         return string.Equals(exe, item.Path, StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(System.IO.Path.GetFileNameWithoutExtension(exe), System.IO.Path.GetFileNameWithoutExtension(item.Path), StringComparison.OrdinalIgnoreCase);
+               (target is not null && string.Equals(exe, target, StringComparison.OrdinalIgnoreCase)) ||
+               (target is not null && string.Equals(appName, System.IO.Path.GetFileNameWithoutExtension(target), StringComparison.OrdinalIgnoreCase)) ||
+               string.Equals(appName, System.IO.Path.GetFileNameWithoutExtension(item.Path), StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>Icon size that keeps the whole dock on the screen (icons shrink on a narrow monitor or with many apps).</summary>
@@ -199,6 +260,7 @@ public partial class DockWindow : Window
     {
         Items.Children.Clear();
         _tiles.Clear();
+        _pinnedButtons.Clear();
         _genie.Prune();
         var extra = _apps.Where(a => !_s.DockItems.Any(i => Matches(i, a))).ToList();
         int tiles = (_s.HideTaskbar ? 1 : 0) + _s.DockItems.Count + extra.Count;
@@ -237,9 +299,11 @@ public partial class DockWindow : Window
             var btn = BuildTile(item.Name, IconLoader.LoadSized(item.Path, 64), null, open is not null, icon, gap, open?.Hwnd ?? IntPtr.Zero, open?.ExePath ?? item.Path);
             AutomationProperties.SetName(btn, open is null ? $"Launch {item.Name}" : $"Switch to {item.Name}");
             AutomationProperties.SetHelpText(btn, "Alt plus Left or Right moves this shortcut. Delete removes it.");
-            btn.Click += (_, _) => { if (open is not null) ClickRunning(open.Hwnd, btn, open.ExePath ?? item.Path, item); else { Bounce(btn); Launch(item); } };
+            btn.Click += (_, _) => ClickPinned(item, btn);
             btn.ContextMenu = BuildAppMenu(btn, item.Name, open?.ExePath ?? item.Path, open, item);
             btn.KeyDown += (_, e) => OnItemKeyDown(item, e);
+            _pinnedButtons[btn] = item;
+            EnableDragReorder(btn, item);
             Items.Children.Add(btn);
         }
 
@@ -366,8 +430,8 @@ public partial class DockWindow : Window
 
     /// <summary>
     /// Right-click on an app in the dock, laid out like the Windows taskbar: for File Explorer the folders you open most,
-    /// then the app itself (opens a new window), Pin to dock / Unpin from dock, Close window, Exit program.
-    /// Pinned apps also get Move left / right.
+    /// then the app itself (opens a new window), Pin to dock / Unpin from dock, Exit program.
+    /// Pinned apps are reordered by dragging them (see the drag code below), not from the menu.
     /// </summary>
     /// <param name="open">The running copy of the app, or null when it is only pinned and not open.</param>
     /// <param name="pinned">The dock shortcut, or null when the app is open but not pinned.</param>
@@ -403,23 +467,19 @@ public partial class DockWindow : Window
             var unpin = new MenuItem { Header = "Unpin from dock" };
             unpin.Click += (_, _) => Remove(pinned);
             menu.Items.Add(unpin);
-            var left = new MenuItem { Header = "Move left" };   left.Click += (_, _) => Move(pinned, -1);
-            var right = new MenuItem { Header = "Move right" }; right.Click += (_, _) => Move(pinned, +1);
-            menu.Items.Add(left); menu.Items.Add(right);
         }
 
         if (open is not null)
         {
             menu.Items.Add(new Separator());
-            var close = new MenuItem { Header = "Close window" };
-            close.Click += (_, _) => CloseWithAnimation(owner, open.Hwnd, () => AppControl.CloseWindow(open.Hwnd));
             var exit = new MenuItem { Header = "Exit program" };
             exit.Click += (_, _) => CloseWithAnimation(owner, open.Hwnd, () => AppControl.ExitProgram(open.Hwnd, open.IsHostedApp, ConfirmEnd));
-            menu.Items.Add(close); menu.Items.Add(exit);
+            menu.Items.Add(exit);
         }
 
         menu.Opened += (_, _) => _modal = true;
         menu.Closed += (_, _) => { _modal = false; if (RevealMode) _hideTimer.Start(); };
+        AutoCloseWhenPointerLeaves(menu, owner);
         return menu;
     }
 
@@ -428,6 +488,12 @@ public partial class DockWindow : Window
     /// Without animation, or if the window is already minimized or busy, it closes at once.
     /// </summary>
     void CloseWithAnimation(Button tile, IntPtr hwnd, Action close)
+    {
+        CloseWithAnimationCore(tile, hwnd, close);
+        RefreshSoon();   // the tile of a closed app should go away without waiting for the slow poll
+    }
+
+    void CloseWithAnimationCore(Button tile, IntPtr hwnd, Action close)
     {
         if (MotionOff || _genie.Busy || !NativeMethods.IsWindow(hwnd) || RunningAppsService.IsMinimized(hwnd)) { close(); return; }
         var dpi = VisualTreeHelper.GetDpi(this).DpiScaleX;
@@ -455,7 +521,7 @@ public partial class DockWindow : Window
         int at = 0;
         void Put(UIElement item) { menu.Items.Insert(at++, item); inserted.Add(item); }
 
-        Put(new MenuItem { Header = "Frequent", IsEnabled = false, FontWeight = FontWeights.SemiBold });
+        Put(new MenuItem { Header = "Quick access", IsEnabled = false, FontWeight = FontWeights.SemiBold });
         var folders = AppControl.QuickAccessFolders();
         if (folders.Count == 0) Put(new MenuItem { Header = "No folders yet", IsEnabled = false });
         foreach (var (name, path) in folders)
@@ -510,6 +576,27 @@ public partial class DockWindow : Window
         if (hadFocus && buttons.Count > 0) buttons[Math.Min(Math.Max(slot, 0), buttons.Count - 1)].Focus();
     }, DispatcherPriority.Input);
 
+    readonly Dictionary<string, DateTime> _launchedAt = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// A click on a pinned app. What to do is decided now, from a fresh look at the open apps, and not from what the dock knew when it was
+    /// last drawn (which can be several seconds old, or frozen while the pointer is on the dock). Open: show it, or put it away if it is
+    /// already in front. Not open: start it, once; a second click while it is still starting does nothing instead of opening another copy.
+    /// </summary>
+    void ClickPinned(DockItem item, Button btn)
+    {
+        var open = _running.Snapshot().FirstOrDefault(a => Matches(item, a));
+        if (open is not null)
+        {
+            _launchedAt.Remove(item.Path);
+            ClickRunning(open.Hwnd, btn, open.ExePath ?? item.Path, item);
+            return;
+        }
+        if (_launchedAt.TryGetValue(item.Path, out var when) && DateTime.UtcNow - when < TimeSpan.FromSeconds(6)) return;   // still starting
+        Bounce(btn);
+        Launch(item);
+    }
+
     void Launch(DockItem item)
     {
         if (!LaunchValidator.TryValidate(item.Path, out var err))
@@ -518,7 +605,12 @@ public partial class DockWindow : Window
             _notify($"Can't open {item.Name}: {err}", true);
             return;
         }
-        try { Process.Start(new ProcessStartInfo(item.Path) { UseShellExecute = true }); }
+        try
+        {
+            Process.Start(new ProcessStartInfo(item.Path) { UseShellExecute = true });
+            _launchedAt[item.Path] = DateTime.UtcNow;
+            RefreshSoon();   // show the new app's icon as soon as its window exists
+        }
         catch (Exception ex)
         {
             FileLog.Write($"Dock launch failed for '{item.Name}': {ex.GetType().Name}");
@@ -547,15 +639,56 @@ public partial class DockWindow : Window
         Rebuild();
     }
 
+    // Drag a pinned app left or right to move it (this replaces the old Move left / Move right menu items).
+    void EnableDragReorder(Button btn, DockItem item)
+    {
+        Point? down = null;
+        btn.PreviewMouseLeftButtonDown += (_, e) => down = e.GetPosition(this);
+        btn.PreviewMouseLeftButtonUp += (_, _) => down = null;
+        btn.PreviewMouseMove += (_, e) =>
+        {
+            if (e.LeftButton != MouseButtonState.Pressed || down is not { } d) return;
+            var p = e.GetPosition(this);
+            if (Math.Abs(p.X - d.X) < SystemParameters.MinimumHorizontalDragDistance && Math.Abs(p.Y - d.Y) < SystemParameters.MinimumVerticalDragDistance) return;
+            down = null;
+            _dragItem = item;
+            try { DragDrop.DoDragDrop(btn, new DataObject(DataFormats.Text, item.Name), DragDropEffects.Move); }
+            catch (Exception ex) { FileLog.Write($"Dock drag failed: {ex.GetType().Name}"); }
+            finally { _dragItem = null; }
+        };
+    }
+
+    /// <summary>Puts the dragged app where it was dropped: after every other pinned icon whose centre lies to the left of the pointer.</summary>
+    void DropReorder(DockItem item, DragEventArgs e)
+    {
+        int from = _s.DockItems.IndexOf(item);
+        if (from < 0) return;
+        double x = e.GetPosition(Items).X;
+        int to = 0;
+        foreach (var other in _s.DockItems)
+        {
+            if (ReferenceEquals(other, item)) continue;
+            var b = _pinnedButtons.FirstOrDefault(kv => ReferenceEquals(kv.Value, other)).Key;
+            if (b is null) continue;
+            if (b.TranslatePoint(new Point(b.ActualWidth / 2, 0), Items).X < x) to++;
+        }
+        if (to == from) return;
+        _s.DockItems.RemoveAt(from);
+        _s.DockItems.Insert(Math.Min(to, _s.DockItems.Count), item);
+        _persist(_s);
+        Rebuild();
+    }
+
     // Drag an app or shortcut onto the dock to pin it.
     void OnPanelDragOver(object sender, DragEventArgs e)
     {
-        e.Effects = e.Data.GetDataPresent(DataFormats.FileDrop) ? DragDropEffects.Link : DragDropEffects.None;
+        e.Effects = _dragItem is not null ? DragDropEffects.Move : e.Data.GetDataPresent(DataFormats.FileDrop) ? DragDropEffects.Link : DragDropEffects.None;
         e.Handled = true;
     }
 
     void OnPanelDrop(object sender, DragEventArgs e)
     {
+        if (_dragItem is { } moved) { DropReorder(moved, e); e.Handled = true; return; }
         if (e.Data.GetData(DataFormats.FileDrop) is not string[] files) return;
         foreach (var f in files)
         {
@@ -632,8 +765,8 @@ public partial class DockWindow : Window
             hwnd = FindWindowOf(exe);
             if (hwnd == IntPtr.Zero)
             {
-                if (pinned is not null) { Bounce(tile); Launch(pinned); }
-                Dispatcher.InvokeAsync(() => { _apps = _running.Snapshot(); _appsKey = AppsKey(_apps); Rebuild(); }, DispatcherPriority.Background);
+                if (pinned is not null && !(_launchedAt.TryGetValue(pinned.Path, out var when) && DateTime.UtcNow - when < TimeSpan.FromSeconds(6))) { Bounce(tile); Launch(pinned); }
+                Dispatcher.InvokeAsync(() => RefreshRunning(force: true), DispatcherPriority.Background);
                 return;
             }
         }
