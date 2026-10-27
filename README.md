@@ -31,6 +31,10 @@ Package (portable zip + Inno Setup installer): `.\build\publish.ps1` (add `-Self
 
 On exit NOVA gives the screen space back, and puts the taskbar (and the Windows theme, if you used it) back exactly as it found them. If NOVA was force-killed and the taskbar stays hidden: start NOVA again and exit normally. Or press `Ctrl+Shift+Esc` → Task Manager → *Windows Explorer* → *Restart*, which brings the taskbar back immediately.
 
+## New in v2.14
+- **Real anime eyes:** *Anime A / B / C* are no longer round balls. They are almond-shaped with a thick lash line that flicks out at the outer corner, lashes, a tall gradient iris cut by the lid, shadow under the lid and shine. New styles: **AnimeAura** (glowing cyan aura and twinkling star), and three scary ones: **Yandere** (tiny pupil, no shine, throbbing red aura), **Demon** (black eye, golden slit pupil that widens, angry tilt) and **Hollow** (black eye, glowing white iris that glitches). Pick them in Settings → Island → *Eye style*.
+- **Hide / show the Island with one shortcut:** `Ctrl+Alt+H` (Settings → Island → *Hide / show the whole Island*; empty = off), or tray → *Hide / show island*. While hidden nothing is drawn and ordinary notices stay quiet; important ones (alarms, errors, end of a Pomodoro session) still appear for a moment and the Island hides again. `Ctrl+Alt+N`, the page shortcuts and the tray *Open / close island* bring it back.
+
 ## New in v2.12
 - **Dock like the Mac Dock:** small icons (24) close together on a frosted-glass shelf with a bright top rim, auto-hide, and a smoother, wider zoom curve so neighbouring icons grow and shrink gradually as the pointer glides along. Settings files from earlier versions are moved to this look once (sizes you picked yourself are kept; change anything in Settings → Dock afterwards).
 

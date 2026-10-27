@@ -22,7 +22,7 @@ public partial class IslandWindow
     /// <summary>Opens the Island on the Wi-Fi or Bluetooth panel (used by the top bar icons).</summary>
     public void ShowRadio(QuickRadio kind)
     {
-        if (!IsVisible) { Reposition(); Show(); }
+        Reveal();
         if (!_expanded) Expand(focus: true);
         GoToPage(Quick, morph: false);
         OpenRadio(kind);

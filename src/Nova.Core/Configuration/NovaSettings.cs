@@ -8,7 +8,7 @@ public enum LayoutPreset { Minimal, Balanced, Custom }
 /// <summary>What the compact Island shows when nothing else (music, timer, alert) is using it.</summary>
 public enum IslandFaceMode { ClockOnly, Alternate, FaceOnly, AllModules }
 /// <summary>Eyes for the compact Island: Pet, three anime characters, and special eyes (each with its own animation; Zone and ShadowMonarch crackle with lightning).</summary>
-public enum IslandFaceStyle { Pet, AnimeA, AnimeB, AnimeC, Sharingan, Rinnegan, Ghoul, Void, Alchemy, Web, Cat, Galaxy, Zone, ShadowMonarch }
+public enum IslandFaceStyle { Pet, AnimeA, AnimeB, AnimeC, Sharingan, Rinnegan, Ghoul, Void, Alchemy, Web, Cat, Galaxy, Zone, ShadowMonarch, AnimeAura, Yandere, Demon, Hollow }
 
 public sealed class DockItem
 {
@@ -192,6 +192,8 @@ public sealed class NovaSettings
     public string Hotkey { get; set; } = "Ctrl+Alt+N";
     /// <summary>v2.13: modifiers for the page shortcuts: prefix + 1…6 opens the Island straight on that page (Ctrl+Alt+1 = page 1 … Ctrl+Alt+6 = page 6). Empty = off.</summary>
     public string PageHotkeyPrefix { get; set; } = "Ctrl+Alt";
+    /// <summary>v2.14: hides the Island completely (nothing is shown, not even the pill) and brings it back. Empty = off.</summary>
+    public string ToggleHotkey { get; set; } = "Ctrl+Alt+H";
 
     /// <summary>Deep copy, so a settings dialog can edit without touching live state.</summary>
     public NovaSettings Clone()

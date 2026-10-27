@@ -82,9 +82,14 @@ public partial class IslandWindow
     {
         switch (style)
         {
-            case IslandFaceStyle.AnimeA: return AnimeEye(h, "#FF3DA5FF", 0.58, 0.82, lash: false, star: false);   // A: blue, tall oval
-            case IslandFaceStyle.AnimeB: return AnimeEye(h, "#FFB36BFF", 0.64, 0.78, lash: true, star: false);    // B: violet, with a lash line
-            case IslandFaceStyle.AnimeC: return AnimeEye(h, "#FF3DD68C", 0.70, 0.70, lash: false, star: true);    // C: green, round, star sparkle
+            // Anime eyes are almond-shaped with lash line, lashes, gradient iris and shine (see IslandWindow.AnimeEyes.cs)
+            case IslandFaceStyle.AnimeA: return AlmondEye(LookAnimeA, h, idx);          // A: calm blue
+            case IslandFaceStyle.AnimeB: return AlmondEye(LookAnimeB, h, idx);          // B: violet
+            case IslandFaceStyle.AnimeC: return AlmondEye(LookAnimeC, h, idx);          // C: green with a star sparkle
+            case IslandFaceStyle.AnimeAura: return AlmondEye(LookAnimeAura, h, idx);    // glowing cyan aura
+            case IslandFaceStyle.Yandere: return AlmondEye(LookYandere, h, idx);        // tiny pupil, no shine, throbbing red aura
+            case IslandFaceStyle.Demon: return AlmondEye(LookDemon, h, idx);            // black eye, golden slit that widens, angry tilt
+            case IslandFaceStyle.Hollow: return AlmondEye(LookHollow, h, idx);          // black eye, glowing white iris that glitches
         }
 
         var g = new Grid { Width = h * 0.92, Height = h, RenderTransformOrigin = new Point(0.5, 0.5), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(h * 0.04, 0, h * 0.04, 0) };

@@ -104,6 +104,10 @@ public static class SettingsValidator
         if (!HotkeyParser.TryParse(s.Hotkey, out _)) s.Hotkey = d.Hotkey;
         s.PageHotkeyPrefix = (s.PageHotkeyPrefix ?? "").Trim();
         if (s.PageHotkeyPrefix.Length > 0 && !HotkeyParser.TryParse(s.PageHotkeyPrefix + "+1", out _)) s.PageHotkeyPrefix = d.PageHotkeyPrefix;
+        // Hide/show shortcut: empty = off; an invalid one, or one equal to the main shortcut, falls back to the default (or off if the default is taken).
+        s.ToggleHotkey = (s.ToggleHotkey ?? "").Trim();
+        if (s.ToggleHotkey.Length > 0 && (!HotkeyParser.TryParse(s.ToggleHotkey, out _) || string.Equals(s.ToggleHotkey, s.Hotkey, StringComparison.OrdinalIgnoreCase)))
+            s.ToggleHotkey = string.Equals(d.ToggleHotkey, s.Hotkey, StringComparison.OrdinalIgnoreCase) ? "" : d.ToggleHotkey;
 
         s.IslandMonitor = CleanText(s.IslandMonitor, 64);
         s.DockMonitor = CleanText(s.DockMonitor, 64);

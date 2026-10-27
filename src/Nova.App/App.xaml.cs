@@ -32,6 +32,7 @@ public partial class App : Application
     SystemChangesService? _system;
     HotkeyService? _hotkey;
     readonly List<HotkeyService> _pageHotkeys = new();
+    HotkeyService? _toggleHotkey;   // hides / shows the whole Island
     TrayService? _tray;
     SettingsWindow? _settingsWindow;
     ClipboardWindow? _clipboardWindow;
@@ -167,9 +168,13 @@ public partial class App : Application
             }
             if (!RegisterPageHotkeys(_settings))
                 Notify($"Some page shortcuts ({_settings.PageHotkeyPrefix}+1…6) are in use by another app. Change the prefix in Settings.", true);
+            _toggleHotkey = new HotkeyService(_island, () => _island.ToggleHidden(), 0x4E58);
+            if (!RegisterToggleHotkey(_settings))
+                Notify($"Shortcut {_settings.ToggleHotkey} (hide / show the Island) is in use by another app. Change it in Settings.", true);
         });
         Guard("tray", () => _tray = new TrayService(
-            () => _island?.Invoke(), () => _dock?.FocusFirst(), OpenClipboard, OpenSettings, ResetLayout, () => Shutdown()));
+            () => _island?.Invoke(), () => _dock?.FocusFirst(), OpenClipboard, OpenSettings, ResetLayout, () => Shutdown(),
+            () => _island?.ToggleHidden()));
         Guard("media", () => ApplyMedia(_settings));
         Guard("clipboard", () => ApplyClipboard(_settings));
         Guard("weather", () =>
@@ -375,6 +380,14 @@ public partial class App : Application
         return all;
     }
 
+    /// <summary>Registers the hide/show shortcut. An empty shortcut switches it off and counts as fine.</summary>
+    bool RegisterToggleHotkey(NovaSettings s)
+    {
+        if (_toggleHotkey is null) return true;
+        if (s.ToggleHotkey.Length == 0) { _toggleHotkey.Register(""); return true; }
+        return _toggleHotkey.Register(s.ToggleHotkey);
+    }
+
     void Persist(NovaSettings s) { if (!_safeMode) _store.Save(s); }
 
     // ---- applying settings ----
@@ -395,6 +408,7 @@ public partial class App : Application
         _system?.Apply(s);
         var hotkeyOk = _hotkey?.Register(s.Hotkey) ?? true;
         hotkeyOk &= RegisterPageHotkeys(s);
+        hotkeyOk &= RegisterToggleHotkey(s);
 
         ApplyMedia(s);
         ApplyClipboard(s);
@@ -661,6 +675,7 @@ public partial class App : Application
         _tray?.Dispose();
         _hotkey?.Dispose();
         foreach (var h in _pageHotkeys) h.Dispose();
+        _toggleHotkey?.Dispose();
         _statusPoll.Stop();
         _alerts?.Dispose();
         _harmony?.Dispose();   // puts every window's title bar back as it was

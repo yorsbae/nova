@@ -88,7 +88,7 @@ public partial class IslandWindow : Window
             UpdateCompactLayout();
             UpdateNotchPadding();
             Morph(from);
-            if (HiddenMode && !_expanded) Hide();
+            if ((HiddenMode || _userHidden) && !_expanded) Hide();
         };
         _hoverTimer.Tick += (_, _) =>
         {
@@ -385,15 +385,47 @@ public void SetTimeline(NovaMediaTimeline? t)
     /// <summary>Shows or hides the pill according to the configured behavior. Never activates the window.</summary>
     public void EnsureVisibilityForMode()
     {
+        if (_userHidden) { if (IsVisible && !_noticeActive) Hide(); return; }   // hidden by the shortcut: stays gone until the shortcut / tray brings it back
         if (_fullscreen) { if (IsVisible && !_expanded) Hide(); return; }   // stay out of the way of full-screen apps and games
         if (HiddenMode) { if (IsVisible && !_expanded && !_noticeActive) Hide(); }
         else if (!IsVisible) { Reposition(); Show(); }
     }
 
+    bool _userHidden;
+
+    /// <summary>True while the Island is hidden by the hide/show shortcut.</summary>
+    public bool UserHidden => _userHidden;
+
+    /// <summary>
+    /// Hide/show shortcut: hides the whole Island (folded or open) or brings it back. While hidden, ordinary notices stay quiet;
+    /// important ones (alarms, errors, Pomodoro end) still appear for a moment and then the Island hides again.
+    /// </summary>
+    public void ToggleHidden()
+    {
+        if (_userHidden)
+        {
+            _userHidden = false;
+            if (!IsVisible && !_fullscreen) { Reposition(); Show(); }
+            UpdateCompactText();
+            return;
+        }
+        _userHidden = true;
+        _hoverTimer.Stop(); _leaveTimer.Stop();
+        if (_expanded) Collapse();
+        if (IsVisible) Hide();
+    }
+
+    /// <summary>An explicit request to see the Island (shortcut, tray, top-bar icon): it comes back even if it was hidden by the shortcut.</summary>
+    void Reveal()
+    {
+        _userHidden = false;
+        if (!IsVisible) { Reposition(); Show(); }
+    }
+
     /// <summary>Hotkey / tray entry point: reveals the pill if hidden, then toggles expansion.</summary>
     public void Invoke()
     {
-        if (!IsVisible) { Reposition(); Show(); }
+        Reveal();
         Toggle();
     }
 
@@ -402,7 +434,7 @@ public void SetTimeline(NovaMediaTimeline? t)
     /// <summary>Shortcut entry point: opens the Island straight on <paramref name="page"/> (0-based); pressing it again on that page closes it.</summary>
     public void InvokePage(int page)
     {
-        if (!IsVisible) { Reposition(); Show(); }
+        Reveal();
         if (_expanded)
         {
             if (_pageIndex == page) { Collapse(); return; }
@@ -424,6 +456,7 @@ public void SetTimeline(NovaMediaTimeline? t)
     public void ShowNotice(string text, bool important = false, int seconds = 5, string? glyph = null, string? badgeColor = null, Action? onClick = null)
     {
         if (!important && !_s.TemporaryNotices) return;
+        if (_userHidden && !important) return;   // hidden by the shortcut: only important notices may break through
         var from = CurrentSize();
         _noticeTimer.Interval = TimeSpan.FromSeconds(Math.Min(30, Math.Max(2, seconds)));
         NoticeText.Text = text;
@@ -512,7 +545,7 @@ public void SetTimeline(NovaMediaTimeline? t)
         UpdatePosTimer();
         UpdateWave();
         Morph(from);
-        if (HiddenMode && !_noticeActive) Hide();
+        if ((HiddenMode || _userHidden) && !_noticeActive) Hide();
     }
 
     /// <summary>A click while the Island was opened by hovering: keep it open (and let it receive keyboard focus).</summary>

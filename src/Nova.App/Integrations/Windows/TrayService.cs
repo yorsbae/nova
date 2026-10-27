@@ -7,7 +7,7 @@ public sealed class TrayService : IDisposable
 {
     readonly WinForms.NotifyIcon _icon;
 
-    public TrayService(Action toggleIsland, Action openDock, Action openClipboard, Action openSettings, Action reset, Action exit)
+    public TrayService(Action toggleIsland, Action openDock, Action openClipboard, Action openSettings, Action reset, Action exit, Action? hideShowIsland = null)
     {
         var menu = new WinForms.ContextMenuStrip
         {
@@ -17,7 +17,8 @@ public sealed class TrayService : IDisposable
             ForeColor = System.Drawing.Color.White,
             Font = new System.Drawing.Font("Segoe UI", 9.5f)
         };
-        menu.Items.Add("Show / hide island", null, (_, _) => toggleIsland());
+        menu.Items.Add("Open / close island", null, (_, _) => toggleIsland());
+        if (hideShowIsland is not null) menu.Items.Add("Hide / show island", null, (_, _) => hideShowIsland());
         menu.Items.Add("Focus dock", null, (_, _) => openDock());
         menu.Items.Add("Clipboard history", null, (_, _) => openClipboard());
         menu.Items.Add("Settings…", null, (_, _) => openSettings());
