@@ -27,6 +27,9 @@ public partial class DockWindow : Window
     readonly DockReserveWindow _reserve = new();
     readonly WindowGenie _genie = new();
     readonly List<Tile> _tiles = new();
+    WindowPreviewPopup? _preview;
+    readonly DispatcherTimer _previewDelay = new() { Interval = TimeSpan.FromMilliseconds(350) };
+    Tile? _previewTile;
     double _restPanelHeight = 40, _baseItemsWidth, _sigma = 40, _icon = 26;
     bool _magHooked;
     IReadOnlyList<RunningApp> _apps = Array.Empty<RunningApp>();
@@ -43,10 +46,11 @@ public partial class DockWindow : Window
         OverlayChrome.Configure(this, opaque);
         _hideTimer.Tick += (_, _) => { _hideTimer.Stop(); TryHide(); };
         _runTimer.Tick += (_, _) => PollRunning();
+        _previewDelay.Tick += (_, _) => { _previewDelay.Stop(); ShowPreview(); };
         Panel.MouseLeave += (_, _) => { if (_pendingRefresh) Dispatcher.InvokeAsync(() => RefreshRunning(force: false), DispatcherPriority.Background); };
         _reserve.FullscreenChanged += SetFullscreen;
         _reserve.Repositioned += () => { if (!_placing) Reposition(); };
-        Closed += (_, _) => { _hideTimer.Stop(); _runTimer.Stop(); StopZoomLoop(); _reserve.Close(); };
+        Closed += (_, _) => { _hideTimer.Stop(); _runTimer.Stop(); _previewDelay.Stop(); _preview?.Close(); StopZoomLoop(); _reserve.Close(); };
         // The zoom follows the pointer over the dock; the loop also runs for a moment after it leaves, to shrink the icons back.
         Panel.MouseEnter += (_, _) => StartZoomLoop();
         Panel.MouseMove += OnPanelMouseMove;
@@ -166,7 +170,7 @@ public partial class DockWindow : Window
     {
         if (_fullscreen == fullscreen) return;
         _fullscreen = fullscreen;
-        if (fullscreen) Hide();
+        if (fullscreen) { _preview?.HideNow(); Hide(); }
         else if (!IsVisible) { Show(); Reposition(); }
     }
 
@@ -398,7 +402,42 @@ public partial class DockWindow : Window
             ToolTip = label
         };
         _tiles.Add(tile);
+
+        // Every open app shows small previews of its windows when the pointer rests on its icon (the tooltip would only get in the way).
+        if (running && hwnd != IntPtr.Zero)
+        {
+            ToolTipService.SetIsEnabled(tile.Button, false);
+            tile.Button.MouseEnter += (_, _) =>
+            {
+                _previewTile = tile;
+                _preview?.CancelHide();
+                _previewDelay.Stop();
+                _previewDelay.Interval = TimeSpan.FromMilliseconds(_preview is { IsVisible: true } ? 80 : 350);   // switching between icons is quick
+                _previewDelay.Start();
+            };
+            tile.Button.MouseLeave += (_, _) => { _previewDelay.Stop(); _preview?.HideSoon(); };
+            tile.Button.PreviewMouseLeftButtonDown += (_, _) => { _previewDelay.Stop(); _preview?.HideNow(); };
+        }
         return tile.Button;
+    }
+
+    /// <summary>Shows the window previews above the icon the pointer is on.</summary>
+    void ShowPreview()
+    {
+        if (_previewTile is not { } t || !t.Button.IsMouseOver || _modal || _fullscreen || _genie.Busy || _dragItem is not null) return;
+        var hwnd = t.Hwnd;
+        if (!NativeMethods.IsWindow(hwnd)) hwnd = FindWindowOf(t.Exe);
+        if (hwnd == IntPtr.Zero) return;
+
+        var path = NativeMethods.ProcessPath(hwnd, out _);
+        bool hosted = path is null || string.Equals(System.IO.Path.GetFileName(path), "ApplicationFrameHost.exe", StringComparison.OrdinalIgnoreCase);
+        IReadOnlyList<IntPtr> windows = hosted ? new[] { hwnd } : AppControl.WindowsOfProgram(hwnd);
+        if (windows.Count == 0) windows = new[] { hwnd };
+
+        var dpi = VisualTreeHelper.GetDpi(this).DpiScaleX;
+        if (dpi <= 0) dpi = 1;
+        _preview ??= new WindowPreviewPopup(!AllowsTransparency, RunningAppsService.Activate, w => { AppControl.CloseWindow(w); RefreshSoon(); });
+        _preview.ShowFor(t.Button, windows, MonitorService.Resolve(_s.DockMonitor).Bounds, dpi);
     }
 
     static ImageSource? RunningIcon(RunningApp app)
