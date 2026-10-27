@@ -471,6 +471,11 @@ public partial class DockWindow : Window
 
         if (open is not null)
         {
+            if (!open.IsHostedApp)
+            {
+                var insertedWindows = new List<UIElement>();
+                owner.ContextMenuOpening += (_, _) => FillWindows(menu, insertedWindows, open.Hwnd);
+            }
             menu.Items.Add(new Separator());
             var exit = new MenuItem { Header = "Exit program" };
             exit.Click += (_, _) => CloseWithAnimation(owner, open.Hwnd, () => AppControl.ExitProgram(open.Hwnd, open.IsHostedApp, ConfirmEnd));
@@ -511,6 +516,28 @@ public partial class DockWindow : Window
         var name = exe is null ? "" : System.IO.Path.GetFileNameWithoutExtension(exe);
         return name.Equals("explorer", StringComparison.OrdinalIgnoreCase) || name.Equals("File Explorer", StringComparison.OrdinalIgnoreCase) ||
                label.Equals("explorer", StringComparison.OrdinalIgnoreCase) || label.Equals("File Explorer", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>When a program has more than one window, lists them at the top of its menu so each can be picked directly.</summary>
+    void FillWindows(ContextMenu menu, List<UIElement> inserted, IntPtr hwnd)
+    {
+        foreach (var old in inserted) menu.Items.Remove(old);
+        inserted.Clear();
+        if (!NativeMethods.IsWindow(hwnd)) return;
+        var windows = AppControl.WindowsOfProgram(hwnd);
+        if (windows.Count < 2) return;
+        int at = 0;
+        void Put(UIElement item) { menu.Items.Insert(at++, item); inserted.Add(item); }
+        foreach (var w in windows)
+        {
+            var title = NativeMethods.WindowText(w);
+            if (title.Length > 60) title = title[..60] + "…";
+            var entry = new MenuItem { Header = Plain(title) };
+            var target = w;
+            entry.Click += (_, _) => RunningAppsService.Activate(target);
+            Put(entry);
+        }
+        Put(new Separator());
     }
 
     /// <summary>Puts a "Frequent" heading and the frequently used folders at the top of Explorer's menu (replacing what an earlier opening put there).</summary>
@@ -776,6 +803,19 @@ public partial class DockWindow : Window
         var centre = tile.PointToScreen(new Point(tile.ActualWidth / 2, tile.ActualHeight / 2));   // physical pixels
         double iconPx = Math.Max(16, _icon * dpi * (_tiles.FirstOrDefault(t => ReferenceEquals(t.Button, tile))?.Scale ?? 1));
         bool animate = !MotionOff;
+
+        // A program with several windows (e.g. two browser windows) is one dock icon. Clicking it while one of its windows is in front
+        // brings the next window forward instead of putting the program away, so the second window is never unreachable.
+        var siblings = NativeMethods.IsWindow(hwnd) ? AppControl.WindowsOfProgram(hwnd) : Array.Empty<IntPtr>();
+        if (siblings.Count > 1)
+        {
+            var front = NativeMethods.ForegroundRoot();
+            if (siblings.Contains(front))
+            {
+                RunningAppsService.Activate(siblings[siblings.Count - 1]);   // the window that has been in the back the longest
+                return;
+            }
+        }
 
         if (RunningAppsService.IsMinimized(hwnd)) _genie.Restore(hwnd, centre, iconPx, animate);
         else if (RunningAppsService.IsForeground(hwnd)) _genie.Minimize(hwnd, centre, iconPx, animate);
