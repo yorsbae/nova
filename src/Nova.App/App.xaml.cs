@@ -28,6 +28,7 @@ public partial class App : Application
     TopBarWindow? _topBar;
     DockReserveWindow? _topReserve;   // island-only mode: an invisible strip that keeps windows below the Island
     AppAlertService? _alerts;
+    ToastListenerService? _toasts;
     WindowHarmonyService? _harmony;
     WindowShapeService? _shape;
     SystemChangesService? _system;
@@ -303,8 +304,22 @@ public partial class App : Application
                                     onClick: () => NativeMethods.Activate(window)));
             alerts.Flashed += (window, path) => Dispatcher.InvokeAsync(() => _dock?.Bounce(window, path));
             alerts.Start();
+
+            var toasts = _toasts = new ToastListenerService();
+            toasts.Toast += (appName, title, body, id) => Dispatcher.InvokeAsync(() =>
+            {
+                var app = AppAlerts.Identify(null, appName);
+                var text = AppAlerts.DescribeToast(appName, title, body);
+                _island?.ShowNotice(text, important: true, seconds: 7, glyph: "\uE8BD", badgeColor: app?.Accent ?? "#4C8DFF");
+            });
+            toasts.Unavailable += reason => Dispatcher.InvokeAsync(() => _island?.ShowNotice(reason, important: true, seconds: 6));
+            toasts.Start();
         }
-        else if (_alerts is not null) { _alerts.Dispose(); _alerts = null; }
+        else if (_alerts is not null)
+        {
+            _alerts.Dispose(); _alerts = null;
+            _toasts?.Dispose(); _toasts = null;
+        }
     }
 
     // ---- one look for every window ----
@@ -730,6 +745,7 @@ public partial class App : Application
         _launcher?.Close();
         _statusPoll.Stop();
         _alerts?.Dispose();
+        _toasts?.Dispose();
         _harmony?.Dispose();   // puts every window's title bar back as it was
         _shape?.Dispose();     // removes the rounded shapes from every window
         _topBar?.Release();

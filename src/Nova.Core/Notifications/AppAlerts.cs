@@ -63,4 +63,15 @@ public static class AppAlerts
     /// <summary>Short text for the Island, e.g. "WhatsApp · 3 pesan belum dibaca".</summary>
     public static string Describe(MessengerApp app, int? unread)
         => unread is int n && n > 0 ? $"{app.Name} · {n} belum dibaca" : $"{app.Name} · ada pesan baru";
+
+    /// <summary>Island text for a real toast: "WhatsApp · Sender: message", cut so it fits one notch line.</summary>
+    public static string DescribeToast(string? appName, string? title, string? body, int max = 90)
+    {
+        var name = string.IsNullOrWhiteSpace(appName) ? "Notifikasi" : appName.Trim();
+        var t = (title ?? "").Trim();
+        var b = (body ?? "").Trim().Replace('\n', ' ').Replace('\r', ' ');
+        var line = t.Length > 0 && b.Length > 0 ? $"{t}: {b}" : t.Length > 0 ? t : b;
+        var text = line.Length > 0 ? $"{name} · {line}" : $"{name} · ada notifikasi baru";
+        return text.Length <= max ? text : text[..(max - 1)].TrimEnd() + "…";
+    }
 }

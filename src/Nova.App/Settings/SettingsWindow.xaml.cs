@@ -69,7 +69,7 @@ public partial class SettingsWindow : Window
         AddCheck("Rounded-square app windows: large rounded corners on the programs you open (not maximized ones; edges are not anti-aliased; undone when off or on exit)", nameof(NovaSettings.RoundAppWindows));
         AddSlider("Corner radius of app windows", nameof(NovaSettings.WindowCornerRadius), 6, 40, 1, "0");
         AddCheck("Auto-hide the Windows taskbar (only when the dock does not replace it; restored when off or on exit)", nameof(NovaSettings.TaskbarAutoHide));
-        AddCheck("Chat alerts on the Island (WhatsApp, Telegram, Discord...). Reads only window titles on this PC, not message text", nameof(NovaSettings.AppAlerts));
+        AddCheck("Notifications on the Island (WhatsApp, Telegram, Discord...): sender and message from Windows notifications, plus window-title counters. Stays on this PC; needs Windows notification access", nameof(NovaSettings.AppAlerts));
 
         Category("Island", "✨");
         Header("Island");
