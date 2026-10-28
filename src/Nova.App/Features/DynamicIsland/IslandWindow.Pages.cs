@@ -25,7 +25,7 @@ public partial class IslandWindow
     {
         "Wi-Fi, Suara & Pengaturan", "Musik", "Catatan & Clipboard",
         "Fokus & Tugas",
-        "Minum Air", "Waktu Sholat"
+        "Minum Air", "Waktu Sholat", "Tanya"
     };
     // Acara, tugas and alarm are ONE thing on the Kalender page (a task, with an optional time and alarm), so there are 7 pages.
     // The old "Sistem & Alat" page is gone: the RAM reading now sits on page 1.
@@ -33,7 +33,7 @@ public partial class IslandWindow
     const int Quick = 0, Music = 1, Notes = 2, Pomo = 3, Calendar = 3, Water = 4, PrayerPage = 5;
 
     UIElement[] _pages = Array.Empty<UIElement>();
-    readonly Ellipse[] _dots = new Ellipse[6];
+    readonly Ellipse[] _dots = new Ellipse[7];
     int _pageIndex, _sub;
     Point _swipeStart; bool _swipeArmed;
 
@@ -69,12 +69,13 @@ public partial class IslandWindow
         var water = BuildWaterPage();
         var prayer = BuildPrayerPage();
         water.Visibility = Visibility.Collapsed; prayer.Visibility = Visibility.Collapsed;
+        var ask = BuildAskPage();
         PageHost.Children.Add(water);
         PageHost.Children.Add(prayer);
         _pages = new UIElement[]
         {
             PageQuick, WrapScrolling(PageMusic), WrapScrolling(PageNotes),
-            WrapScrolling(PageCalendar), water, prayer
+            WrapScrolling(PageCalendar), water, prayer, ask
         };
         for (int i = 0; i < _dots.Length; i++)
         {

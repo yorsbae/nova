@@ -201,6 +201,13 @@ public sealed class NovaSettings
     public string ToggleHotkey { get; set; } = "Ctrl+Alt+H";
     /// <summary>v2.15: opens the quick launcher (type to find an app, folder or web address, or do a sum). Empty = off.</summary>
     public string LauncherHotkey { get; set; } = "Ctrl+Alt+Space";
+    /// <summary>Opens the "Tanya" page of the Island with the cursor in the question box. Empty = off.</summary>
+    public string AskHotkey { get; set; } = "Ctrl+Alt+K";
+    /// <summary>Default engine for a question: googleai, google, brave (open in the browser) or gemini (answered in the notch, needs GeminiApiKey).</summary>
+    public string AskEngine { get; set; } = "googleai";
+    /// <summary>Own Gemini API key (aistudio.google.com). Stored only in settings.json on this PC; empty = Gemini answers are off.</summary>
+    public string GeminiApiKey { get; set; } = "";
+    public string GeminiModel { get; set; } = "gemini-flash-latest";
     /// <summary>v2.15: the eyes look at the mouse pointer (otherwise they glance around by themselves).</summary>
     public bool IslandEyeFollowMouse { get; set; } = true;
     /// <summary>v2.15: the eyes react: sleepy at low battery or late at night, narrowed while a Pomodoro focus runs, wide-eyed for notices, glowing with music.</summary>

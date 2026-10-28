@@ -96,8 +96,11 @@ public partial class SettingsWindow : Window
         AddCheck("Show temporary notices (including 'now playing' in Adaptive mode)", nameof(NovaSettings.TemporaryNotices));
         AddText("Keyboard shortcut (e.g. Ctrl+Alt+N)", nameof(NovaSettings.Hotkey));
         AddText("Quick launcher: type to open an app, folder or web address, or do a sum (e.g. Ctrl+Alt+Space; empty = off)", nameof(NovaSettings.LauncherHotkey));
+        AddText("Tanya (cari / bertanya di notch): shortcut, mis. Ctrl+Alt+K; kosong = mati", nameof(NovaSettings.AskHotkey));
+        AddText("Mesin tanya bawaan: googleai (Google AI Mode), google, brave, atau gemini (jawab langsung di notch)", nameof(NovaSettings.AskEngine));
+        AddText("Gemini API key sendiri (aistudio.google.com) untuk mode gemini; kosong = mati. Pertanyaan dikirim ke Google hanya di mode ini", nameof(NovaSettings.GeminiApiKey));
         AddText("Hide / show the whole Island (e.g. Ctrl+Alt+H; empty = off). While hidden, only important notices such as alarms appear", nameof(NovaSettings.ToggleHotkey));
-        AddText("Page shortcuts: this prefix + 1…6 opens the Island on that page (Ctrl+Alt → Ctrl+Alt+1 … Ctrl+Alt+6; empty = off)", nameof(NovaSettings.PageHotkeyPrefix));
+        AddText("Page shortcuts: this prefix + 1…7 opens the Island on that page (Ctrl+Alt → Ctrl+Alt+1 … Ctrl+Alt+7; empty = off)", nameof(NovaSettings.PageHotkeyPrefix));
 
         Category("Dock", "🧲");
         Header("Dock");

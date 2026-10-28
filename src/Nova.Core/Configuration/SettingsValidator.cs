@@ -114,6 +114,16 @@ public static class SettingsValidator
         if (s.LauncherHotkey.Length > 0 && (!HotkeyParser.TryParse(s.LauncherHotkey, out _) || Taken(s.LauncherHotkey)))
             s.LauncherHotkey = Taken(d.LauncherHotkey) ? "" : d.LauncherHotkey;
 
+        // "Tanya" shortcut: same rules, and it must differ from the other shortcuts.
+        s.AskHotkey = (s.AskHotkey ?? "").Trim();
+        bool TakenAsk(string k) => Taken(k) || string.Equals(k, s.LauncherHotkey, StringComparison.OrdinalIgnoreCase);
+        if (s.AskHotkey.Length > 0 && (!HotkeyParser.TryParse(s.AskHotkey, out _) || TakenAsk(s.AskHotkey)))
+            s.AskHotkey = TakenAsk(d.AskHotkey) ? "" : d.AskHotkey;
+        if (!Nova.Core.Ask.AskSearch.TryParseEngine(s.AskEngine, out _)) s.AskEngine = d.AskEngine;
+        s.GeminiApiKey = (s.GeminiApiKey ?? "").Trim();
+        if (s.GeminiApiKey.Length > 200 || s.GeminiApiKey.Any(char.IsWhiteSpace)) s.GeminiApiKey = "";
+        if (!Nova.Core.Ask.AskSearch.IsValidModel(s.GeminiModel)) s.GeminiModel = d.GeminiModel;
+
         s.IslandMonitor = CleanText(s.IslandMonitor, 64);
         s.DockMonitor = CleanText(s.DockMonitor, 64);
         s.WeatherCity = CleanText(s.WeatherCity, 80);

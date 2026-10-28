@@ -35,6 +35,7 @@ public partial class App : Application
     readonly List<HotkeyService> _pageHotkeys = new();
     HotkeyService? _toggleHotkey;   // hides / shows the whole Island
     HotkeyService? _launcherHotkey; // opens the quick launcher
+    HotkeyService? _askHotkey;      // opens the "Tanya" page (search / ask) in the notch
     LauncherWindow? _launcher;
     TrayService? _tray;
     SettingsWindow? _settingsWindow;
@@ -164,16 +165,19 @@ public partial class App : Application
             _hotkey = new HotkeyService(_island, () => _island.Invoke());
             if (!_hotkey.Register(_settings.Hotkey))
                 Notify($"Shortcut {_settings.Hotkey} is unavailable. Use the tray icon, or change it in Settings.", true);
-            for (int i = 0; i < 6; i++)
+            for (int i = 0; i < 7; i++)
             {
                 int page = i;
                 _pageHotkeys.Add(new HotkeyService(_island, () => _island.InvokePage(page), 0x4E51 + i));
             }
             if (!RegisterPageHotkeys(_settings))
-                Notify($"Some page shortcuts ({_settings.PageHotkeyPrefix}+1…6) are in use by another app. Change the prefix in Settings.", true);
+                Notify($"Some page shortcuts ({_settings.PageHotkeyPrefix}+1…7) are in use by another app. Change the prefix in Settings.", true);
             _toggleHotkey = new HotkeyService(_island, () => _island.ToggleHidden(), 0x4E58);
             if (!RegisterToggleHotkey(_settings))
                 Notify($"Shortcut {_settings.ToggleHotkey} (hide / show the Island) is in use by another app. Change it in Settings.", true);
+            _askHotkey = new HotkeyService(_island, () => _island.InvokeAsk(), 0x4E5A);
+            if (!RegisterAskHotkey(_settings))
+                Notify($"Shortcut {_settings.AskHotkey} (ask / search in the notch) is in use by another app. Change it in Settings.", true);
             _launcherHotkey = new HotkeyService(_island, OpenLauncher, 0x4E59);
             if (!RegisterLauncherHotkey(_settings))
                 Notify($"Shortcut {_settings.LauncherHotkey} (quick launcher) is in use by another app. Change it in Settings.", true);
@@ -374,7 +378,7 @@ public partial class App : Application
         else _trimTimer.Stop();
     }
 
-    /// <summary>Prefix + 1…6 → page 1…6 of the Island. Returns false if any of them is taken by another app (an empty prefix switches them all off and counts as fine).</summary>
+    /// <summary>Prefix + 1…7 → page 1…7 of the Island. Returns false if any of them is taken by another app (an empty prefix switches them all off and counts as fine).</summary>
     bool RegisterPageHotkeys(NovaSettings s)
     {
         bool all = true;
@@ -400,6 +404,13 @@ public partial class App : Application
         if (_launcherHotkey is null) return true;
         if (s.LauncherHotkey.Length == 0) { _launcherHotkey.Register(""); return true; }
         return _launcherHotkey.Register(s.LauncherHotkey);
+    }
+
+    bool RegisterAskHotkey(NovaSettings s)
+    {
+        if (_askHotkey is null) return true;
+        if (s.AskHotkey.Length == 0) { _askHotkey.Register(""); return true; }
+        return _askHotkey.Register(s.AskHotkey);
     }
 
     /// <summary>Opens the quick launcher, or closes it if it is already open.</summary>
@@ -433,6 +444,7 @@ public partial class App : Application
         hotkeyOk &= RegisterPageHotkeys(s);
         hotkeyOk &= RegisterToggleHotkey(s);
         hotkeyOk &= RegisterLauncherHotkey(s);
+        hotkeyOk &= RegisterAskHotkey(s);
 
         ApplyMedia(s);
         ApplyClipboard(s);
@@ -701,6 +713,7 @@ public partial class App : Application
         foreach (var h in _pageHotkeys) h.Dispose();
         _toggleHotkey?.Dispose();
         _launcherHotkey?.Dispose();
+        _askHotkey?.Dispose();
         _launcher?.Close();
         _statusPoll.Stop();
         _alerts?.Dispose();
