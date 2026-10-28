@@ -1,3 +1,4 @@
+using Nova.Core.Localization;
 using System.Globalization;
 using System.Text.RegularExpressions;
 
@@ -67,11 +68,11 @@ public static class AppAlerts
     /// <summary>Island text for a real toast: "WhatsApp · Sender: message", cut so it fits one notch line.</summary>
     public static string DescribeToast(string? appName, string? title, string? body, int max = 90)
     {
-        var name = string.IsNullOrWhiteSpace(appName) ? "Notifikasi" : appName.Trim();
+        var name = string.IsNullOrWhiteSpace(appName) ? Loc.T("Notifikasi") : appName.Trim();
         var t = (title ?? "").Trim();
         var b = (body ?? "").Trim().Replace('\n', ' ').Replace('\r', ' ');
         var line = t.Length > 0 && b.Length > 0 ? $"{t}: {b}" : t.Length > 0 ? t : b;
-        var text = line.Length > 0 ? $"{name} · {line}" : $"{name} · ada notifikasi baru";
+        var text = line.Length > 0 ? $"{name} · {line}" : $"{name} · {Loc.T("ada notifikasi baru")}";
         return text.Length <= max ? text : text[..(max - 1)].TrimEnd() + "…";
     }
 }

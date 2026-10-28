@@ -1,4 +1,5 @@
 using System.Windows.Threading;
+using Nova.Core.Localization;
 using Nova.Core.Logging;
 using Windows.UI.Notifications;
 using Windows.UI.Notifications.Management;
@@ -19,6 +20,12 @@ public sealed class ToastListenerService : IDisposable
 
     /// <summary>App display name, title line, body text, notification id.</summary>
     public event Action<string, string, string, uint>? Toast;
+    /// <summary>True once Windows has allowed notification access and polling runs.</summary>
+    public bool Active { get; private set; }
+    /// <summary>When true, a toast is cleared from the Action Center right after it was handed to the Island.</summary>
+    public bool RemoveAfterRead { get; set; }
+    /// <summary>Raised once when notification access was granted.</summary>
+    public event Action? Ready;
     /// <summary>Raised once with the reason when notification access is not available.</summary>
     public event Action<string>? Unavailable;
 
@@ -30,18 +37,20 @@ public sealed class ToastListenerService : IDisposable
             var access = await _listener.RequestAccessAsync();
             if (access != UserNotificationListenerAccessStatus.Allowed)
             {
-                Unavailable?.Invoke("Akses notifikasi Windows belum diizinkan (Settings → Privacy → Notifications).");
+                Unavailable?.Invoke(Loc.T("Akses notifikasi Windows belum diizinkan (Settings → Privacy → Notifications)."));
                 return;
             }
             _poll.Tick -= OnTick;
             _poll.Tick += OnTick;
             _poll.Start();
+            Active = true;
+            Ready?.Invoke();
             OnTick(null, EventArgs.Empty);
         }
         catch (Exception ex)
         {
             FileLog.Write($"Toast listener unavailable: {ex.GetType().Name}");
-            Unavailable?.Invoke("Pembaca notifikasi Windows tidak tersedia di PC ini.");
+            Unavailable?.Invoke(Loc.T("Pembaca notifikasi Windows tidak tersedia di PC ini."));
         }
     }
 
@@ -65,6 +74,7 @@ public sealed class ToastListenerService : IDisposable
                     var title = texts.Count > 0 ? texts[0] : "";
                     var body = texts.Count > 1 ? string.Join(" ", texts.Skip(1)) : "";
                     Toast?.Invoke(app, title, body, n.Id);
+                    if (RemoveAfterRead) { try { _listener.RemoveNotification(n.Id); } catch { /* already gone */ } }
                 }
                 catch (Exception ex) { FileLog.Write($"Toast read failed: {ex.GetType().Name}"); }
             }
@@ -78,6 +88,7 @@ public sealed class ToastListenerService : IDisposable
     public void Dispose()
     {
         _poll.Stop();
+        Active = false;
         _seen.Clear();
         _primed = false;
     }

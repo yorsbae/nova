@@ -7,6 +7,7 @@ using System.Windows.Data;
 using Microsoft.Win32;
 using Nova.App.Integrations.Windows;
 using Nova.Core.Configuration;
+using Nova.Core.Localization;
 using Nova.Core.Reminders;
 
 namespace Nova.App.Settings;
@@ -18,6 +19,7 @@ public partial class SettingsWindow : Window
     readonly Func<NovaSettings> _resetAll;
     NovaSettings _work;
     bool _liveWeather, _liveClipboard, _liveLyrics, _replaceDock;
+    string _liveLanguage;
     ComboBox? _profileBox;
     StackPanel _cur = new();   // the page being built (one page per menu item)
     readonly List<(RadioButton Nav, StackPanel Page)> _pages = new();
@@ -26,11 +28,41 @@ public partial class SettingsWindow : Window
     public SettingsWindow(NovaSettings current, Func<NovaSettings, bool, bool> apply, Func<NovaSettings> resetAll)
     {
         _apply = apply; _resetAll = resetAll; _work = current.Clone();
+        _liveLanguage = current.Language; Loc.Set(current.Language);
         _liveWeather = current.WeatherEnabled; _liveClipboard = current.ClipboardHistoryEnabled; _liveLyrics = current.LyricsEnabled;
         InitializeComponent();
+        ApplyChrome();
         BuildForm();
         Form.DataContext = _work;
         if (_pages.Count > 0) _pages[0].Nav.IsChecked = true;
+        RefreshProfiles();
+    }
+
+    /// <summary>Texts that live in the XAML (title, footer buttons), in the current language.</summary>
+    void ApplyChrome()
+    {
+        Title = Loc.T("Pengaturan NOVA");
+        AutomationProperties.SetName(this, Title);
+        void Set(Button b, string text, string name) { b.Content = Loc.T(text); AutomationProperties.SetName(b, Loc.T(name)); }
+        Set(ResetAllButton, "Kembalikan semua ke bawaan", "Kembalikan semua pengaturan dan pintasan dock ke bawaan");
+        Set(SaveButton, "Simpan dan tutup", "Terapkan pengaturan lalu tutup");
+        Set(ApplyButton, "Terapkan", "Terapkan pengaturan sekarang");
+        Set(CloseButton, "Tutup", "Tutup tanpa menerapkan perubahan lagi");
+        AutomationProperties.SetName(Nav, Loc.T("Menu pengaturan"));
+        AutomationProperties.SetName(StatusText, Loc.T("Status pengaturan"));
+    }
+
+    /// <summary>Rebuilds every page after the language changed, keeping the page the user is on and the values in the form.</summary>
+    void RebuildForLanguage()
+    {
+        int index = Math.Max(0, _pages.FindIndex(p => p.Nav.IsChecked == true));
+        Loc.Set(_work.Language);
+        _liveLanguage = _work.Language;
+        Nav.Children.Clear(); _pages.Clear(); _profileBox = null; _profileName = null;
+        ApplyChrome();
+        BuildForm();
+        Form.DataContext = _work;
+        if (_pages.Count > 0) _pages[Math.Min(index, _pages.Count - 1)].Nav.IsChecked = true;
         RefreshProfiles();
     }
 
@@ -39,10 +71,12 @@ public partial class SettingsWindow : Window
     void BuildForm()
     {
         Category("Tampilan");
+        Header("Bahasa");
+        AddChoice("Bahasa antarmuka", nameof(NovaSettings.Language), new[] { ("id", "Indonesia"), ("en", "English") }, "Pilih bahasa jendela Pengaturan. Berlaku setelah Terapkan.");
         Header("Tata letak");
         AddCombo<LayoutPreset>("Preset tata letak", nameof(NovaSettings.Preset));
         var applyPreset = SmallButton("Terapkan preset ke formulir", "Terapkan preset tata letak yang dipilih ke formulir");
-        applyPreset.Click += (_, _) => { PresetApplier.Apply(_work, _work.Preset); Refresh(); Status($"Preset {_work.Preset} masuk ke formulir. Tekan Terapkan untuk memakainya."); };
+        applyPreset.Click += (_, _) => { PresetApplier.Apply(_work, _work.Preset); Refresh(); Status(Loc.F("Preset {0} masuk ke formulir. Tekan Terapkan untuk memakainya.", _work.Preset)); };
         _cur.Children.Add(applyPreset);
 
         Header("Warna dan tema");
@@ -77,6 +111,7 @@ public partial class SettingsWindow : Window
         AddCheck("Buka saat kursor berhenti di atasnya", nameof(NovaSettings.IslandHoverExpand), "Island melipat lagi saat kursor pergi.");
         AddCheck("Pemberitahuan sementara", nameof(NovaSettings.TemporaryNotices), "Termasuk lagu yang sedang diputar pada mode Adaptif.");
         AddCheck("Notifikasi aplikasi chat", nameof(NovaSettings.AppAlerts), "Pengirim dan isi pesan WhatsApp, Telegram, Discord, dan lainnya, dibaca dari notifikasi Windows di PC ini. Butuh izin notifikasi Windows.");
+        AddCheck("Notifikasi hanya lewat Island", nameof(NovaSettings.IslandOnlyNotifications), "Banner notifikasi Windows disembunyikan dan notifikasi dihapus dari Pusat Tindakan setelah tampil di Island. Hanya berlaku bila izin notifikasi Windows sudah diberikan. Suara notifikasi tetap dari Windows.");
         AddCheck("Aktivitas langsung", nameof(NovaSettings.ActivityAlerts), "Volume, pengisi daya, baterai lemah, serta Bluetooth dan Wi-Fi yang tersambung.");
         AddCheck("Rak berkas", nameof(NovaSettings.ShelfEnabled), "Jatuhkan berkas ke Island untuk disimpan sebentar, lalu seret keluar nanti.");
 
@@ -215,6 +250,7 @@ public partial class SettingsWindow : Window
 
     Button SmallButton(string text, string accessibleName)
     {
+        text = Loc.T(text); accessibleName = Loc.T(accessibleName);
         var b = new Button { Content = text, Margin = new Thickness(0, 4, 0, 0), HorizontalAlignment = HorizontalAlignment.Left };
         AutomationProperties.SetName(b, accessibleName);
         return b;
@@ -224,6 +260,7 @@ public partial class SettingsWindow : Window
     void Category(string title)
     {
         var page = new StackPanel { Margin = new Thickness(0, 0, 8, 12) };
+        title = Loc.T(title);
         var big = new TextBlock { Text = title, FontSize = 20, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 6) };
         big.SetResourceReference(TextBlock.ForegroundProperty, "NovaOnSurface");
         AutomationProperties.SetName(big, title);
@@ -238,6 +275,7 @@ public partial class SettingsWindow : Window
 
     void Header(string text)
     {
+        text = Loc.T(text);
         var tb = new TextBlock { Text = text, FontSize = 13, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 22, 0, 6), Opacity = 0.7 };
         tb.SetResourceReference(TextBlock.ForegroundProperty, "NovaOnSurface");
         AutomationProperties.SetName(tb, text);
@@ -247,6 +285,7 @@ public partial class SettingsWindow : Window
     void Hint(string? text, Thickness margin)
     {
         if (string.IsNullOrWhiteSpace(text)) return;
+        text = Loc.T(text);
         var h = new TextBlock { Text = text, FontSize = 12, Opacity = 0.65, TextWrapping = TextWrapping.Wrap, Margin = margin };
         h.SetResourceReference(TextBlock.ForegroundProperty, "NovaOnSurface");
         AutomationProperties.SetName(h, text);
@@ -255,6 +294,8 @@ public partial class SettingsWindow : Window
 
     void Row(string label, UIElement control, string? hint = null)
     {
+        label = Loc.T(label);
+        if (control is TextBlock note) note.Text = Loc.T(note.Text);
         var g = new Grid { Margin = new Thickness(0, 4, 0, 4) };
         g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(210) });
         g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -293,7 +334,7 @@ public partial class SettingsWindow : Window
     {
         var cb = new ComboBox
         {
-            ItemsSource = items.Select(i => new { i.Value, i.Label }).ToList(),
+            ItemsSource = items.Select(i => new { i.Value, Label = Loc.T(i.Label) }).ToList(),
             DisplayMemberPath = "Label", SelectedValuePath = "Value", MinWidth = 220,
         };
         cb.SetBinding(Selector.SelectedValueProperty, new Binding(prop) { Mode = BindingMode.TwoWay });
@@ -302,6 +343,7 @@ public partial class SettingsWindow : Window
 
     void AddCheck(string label, string prop, string? hint = null)
     {
+        label = Loc.T(label);
         var c = new CheckBox { Content = label, Margin = new Thickness(0, 6, 0, hint is null ? 6 : 0) };
         c.SetResourceReference(Control.ForegroundProperty, "NovaOnSurface");
         c.SetBinding(ToggleButton.IsCheckedProperty, new Binding(prop) { Mode = BindingMode.TwoWay });
@@ -338,47 +380,47 @@ public partial class SettingsWindow : Window
 
     void SaveProfile()
     {
-        if (!LayoutProfiles.TrySave(_work, _profileName?.Text, out var error)) { Status("Gagal: " + error); return; }
+        if (!LayoutProfiles.TrySave(_work, _profileName?.Text, out var error)) { Status(Loc.T("Gagal: ") + error); return; }
         RefreshProfiles();
         _profileBox!.SelectedItem = LayoutProfiles.CleanName(_profileName?.Text);
-        Status($"Profil “{LayoutProfiles.CleanName(_profileName?.Text)}” tersimpan. Tekan Terapkan agar permanen.");
+        Status(Loc.F("Profil “{0}” tersimpan. Tekan Terapkan agar permanen.", LayoutProfiles.CleanName(_profileName?.Text)));
     }
 
     void LoadProfile()
     {
         var name = _profileBox?.SelectedItem as string;
-        if (name is null || !LayoutProfiles.TryApply(_work, name)) { Status("Gagal: pilih profil tersimpan dulu."); return; }
+        if (name is null || !LayoutProfiles.TryApply(_work, name)) { Status(Loc.T("Gagal: pilih profil tersimpan dulu.")); return; }
         Refresh();
-        Status($"Profil “{name}” dimuat ke formulir. Tekan Terapkan untuk memakainya.");
+        Status(Loc.F("Profil “{0}” dimuat ke formulir. Tekan Terapkan untuk memakainya.", name));
     }
 
     void DeleteProfile()
     {
         var name = _profileBox?.SelectedItem as string;
-        if (name is null || !LayoutProfiles.Delete(_work, name)) { Status("Gagal: pilih profil tersimpan dulu."); return; }
+        if (name is null || !LayoutProfiles.Delete(_work, name)) { Status(Loc.T("Gagal: pilih profil tersimpan dulu.")); return; }
         RefreshProfiles();
-        Status($"Profil “{name}” dihapus. Tekan Terapkan agar perubahan ini tersimpan.");
+        Status(Loc.F("Profil “{0}” dihapus. Tekan Terapkan agar perubahan ini tersimpan.", name));
     }
 
     // ---- backup / restore ----
     void ExportSettings()
     {
-        var dlg = new SaveFileDialog { Filter = "Cadangan NOVA (*.json)|*.json", FileName = "nova-settings-backup.json", Title = "Ekspor pengaturan NOVA" };
+        var dlg = new SaveFileDialog { Filter = Loc.T("Cadangan NOVA (*.json)|*.json"), FileName = "nova-settings-backup.json", Title = Loc.T("Ekspor pengaturan NOVA") };
         if (dlg.ShowDialog(this) != true) return;
         var error = SettingsStore.Export(dlg.FileName, _work);
-        Status(error ?? "Pengaturan diekspor.");
+        Status(error ?? Loc.T("Pengaturan diekspor."));
     }
 
     void ImportSettings()
     {
-        var dlg = new OpenFileDialog { Filter = "Cadangan NOVA (*.json)|*.json", Title = "Impor pengaturan NOVA" };
+        var dlg = new OpenFileDialog { Filter = Loc.T("Cadangan NOVA (*.json)|*.json"), Title = Loc.T("Impor pengaturan NOVA") };
         if (dlg.ShowDialog(this) != true) return;
-        if (!SettingsStore.TryImport(dlg.FileName, out var imported, out var error)) { Status("Gagal: " + error); return; }
+        if (!SettingsStore.TryImport(dlg.FileName, out var imported, out var error)) { Status(Loc.T("Gagal: ") + error); return; }
         _work = imported!;
         _replaceDock = true;
         Refresh();
         RefreshProfiles();
-        Status("Cadangan dimuat ke formulir, termasuk pintasan dock. Tekan Terapkan untuk memakainya.");
+        Status(Loc.T("Cadangan dimuat ke formulir, termasuk pintasan dock. Tekan Terapkan untuk memakainya."));
     }
 
     // ---- actions ----
@@ -392,13 +434,13 @@ public partial class SettingsWindow : Window
     }
 
     bool Confirm(string question) =>
-        MessageBox.Show(this, question, "NOVA", MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) == MessageBoxResult.Yes;
+        MessageBox.Show(this, Loc.T(question), "NOVA", MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) == MessageBoxResult.Yes;
 
     bool TryApply()
     {
         if (!HotkeyParser.TryParse(_work.Hotkey, out var g) || !HotkeyService.TryResolveKey(g.Key, out _))
         {
-            Status("Gagal: pintasan butuh Ctrl, Alt, Shift, atau Win ditambah satu tombol, misalnya Ctrl+Alt+N. Tidak ada yang diterapkan.");
+            Status(Loc.T("Gagal: pintasan butuh Ctrl, Alt, Shift, atau Win ditambah satu tombol, misalnya Ctrl+Alt+N. Tidak ada yang diterapkan."));
             return false;
         }
 
@@ -424,10 +466,10 @@ public partial class SettingsWindow : Window
         var hotkeyOk = _apply(_work.Clone(), _replaceDock);
         _replaceDock = false;
         _liveWeather = _work.WeatherEnabled; _liveClipboard = _work.ClipboardHistoryEnabled; _liveLyrics = _work.LyricsEnabled;
-        Refresh();
+        if (_work.Language != _liveLanguage) RebuildForLanguage(); else Refresh();
         Status(hotkeyOk
-            ? "Pengaturan diterapkan."
-            : $"Pengaturan diterapkan, tetapi pintasan {_work.Hotkey} tidak tersedia (mungkin dipakai aplikasi lain). Pilih yang lain.");
+            ? Loc.T("Pengaturan diterapkan.")
+            : Loc.F("Pengaturan diterapkan, tetapi pintasan {0} tidak tersedia (mungkin dipakai aplikasi lain). Pilih yang lain.", _work.Hotkey));
         return true;
     }
 
@@ -440,8 +482,7 @@ public partial class SettingsWindow : Window
         if (!Confirm("Kembalikan semua pengaturan ke bawaan, termasuk pintasan dock dan profil tata letak tersimpan?")) return;
         _work = _resetAll().Clone();
         _liveWeather = false; _liveClipboard = false; _liveLyrics = false; _replaceDock = false;
-        Refresh();
-        RefreshProfiles();
-        Status("Semua pengaturan dikembalikan ke bawaan.");
+        if (_work.Language != _liveLanguage) RebuildForLanguage(); else { Refresh(); RefreshProfiles(); }
+        Status(Loc.T("Semua pengaturan dikembalikan ke bawaan."));
     }
 }

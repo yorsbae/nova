@@ -29,6 +29,7 @@ public partial class App : Application
     DockReserveWindow? _topReserve;   // island-only mode: an invisible strip that keeps windows below the Island
     AppAlertService? _alerts;
     ToastListenerService? _toasts;
+    ToastBannerHider? _banners;
     WindowHarmonyService? _harmony;
     WindowShapeService? _shape;
     SystemChangesService? _system;
@@ -295,9 +296,10 @@ public partial class App : Application
 
     void ApplyAlerts(NovaSettings s)
     {
+        Nova.Core.Localization.Loc.Set(s.Language);
         if (s.AppAlerts && !_safeMode)
         {
-            if (_alerts is not null) return;
+            if (_alerts is not null) { SyncBanners(s); return; }
             var alerts = _alerts = new AppAlertService();
             alerts.Alert += (app, unread, window) => Dispatcher.InvokeAsync(() =>
                 _island?.ShowNotice(AppAlerts.Describe(app, unread), important: true, seconds: 6, glyph: "\uE8BD", badgeColor: app.Accent,
@@ -312,6 +314,8 @@ public partial class App : Application
                 var text = AppAlerts.DescribeToast(appName, title, body);
                 _island?.ShowNotice(text, important: true, seconds: 7, glyph: "\uE8BD", badgeColor: app?.Accent ?? "#4C8DFF");
             });
+            toasts.RemoveAfterRead = s.IslandOnlyNotifications;
+            toasts.Ready += () => Dispatcher.InvokeAsync(() => SyncBanners(_settings));
             toasts.Unavailable += reason => Dispatcher.InvokeAsync(() => _island?.ShowNotice(reason, important: true, seconds: 6));
             toasts.Start();
         }
@@ -319,7 +323,17 @@ public partial class App : Application
         {
             _alerts.Dispose(); _alerts = null;
             _toasts?.Dispose(); _toasts = null;
+            _banners?.Dispose(); _banners = null;
         }
+    }
+
+    /// <summary>Hides Windows' own banner only while the Island can really show the toasts (access granted), so none is lost.</summary>
+    void SyncBanners(NovaSettings s)
+    {
+        if (_toasts is not null) _toasts.RemoveAfterRead = s.IslandOnlyNotifications;
+        bool hide = s.AppAlerts && s.IslandOnlyNotifications && _toasts?.Active == true && !_safeMode;
+        if (hide) (_banners ??= new ToastBannerHider()).Start();
+        else { _banners?.Dispose(); _banners = null; }
     }
 
     // ---- one look for every window ----
@@ -746,6 +760,7 @@ public partial class App : Application
         _statusPoll.Stop();
         _alerts?.Dispose();
         _toasts?.Dispose();
+        _banners?.Dispose();
         _harmony?.Dispose();   // puts every window's title bar back as it was
         _shape?.Dispose();     // removes the rounded shapes from every window
         _topBar?.Release();

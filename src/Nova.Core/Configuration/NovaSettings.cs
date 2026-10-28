@@ -136,6 +136,10 @@ public sealed class NovaSettings
     /// <summary>Shows "new message" alerts on the Island for chat apps (WhatsApp, Telegram, Discord...). Reads only window titles and
     /// taskbar-flash signals on this PC; Windows does not let NOVA read the message text.</summary>
     public bool AppAlerts { get; set; } = true;
+    /// <summary>With AppAlerts on: Windows' own toast banner is hidden and the toast is cleared from the Action Center once the Island has shown it, so each notification appears once. Only takes effect while Windows has allowed NOVA to read notifications.</summary>
+    public bool IslandOnlyNotifications { get; set; } = true;
+    /// <summary>Language of the Settings window: id (Indonesia) or en (English).</summary>
+    public string Language { get; set; } = "id";
     /// <summary>Gives other apps' windows the same title-bar colour, light/dark mode, round corners and no border (Windows 11), like one Mac theme.
     /// Reversible: everything is put back when switched off or when NOVA exits.</summary>
     public bool HarmonizeWindows { get; set; } = true;
