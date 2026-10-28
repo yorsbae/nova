@@ -15,6 +15,34 @@ public static class AskSearch
     public const string DefaultModel = "gemini-flash-latest";
     const int MaxHistory = 12;
 
+    /// <summary>Default answer style; the person can replace it in Settings (AskStyle).</summary>
+    public const string DefaultStyle = "Jawab singkat, jelas, dan langsung ke inti dalam bahasa yang dipakai penanya. Tanpa markdown berat.";
+    /// <summary>Used by the "s " prefix for one very short answer.</summary>
+    public const string ShortStyle = "Jawab dalam satu kalimat saja.";
+    public const int ShortMaxChars = 200;
+
+    /// <summary>"s pertanyaan" asks for a one-sentence answer. Returns true and the rest when the text starts with the whole word "s".</summary>
+    public static bool StripShort(string text, out string rest)
+    {
+        var t = (text ?? "").Trim();
+        if (t.Length > 2 && (t[0] == 's' || t[0] == 'S') && t[1] == ' ' && t[2..].Trim().Length > 0) { rest = t[2..].Trim(); return true; }
+        rest = t; return false;
+    }
+
+    /// <summary>Adds the answer style after the question, for engines that have no instruction field (the AI Mode page).</summary>
+    public static string ApplyStyle(string query, string? style)
+    {
+        var q = (query ?? "").Trim();
+        var st = (style ?? "").Trim();
+        return st.Length == 0 ? q : q.TrimEnd('.', '?', '!') + ". " + st;
+    }
+
+    public static string Truncate(string text, int maxChars)
+    {
+        var t = (text ?? "").Trim();
+        return maxChars <= 0 || t.Length <= maxChars ? t : t[..maxChars].TrimEnd() + "…";
+    }
+
     public static string Label(AskEngine e) => e switch
     {
         AskEngine.Gemini => "Gemini",
@@ -73,7 +101,7 @@ public static class AskSearch
         !string.IsNullOrEmpty(model) && model.Length <= 64 && model.All(c => char.IsAsciiLetterOrDigit(c) || c is '.' or '-' or '_');
 
     /// <summary>JSON body for Gemini generateContent: the last turns of the conversation plus a short system instruction.</summary>
-    public static string BuildGeminiRequest(IReadOnlyList<AskTurn> history)
+    public static string BuildGeminiRequest(IReadOnlyList<AskTurn> history, string? style = null)
     {
         using var ms = new MemoryStream();
         using (var w = new Utf8JsonWriter(ms))
@@ -82,7 +110,7 @@ public static class AskSearch
             w.WriteStartObject("systemInstruction");
             w.WriteStartArray("parts");
             w.WriteStartObject();
-            w.WriteString("text", "Jawab singkat, jelas dan langsung ke inti (maksimal sekitar 120 kata) dalam bahasa yang dipakai penanya. Tanpa markdown berat.");
+            w.WriteString("text", string.IsNullOrWhiteSpace(style) ? DefaultStyle : style.Trim());
             w.WriteEndObject(); w.WriteEndArray(); w.WriteEndObject();
             w.WriteStartArray("contents");
             foreach (var turn in history.Skip(Math.Max(0, history.Count - MaxHistory)))
@@ -147,8 +175,7 @@ public static class AskSearch
             if (NoiseLines.Contains(low) || string.Equals(t, query?.Trim(), StringComparison.OrdinalIgnoreCase)) continue;
             kept.Add(t);
         }
-        var text = string.Join("\n", kept).Trim();
-        return text.Length <= maxChars ? text : text[..maxChars].TrimEnd() + "…";
+        return Truncate(string.Join("\n", kept), maxChars);
     }
 
     /// <summary>True when Google shows a verification / consent page instead of an answer.</summary>

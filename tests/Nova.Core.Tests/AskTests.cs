@@ -105,3 +105,27 @@ public class TranslationTests
         Assert.NotEqual("Ctrl+Alt+K", s.TranslateHotkey);   // clashes with the Tanya shortcut
     }
 }
+
+public class AskStyleTests
+{
+    [Fact]
+    public void Short_prefix_style_and_truncation()
+    {
+        Assert.True(AskSearch.StripShort("s apa itu wpf", out var rest)); Assert.Equal("apa itu wpf", rest);
+        Assert.False(AskSearch.StripShort("sapi makan apa", out _));
+        Assert.False(AskSearch.StripShort("s", out _));
+        Assert.Equal("apa itu wpf. Jawab dalam satu kalimat saja.", AskSearch.ApplyStyle("apa itu wpf?", AskSearch.ShortStyle));
+        Assert.Equal("apa itu wpf", AskSearch.ApplyStyle("apa itu wpf", ""));
+        Assert.Equal("abc…", AskSearch.Truncate("abcdef", 3));
+    }
+
+    [Fact]
+    public void Style_goes_into_gemini_instruction_and_settings_are_clamped()
+    {
+        Assert.Contains("maksimal 3 kalimat", AskSearch.BuildGeminiRequest(new[] { new AskTurn(true, "x") }, "maksimal 3 kalimat"));
+        Assert.Contains("langsung ke inti", AskSearch.BuildGeminiRequest(new[] { new AskTurn(true, "x") }));
+        var s = Nova.Core.Configuration.SettingsValidator.Normalize(new Nova.Core.Configuration.NovaSettings { AskStyle = "  ", AskMaxChars = 5 });
+        Assert.Equal(AskSearch.DefaultStyle, s.AskStyle);
+        Assert.Equal(100, s.AskMaxChars);
+    }
+}

@@ -10,7 +10,7 @@ public static class GeminiClient
 {
     static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(30) };
 
-    public static async Task<(bool Ok, string Text)> AskAsync(string apiKey, string model, IReadOnlyList<AskTurn> history, CancellationToken ct)
+    public static async Task<(bool Ok, string Text)> AskAsync(string apiKey, string model, IReadOnlyList<AskTurn> history, string style, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(apiKey)) return (false, "Isi Gemini API key di Pengaturan dulu.");
         if (!AskSearch.IsValidModel(model)) model = AskSearch.DefaultModel;
@@ -18,7 +18,7 @@ public static class GeminiClient
         {
             using var req = new HttpRequestMessage(HttpMethod.Post, $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent")
             {
-                Content = new StringContent(AskSearch.BuildGeminiRequest(history), Encoding.UTF8, "application/json")
+                Content = new StringContent(AskSearch.BuildGeminiRequest(history, style), Encoding.UTF8, "application/json")
             };
             req.Headers.Add("x-goog-api-key", apiKey.Trim());
             using var res = await Http.SendAsync(req, ct).ConfigureAwait(true);

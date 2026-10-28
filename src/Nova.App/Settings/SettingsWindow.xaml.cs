@@ -100,6 +100,8 @@ public partial class SettingsWindow : Window
         AddText("Bahasa tujuan terjemahan awal: id, en, ja, ar, zh-CN atau ko", nameof(NovaSettings.TranslateTarget));
         AddText("Tanya (cari / bertanya di notch): shortcut, mis. Ctrl+Alt+K; kosong = mati", nameof(NovaSettings.AskHotkey));
         AddText("Mesin tanya bawaan: googleai (AI Mode di browser), google, brave, aihere (AI Mode dijawab di notch, tanpa key) atau gemini (butuh key)", nameof(NovaSettings.AskEngine));
+        AddText("Gaya jawaban (bebas, mis. \"Jawab maksimal 3 kalimat, Bahasa Indonesia santai\"). Dipakai Gemini dan AI di sini", nameof(NovaSettings.AskStyle));
+        AddText("Panjang jawaban maksimal di notch (karakter, 100–3000)", nameof(NovaSettings.AskMaxChars));
         AddText("Gemini API key sendiri (aistudio.google.com) untuk mode gemini; kosong = mati. Pertanyaan dikirim ke Google hanya di mode ini", nameof(NovaSettings.GeminiApiKey));
         AddText("Hide / show the whole Island (e.g. Ctrl+Alt+H; empty = off). While hidden, only important notices such as alarms appear", nameof(NovaSettings.ToggleHotkey));
         AddText("Page shortcuts: this prefix + 1…7 opens the Island on that page (Ctrl+Alt → Ctrl+Alt+1 … Ctrl+Alt+7; empty = off)", nameof(NovaSettings.PageHotkeyPrefix));

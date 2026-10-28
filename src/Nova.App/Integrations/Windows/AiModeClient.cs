@@ -43,8 +43,8 @@ public sealed class AiModeClient : IDisposable
         _web.CoreWebView2.IsMuted = true;
     }
 
-    /// <summary>Returns (true, answer) or (false, short reason). One question at a time; each question starts a fresh AI Mode page (no memory of earlier questions).</summary>
-    public async Task<(bool Ok, string Text)> AskAsync(string query, CancellationToken ct)
+    /// <summary>The style is added after the question text, so Google writes the answer that way (not guaranteed). Returns (true, answer) or (false, short reason). One question at a time; each question starts a fresh AI Mode page (no memory of earlier questions).</summary>
+    public async Task<(bool Ok, string Text)> AskAsync(string query, string style, int maxChars, CancellationToken ct)
     {
         await _one.WaitAsync(ct);
         try
@@ -56,12 +56,13 @@ public sealed class AiModeClient : IDisposable
                 return (false, "WebView2 tidak ada. Pasang Microsoft Edge WebView2 Runtime, atau pakai mesin lain.");
             }
 
+            var asked = AskSearch.ApplyStyle(query, style);
             var loaded = new TaskCompletionSource();
             void Done(object? s, CoreWebView2NavigationCompletedEventArgs e) => loaded.TrySetResult();
             _web!.CoreWebView2.NavigationCompleted += Done;
             try
             {
-                _web.CoreWebView2.Navigate(AskSearch.BuildUrl(AskEngine.GoogleAi, query));
+                _web.CoreWebView2.Navigate(AskSearch.BuildUrl(AskEngine.GoogleAi, asked));
                 await loaded.Task.WaitAsync(TimeSpan.FromSeconds(20), ct);
             }
             finally { _web.CoreWebView2.NavigationCompleted -= Done; }
@@ -73,7 +74,7 @@ public sealed class AiModeClient : IDisposable
                 var (url, raw) = await ReadAsync();
                 if (AskSearch.LooksBlocked(url, raw))
                     return (false, "Google meminta verifikasi. Pakai mesin \"AI Mode\" untuk membukanya di browser.");
-                var answer = AskSearch.CleanAnswer(raw, query);
+                var answer = AskSearch.CleanAnswer(raw, asked, maxChars);
                 if (answer.Length > 40 && answer == last) { if (++stable >= 3) return (true, answer); }
                 else { stable = 0; last = answer; }
             }

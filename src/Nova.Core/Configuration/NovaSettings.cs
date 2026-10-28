@@ -210,6 +210,10 @@ public sealed class NovaSettings
     /// <summary>Default engine for a question: googleai, google, brave (open in the browser) or gemini (answered in the notch, needs GeminiApiKey).</summary>
     public string AskEngine { get; set; } = "googleai";
     /// <summary>Own Gemini API key (aistudio.google.com). Stored only in settings.json on this PC; empty = Gemini answers are off.</summary>
+    /// <summary>How answers should be written (any text, e.g. "Jawab maksimal 3 kalimat, Bahasa Indonesia santai"). Used as Gemini's instruction and added after the question for AI di sini.</summary>
+    public string AskStyle { get; set; } = Nova.Core.Ask.AskSearch.DefaultStyle;
+    /// <summary>Longest answer shown in the notch (characters); longer answers are cut with an ellipsis.</summary>
+    public int AskMaxChars { get; set; } = 600;
     public string GeminiApiKey { get; set; } = "";
     public string GeminiModel { get; set; } = "gemini-flash-latest";
     /// <summary>v2.15: the eyes look at the mouse pointer (otherwise they glance around by themselves).</summary>

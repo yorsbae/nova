@@ -125,6 +125,9 @@ public static class SettingsValidator
             s.TranslateHotkey = TakenTr(d.TranslateHotkey) ? "" : d.TranslateHotkey;
         if (!Nova.Core.Translate.Translation.IsKnownLanguage(s.TranslateTarget)) s.TranslateTarget = d.TranslateTarget;
         if (!Nova.Core.Ask.AskSearch.TryParseEngine(s.AskEngine, out _)) s.AskEngine = d.AskEngine;
+        s.AskStyle = CleanText(s.AskStyle, 300);
+        if (s.AskStyle.Length == 0) s.AskStyle = d.AskStyle;
+        s.AskMaxChars = Math.Clamp(s.AskMaxChars, 100, 3000);
         s.GeminiApiKey = (s.GeminiApiKey ?? "").Trim();
         if (s.GeminiApiKey.Length > 200 || s.GeminiApiKey.Any(char.IsWhiteSpace)) s.GeminiApiKey = "";
         if (!Nova.Core.Ask.AskSearch.IsValidModel(s.GeminiModel)) s.GeminiModel = d.GeminiModel;

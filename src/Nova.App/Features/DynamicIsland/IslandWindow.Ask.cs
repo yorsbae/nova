@@ -81,7 +81,7 @@ public partial class IslandWindow
             ? "Jawaban Google AI Mode muncul di sini, tanpa API key (lewat browser tersembunyi)  ·  Tab ganti mesin"
             : engine == AskEngine.Gemini
             ? (_s.GeminiApiKey.Length == 0 ? "Gemini menjawab di sini, tapi butuh API key di Pengaturan  ·  Tab ganti mesin" : "Jawaban muncul di sini (pertanyaan dikirim ke Google Gemini)  ·  Tab ganti mesin")
-            : $"Enter membuka {AskSearch.Label(engine)} di browser  ·  Tab ganti mesin  ·  awalan: b  g  ai  ?";
+            : $"Enter membuka {AskSearch.Label(engine)} di browser  ·  Tab ganti mesin  ·  awalan: b  g  ai  a  ?  ·  s = jawab satu kalimat";
         _askInput?.Focus();
     }
 
@@ -94,12 +94,17 @@ public partial class IslandWindow
     void SendAsk()
     {
         if (_askBusy) return;
-        var (engine, query) = AskSearch.ParsePrefix(_askInput.Text, _askEngine);
+        var isShort = AskSearch.StripShort(_askInput.Text, out var typed);
+        var (engine, query) = AskSearch.ParsePrefix(typed, _askEngine);
         if (query.Length == 0) return;
+        if (isShort && engine is not (AskEngine.Gemini or AskEngine.AiHere))   // a one-line answer is written in the notch
+            engine = _s.GeminiApiKey.Length > 0 ? AskEngine.Gemini : AskEngine.AiHere;
+        var style = isShort ? AskSearch.ShortStyle : _s.AskStyle;
+        var maxChars = isShort ? AskSearch.ShortMaxChars : _s.AskMaxChars;
         _askInput.Clear();
         AddAskBubble(query, fromUser: true, engine is AskEngine.Gemini or AskEngine.AiHere ? null : $"↗ {AskSearch.Label(engine)}");
-        if (engine == AskEngine.Gemini) { _ = AskGeminiAsync(query); return; }
-        if (engine == AskEngine.AiHere) { _ = AskAiModeAsync(query); return; }
+        if (engine == AskEngine.Gemini) { _ = AskGeminiAsync(query, style, maxChars); return; }
+        if (engine == AskEngine.AiHere) { _ = AskAiModeAsync(query, style, maxChars); return; }
         try
         {
             Process.Start(new ProcessStartInfo(AskSearch.BuildUrl(engine, query)) { UseShellExecute = true });
@@ -112,26 +117,27 @@ public partial class IslandWindow
         }
     }
 
-    async Task AskGeminiAsync(string query)
+    async Task AskGeminiAsync(string query, string style, int maxChars)
     {
         _askHistory.Add(new AskTurn(true, query));
         var waiting = AddAskBubble("…", fromUser: false);
         _askBusy = true;
         _askCts?.Cancel(); _askCts = new CancellationTokenSource();
-        var (ok, text) = await GeminiClient.AskAsync(_s.GeminiApiKey, _s.GeminiModel, _askHistory, _askCts.Token);
+        var (ok, text) = await GeminiClient.AskAsync(_s.GeminiApiKey, _s.GeminiModel, _askHistory, style, _askCts.Token);
         _askBusy = false;
+        if (ok) text = AskSearch.Truncate(text, maxChars);
         if (ok) _askHistory.Add(new AskTurn(false, text)); else _askHistory.RemoveAt(_askHistory.Count - 1);
         waiting.Text = ok ? text : "⚠ " + text;
         ScrollAskToEnd();
     }
 
-    async Task AskAiModeAsync(string query)
+    async Task AskAiModeAsync(string query, string style, int maxChars)
     {
         var waiting = AddAskBubble("Mencari jawaban…", fromUser: false);
         _askBusy = true;
         _askCts?.Cancel(); _askCts = new CancellationTokenSource();
         _aiMode ??= new AiModeClient();
-        var (ok, text) = await _aiMode.AskAsync(query, _askCts.Token);
+        var (ok, text) = await _aiMode.AskAsync(query, style, maxChars, _askCts.Token);
         _askBusy = false;
         waiting.Text = ok ? text : "⚠ " + text;
         ScrollAskToEnd();
