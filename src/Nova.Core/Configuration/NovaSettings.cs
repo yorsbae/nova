@@ -205,6 +205,8 @@ public sealed class NovaSettings
     public string AskHotkey { get; set; } = "Ctrl+Alt+K";
     /// <summary>Opens the "Terjemah" page of the Island with the cursor in the text box. Empty = off.</summary>
     public string TranslateHotkey { get; set; } = "Ctrl+Alt+T";
+    /// <summary>Under a translation of a single verb, also show its forms (Verb 1 / Verb 2 / Verb 3 / Verb-ing / Verb-s).</summary>
+    public bool TranslateVerbForms { get; set; } = true;
     /// <summary>Language the translation page starts on: id, en, ja, ar, zh-CN or ko.</summary>
     /// <summary>How many alternative translations to show as v1, v2, … (1–5).</summary>
     public int TranslateVersions { get; set; } = 3;

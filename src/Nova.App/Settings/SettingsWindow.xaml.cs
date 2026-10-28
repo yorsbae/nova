@@ -98,6 +98,7 @@ public partial class SettingsWindow : Window
         AddText("Quick launcher: type to open an app, folder or web address, or do a sum (e.g. Ctrl+Alt+Space; empty = off)", nameof(NovaSettings.LauncherHotkey));
         AddText("Terjemah (teks di notch): shortcut, mis. Ctrl+Alt+T; kosong = mati", nameof(NovaSettings.TranslateHotkey));
         AddText("Jumlah versi terjemahan yang ditampilkan: v1, v2, … (1–5)", nameof(NovaSettings.TranslateVersions));
+        AddCheck("Terjemah: tampilkan Verb 1 / Verb 2 / Verb 3 / Verb-ing / Verb-s di bawah hasil kalau yang diterjemahkan satu kata kerja", nameof(NovaSettings.TranslateVerbForms));
         AddText("Bahasa tujuan terjemahan awal: id, en, ja, ar, zh-CN atau ko", nameof(NovaSettings.TranslateTarget));
         AddText("Tanya (cari / bertanya di notch): shortcut, mis. Ctrl+Alt+K; kosong = mati", nameof(NovaSettings.AskHotkey));
         AddText("Mesin tanya bawaan: googleai (AI Mode di browser), google, brave, aihere (AI Mode dijawab di notch, tanpa key) atau gemini (butuh key)", nameof(NovaSettings.AskEngine));

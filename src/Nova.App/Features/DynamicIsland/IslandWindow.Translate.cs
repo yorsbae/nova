@@ -119,6 +119,8 @@ public partial class IslandWindow
             rows.Children.Add(row);
         }
         bubble.Child = rows;
+        if (_s.TranslateVerbForms && VerbForms.TryFromTranslation(text, _trTarget, versions[0], out var verb))
+            AddTranslateBubble(verb.Format(), fromUser: false);   // Verb 1 / Verb 2 / Verb 3 / Verb-ing / Verb-s
         Dispatcher.BeginInvoke(new Action(() => _trScroll.ScrollToEnd()), DispatcherPriority.Background);
     }
 

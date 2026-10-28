@@ -153,3 +153,46 @@ public class TranslationVersionTests
         Assert.Equal(1, Nova.Core.Configuration.SettingsValidator.Normalize(new Nova.Core.Configuration.NovaSettings { TranslateVersions = 0 }).TranslateVersions);
     }
 }
+
+public class VerbFormsTests
+{
+    static Nova.Core.Translate.VerbForms? Find(string source, string target, string translated) =>
+        Nova.Core.Translate.VerbForms.TryFromTranslation(source, target, translated, out var f) ? f : null;
+
+    [Theory]
+    [InlineData("go", "go", "went", "gone", "going", "goes")]
+    [InlineData("be", "be", "was/were", "been", "being", "is")]
+    [InlineData("have", "have", "had", "had", "having", "has")]
+    [InlineData("stop", "stop", "stopped", "stopped", "stopping", "stops")]
+    [InlineData("study", "study", "studied", "studied", "studying", "studies")]
+    [InlineData("dance", "dance", "danced", "danced", "dancing", "dances")]
+    [InlineData("wait", "wait", "waited", "waited", "waiting", "waits")]
+    [InlineData("visit", "visit", "visited", "visited", "visiting", "visits")]
+    [InlineData("admit", "admit", "admitted", "admitted", "admitting", "admits")]
+    [InlineData("quit", "quit", "quit", "quit", "quitting", "quits")]
+    [InlineData("die", "die", "died", "died", "dying", "dies")]
+    [InlineData("watch", "watch", "watched", "watched", "watching", "watches")]
+    [InlineData("see", "see", "saw", "seen", "seeing", "sees")]
+    public void Forms_follow_irregular_table_and_spelling_rules(string w, string v1, string v2, string v3, string ing, string s)
+    {
+        var f = Nova.Core.Translate.VerbForms.Build(w);
+        Assert.Equal((v1, v2, v3, ing, s), (f.V1, f.V2, f.V3, f.Ing, f.S));
+    }
+
+    [Fact]
+    public void Finds_the_verb_in_the_result_or_the_typed_word()
+    {
+        Assert.Equal("go", Find("pergi", "en", "go")!.V1);                 // Indonesian → English: the result
+        Assert.Equal("go", Find("went", "id", "pergi")!.V1);                // English form typed: back to the base
+        Assert.Equal("walk", Find("jalan kaki", "en", "to walk")!.V1);      // explicit "to"
+        Assert.Equal("walk", Find("walk", "id", "berjalan")!.V1);           // common regular verb
+        Assert.Null(Find("meja", "en", "table"));                           // a noun
+        Assert.Null(Find("saya pergi", "en", "I go"));                      // more than one word
+    }
+
+    [Fact]
+    public void Format_lists_five_lines()
+    {
+        Assert.Equal("Verb 1 : go\nVerb 2 : went\nVerb 3 : gone\nVerb-ing : going\nVerb-s : goes", Nova.Core.Translate.VerbForms.Build("go").Format());
+    }
+}
