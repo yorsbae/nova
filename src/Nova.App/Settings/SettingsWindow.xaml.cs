@@ -35,152 +35,178 @@ public partial class SettingsWindow : Window
     }
 
     // ---- form construction (code-built so every control gets an explicit accessible name) ----
+    // Each row is a short label; whatever needs explaining goes in a muted hint line under it.
     void BuildForm()
     {
-        Category("Tampilan", "🎨");
-        Header("Layout");
-        AddCombo<LayoutPreset>("Layout preset", nameof(NovaSettings.Preset));
-        var applyPreset = SmallButton("Apply preset", "Apply the selected layout preset to the form");
-        applyPreset.Click += (_, _) => { PresetApplier.Apply(_work, _work.Preset); Refresh(); Status($"Preset {_work.Preset} applied to the form. Press Apply to use it."); };
+        Category("Tampilan");
+        Header("Tata letak");
+        AddCombo<LayoutPreset>("Preset tata letak", nameof(NovaSettings.Preset));
+        var applyPreset = SmallButton("Terapkan preset ke formulir", "Terapkan preset tata letak yang dipilih ke formulir");
+        applyPreset.Click += (_, _) => { PresetApplier.Apply(_work, _work.Preset); Refresh(); Status($"Preset {_work.Preset} masuk ke formulir. Tekan Terapkan untuk memakainya."); };
         _cur.Children.Add(applyPreset);
 
-        Header("Appearance");
-        AddCombo<ThemeMode>("Theme", nameof(NovaSettings.Theme));
-        AddText("Accent color (#RRGGBB)", nameof(NovaSettings.AccentColor));
-        AddSlider("Opacity (70%–100%)", nameof(NovaSettings.Opacity), 0.7, 1.0, 0.05, "P0");
-        AddCheck("Increase contrast (use Windows system colors)", nameof(NovaSettings.HighContrastOverride));
-        AddCheck("Use opaque windows if transparency looks wrong (restart NOVA to apply)", nameof(NovaSettings.OpaqueFallback));
+        Header("Warna dan tema");
+        AddCombo<ThemeMode>("Tema", nameof(NovaSettings.Theme));
+        AddText("Warna aksen", nameof(NovaSettings.AccentColor), "Format #RRGGBB, misalnya #4C8DFF.");
+        AddSlider("Kepekatan jendela", nameof(NovaSettings.Opacity), 0.7, 1.0, 0.05, "P0");
+        AddCheck("Kontras tinggi", nameof(NovaSettings.HighContrastOverride), "Memakai warna sistem Windows.");
+        AddCheck("Jendela tanpa transparansi", nameof(NovaSettings.OpaqueFallback), "Nyalakan kalau transparansi tampak salah. Mulai ulang NOVA agar berlaku.");
 
-        AddSlider("Dock transparency: how solid the dock background is (100% = solid, 20% = very see-through; icons stay sharp)", nameof(NovaSettings.DockOpacity), 0.2, 1.0, 0.05, "P0");
+        Header("Jam");
+        AddCombo<ClockFormat>("Format waktu", nameof(NovaSettings.ClockFormat));
+        AddSlider("Ukuran huruf jam", nameof(NovaSettings.ClockFontSize), 12, 72, 1, "0");
 
-        Header("Clock");
-        AddCombo<ClockFormat>("Time format", nameof(NovaSettings.ClockFormat));
-        AddSlider("Clock font size", nameof(NovaSettings.ClockFontSize), 12, 72, 1, "0");
+        Category("Bilah atas");
+        Header("Notch dan taskbar");
+        AddCheck("Notch ala Mac", nameof(NovaSettings.NotchMode), "Bilah menempel di tepi atas layar dan Island menyatu di tengahnya. Jendela tidak masuk ke bawahnya.");
+        AddCheck("Ganti taskbar dengan dock", nameof(NovaSettings.HideTaskbar), "Taskbar dan tombol Start disembunyikan selama NOVA jalan, lalu dikembalikan saat NOVA ditutup.");
+        AddCheck("Sembunyikan taskbar otomatis", nameof(NovaSettings.TaskbarAutoHide), "Hanya bila dock tidak menggantikan taskbar.");
+        AddCheck("Tampilkan aplikasi yang terbuka di dock", nameof(NovaSettings.ShowRunningApps), "Ditandai titik di bawah ikon.");
+        AddCheck("Bilah atas penuh", nameof(NovaSettings.ShowTopBar), "Tanggal, Wi-Fi, suara, dan baterai. Kalau mati, hanya Island yang tampil di tengah atas.");
+        AddCheck("Mode Island saja", nameof(NovaSettings.ReserveTopSpace), "Jendela maksimal berhenti di bawah Island. Kalau mati, Island melayang di atas jendela.");
 
-        Category("Gaya Mac", "🍎");
-        Header("Mac style");
-        AddCheck("Mac-style notch: dock a bar to the top of the screen (windows never go under it) and attach the Island to it", nameof(NovaSettings.NotchMode));
-        AddCheck("Replace the Windows taskbar and Start button with the dock (taskbar is hidden while NOVA runs and restored when it exits)", nameof(NovaSettings.HideTaskbar));
-        AddCheck("Show open apps in the dock, with a dot under them", nameof(NovaSettings.ShowRunningApps));
-        AddCheck("Use Windows dark mode while NOVA runs (restored when NOVA exits)", nameof(NovaSettings.WindowsDarkMode));
-        AddCheck("Show the full top bar with date, Wi-Fi, sound and battery icons (off = only the Island, floating at the top centre)", nameof(NovaSettings.ShowTopBar));
-        AddCheck("Island-only mode: keep maximized windows below the Island (off = the Island floats over the windows, like the concept)", nameof(NovaSettings.ReserveTopSpace));
-        AddCheck("Give other apps' windows one look: same title-bar colour, light/dark mode, round corners (Windows 11; undone when off or on exit)", nameof(NovaSettings.HarmonizeWindows));
-        AddCheck("Rounded-square app windows: large rounded corners on the programs you open (not maximized ones; edges are not anti-aliased; undone when off or on exit)", nameof(NovaSettings.RoundAppWindows));
-        AddSlider("Corner radius of app windows", nameof(NovaSettings.WindowCornerRadius), 6, 40, 1, "0");
-        AddCheck("Auto-hide the Windows taskbar (only when the dock does not replace it; restored when off or on exit)", nameof(NovaSettings.TaskbarAutoHide));
-        AddCheck("Notifications on the Island (WhatsApp, Telegram, Discord...): sender and message from Windows notifications, plus window-title counters. Stays on this PC; needs Windows notification access", nameof(NovaSettings.AppAlerts));
+        Header("Tampilan jendela lain");
+        AddCheck("Mode gelap Windows selama NOVA jalan", nameof(NovaSettings.WindowsDarkMode), "Dikembalikan saat NOVA ditutup.");
+        AddCheck("Samakan tampilan jendela aplikasi lain", nameof(NovaSettings.HarmonizeWindows), "Warna bilah judul, mode terang/gelap, dan sudut membulat (Windows 11). Dibatalkan saat dimatikan atau NOVA ditutup.");
+        AddCheck("Sudut jendela membulat besar", nameof(NovaSettings.RoundAppWindows), "Tidak berlaku untuk jendela maksimal. Tepinya tidak halus (tanpa anti-aliasing).");
+        AddSlider("Radius sudut jendela", nameof(NovaSettings.WindowCornerRadius), 6, 40, 1, "0");
 
-        Category("Island", "✨");
-        Header("Island");
-        AddCombo<IslandBehavior>("Island behavior", nameof(NovaSettings.IslandBehavior));
-        AddMonitor("Island monitor", nameof(NovaSettings.IslandMonitor));
-        AddSlider("Island transparency: how much of the windows behind it shows through (100% = solid, only the background fades)", nameof(NovaSettings.IslandOpacity), 0.2, 1.0, 0.05, "P0");
-        AddCheck("Dynamic Island opacity: keep the open Island readable (at least 60% solid); the compact Island follows the slider. Tip: hold Ctrl and scroll over the Island to change transparency", nameof(NovaSettings.IslandDynamicOpacity));
-        AddSlider("Distance from top of screen (Island-only mode and classic floating mode; you can also drag the Island with the mouse)", nameof(NovaSettings.IslandTopOffset), 0, 2200, 1, "0");
-        AddSlider("Sideways shift from the centre (negative = left, positive = right)", nameof(NovaSettings.IslandOffsetX), -2500, 2500, 1, "0");
-        var resetIsland = SmallButton("Put the Island back at the top centre", "Reset the Island's position to the top centre of the screen");
-        resetIsland.Click += (_, _) => { _work.IslandOffsetX = 0; _work.IslandTopOffset = new NovaSettings().IslandTopOffset; Refresh(); Status("Island position reset in the form. Press Apply to use it."); };
+        Category("Island");
+        Header("Perilaku");
+        AddCombo<IslandBehavior>("Perilaku Island", nameof(NovaSettings.IslandBehavior));
+        AddCheck("Buka saat kursor berhenti di atasnya", nameof(NovaSettings.IslandHoverExpand), "Island melipat lagi saat kursor pergi.");
+        AddCheck("Pemberitahuan sementara", nameof(NovaSettings.TemporaryNotices), "Termasuk lagu yang sedang diputar pada mode Adaptif.");
+        AddCheck("Notifikasi aplikasi chat", nameof(NovaSettings.AppAlerts), "Pengirim dan isi pesan WhatsApp, Telegram, Discord, dan lainnya, dibaca dari notifikasi Windows di PC ini. Butuh izin notifikasi Windows.");
+        AddCheck("Aktivitas langsung", nameof(NovaSettings.ActivityAlerts), "Volume, pengisi daya, baterai lemah, serta Bluetooth dan Wi-Fi yang tersambung.");
+        AddCheck("Rak berkas", nameof(NovaSettings.ShelfEnabled), "Jatuhkan berkas ke Island untuk disimpan sebentar, lalu seret keluar nanti.");
+
+        Header("Posisi");
+        AddMonitor("Monitor Island", nameof(NovaSettings.IslandMonitor));
+        AddSlider("Jarak dari atas layar", nameof(NovaSettings.IslandTopOffset), 0, 2200, 1, "0", "Untuk mode Island saja dan mode melayang. Island juga bisa diseret dengan mouse.");
+        AddSlider("Geser dari tengah", nameof(NovaSettings.IslandOffsetX), -2500, 2500, 1, "0", "Negatif ke kiri, positif ke kanan.");
+        var resetIsland = SmallButton("Kembalikan ke tengah atas", "Kembalikan posisi Island ke tengah atas layar");
+        resetIsland.Click += (_, _) => { _work.IslandOffsetX = 0; _work.IslandTopOffset = new NovaSettings().IslandTopOffset; Refresh(); Status("Posisi Island dikembalikan di formulir. Tekan Terapkan untuk memakainya."); };
         _cur.Children.Add(resetIsland);
-        AddCombo<IslandFaceMode>("Compact (minimal) Island: clock only, clock and face taking turns, face only, or all modules taking turns (clock, face, water, prayer)", nameof(NovaSettings.IslandFaceMode));
-        AddCombo<IslandFaceStyle>("Eye style: Pet (simple round eyes), AnimeAura (glowing almond anime eyes), scary eyes (Yandere, Demon, Hollow), or special anime eyes (Sharingan, Rinnegan, Ghoul, Void, Alchemy, Web, Cat, Galaxy, Zone and ShadowMonarch with lightning). The eyes blink, look around, vanish and reappear, wink and pop.", nameof(NovaSettings.IslandFaceStyle));
-        AddCheck("Eyes look at the mouse pointer (when it rests, they glance around by themselves)", nameof(NovaSettings.IslandEyeFollowMouse));
-        AddCheck("Eyes show moods: sleepy at low battery or late at night, narrowed during a Pomodoro focus, wide for notices, glowing with music", nameof(NovaSettings.IslandEyeMoods));
-        AddCheck("Eye style follows the time of day (evening: glowing aura, night: Hollow)", nameof(NovaSettings.IslandEyeAutoTheme));
-        AddSlider("Seconds the clock stays before the face shows (clock-and-face mode)", nameof(NovaSettings.IslandFaceClockSeconds), 5, 120, 1, "0");
-        AddSlider("Seconds the face stays before the clock returns", nameof(NovaSettings.IslandFaceShowSeconds), 3, 60, 1, "0");
-        AddCheck("Show CPU and RAM use under the clock in the compact Island (read every 3 seconds while it is shown)", nameof(NovaSettings.IslandShowUsage));
-        AddCheck("Live activities: show volume changes, charger, low battery and Bluetooth / Wi-Fi connecting on the Island", nameof(NovaSettings.ActivityAlerts));
-        AddCheck("Expand the Island when the pointer rests on it, and fold it again when the pointer leaves", nameof(NovaSettings.IslandHoverExpand));
-        AddCheck("File shelf: drop files on the Island to hold them for a moment, drag them out later", nameof(NovaSettings.ShelfEnabled));
-        AddCheck("Show temporary notices (including 'now playing' in Adaptive mode)", nameof(NovaSettings.TemporaryNotices));
-        AddText("Keyboard shortcut (e.g. Ctrl+Alt+N)", nameof(NovaSettings.Hotkey));
-        AddText("Quick launcher: type to open an app, folder or web address, or do a sum (e.g. Ctrl+Alt+Space; empty = off)", nameof(NovaSettings.LauncherHotkey));
-        AddText("Terjemah (teks di notch): shortcut, mis. Ctrl+Alt+T; kosong = mati", nameof(NovaSettings.TranslateHotkey));
-        AddText("Jumlah versi terjemahan yang ditampilkan: v1, v2, … (1–5)", nameof(NovaSettings.TranslateVersions));
-        AddCheck("Terjemah: tampilkan Verb 1 / Verb 2 / Verb 3 / Verb-ing / Verb-s di bawah hasil kalau yang diterjemahkan satu kata kerja", nameof(NovaSettings.TranslateVerbForms));
-        AddText("Bahasa tujuan terjemahan awal: id, en, ja, ar, zh-CN atau ko", nameof(NovaSettings.TranslateTarget));
-        AddText("Tanya (cari / bertanya di notch): shortcut, mis. Ctrl+Alt+K; kosong = mati", nameof(NovaSettings.AskHotkey));
-        AddText("Mesin tanya bawaan: googleai (AI Mode di browser), google, brave, aihere (AI Mode dijawab di notch, tanpa key) atau gemini (butuh key)", nameof(NovaSettings.AskEngine));
-        AddText("Gaya jawaban (bebas, mis. \"Jawab maksimal 3 kalimat, Bahasa Indonesia santai\"). Dipakai Gemini dan AI di sini", nameof(NovaSettings.AskStyle));
-        AddText("Panjang jawaban maksimal di notch (karakter, 100–3000)", nameof(NovaSettings.AskMaxChars));
-        AddText("Gemini API key sendiri (aistudio.google.com) untuk mode gemini; kosong = mati. Pertanyaan dikirim ke Google hanya di mode ini", nameof(NovaSettings.GeminiApiKey));
-        AddText("Hide / show the whole Island (e.g. Ctrl+Alt+H; empty = off). While hidden, only important notices such as alarms appear", nameof(NovaSettings.ToggleHotkey));
-        AddText("Page shortcuts: this prefix + 1…7 opens the Island on that page (Ctrl+Alt → Ctrl+Alt+1 … Ctrl+Alt+7; empty = off)", nameof(NovaSettings.PageHotkeyPrefix));
 
-        Category("Dock", "🧲");
-        Header("Dock");
-        AddCheck("Auto-hide the dock: it slides away and comes back when the pointer touches the bottom edge of the screen", nameof(NovaSettings.DockAutoHide));
-        AddMonitor("Dock monitor", nameof(NovaSettings.DockMonitor));
-        AddSlider("Icon size", nameof(NovaSettings.DockIconSize), 24, 96, 1, "0");
-        AddSlider("Icon spacing", nameof(NovaSettings.DockSpacing), 0, 32, 1, "0");
-        AddCheck("Zoom icons towards the pointer, like the Mac Dock", nameof(NovaSettings.DockMagnify));
-        AddSlider("Zoom size (1.0 = none)", nameof(NovaSettings.DockMagnifyScale), 1.0, 2.2, 0.1, "0.0");
-        AddSlider("Distance from bottom of screen", nameof(NovaSettings.DockBottomOffset), 0, 200, 1, "0");
-        AddCheck("Keep windows above the dock (reserve its strip of the screen, like the taskbar does)", nameof(NovaSettings.DockReservesSpace));
-        AddCheck("Glass dock: see-through strip, only the Start button and app icons are visible", nameof(NovaSettings.DockGlass));
+        Header("Transparansi");
+        AddSlider("Transparansi Island", nameof(NovaSettings.IslandOpacity), 0.2, 1.0, 0.05, "P0", "100% = pekat. Hanya latarnya yang memudar. Tahan Ctrl dan putar roda mouse di atas Island untuk mengubahnya cepat.");
+        AddCheck("Jaga Island terbuka tetap terbaca", nameof(NovaSettings.IslandDynamicOpacity), "Island terbuka minimal 60% pekat. Island ringkas mengikuti slider.");
 
-        Header("Information shown in the Island");
-        AddCheck("Media controls for the app that is playing", nameof(NovaSettings.ShowMedia));
-        AddCheck("System status: CPU, memory, battery (updates only while expanded)", nameof(NovaSettings.ShowSystemStatus));
+        Header("Isi Island");
+        AddCheck("Kontrol media", nameof(NovaSettings.ShowMedia), "Untuk aplikasi yang sedang memutar.");
+        AddCheck("Status sistem", nameof(NovaSettings.ShowSystemStatus), "CPU, memori, baterai. Diperbarui hanya saat Island terbuka.");
+        AddCheck("CPU dan RAM di bawah jam", nameof(NovaSettings.IslandShowUsage), "Dibaca tiap 3 detik selama tampil di Island ringkas.");
 
-        Category("Pengingat", "🔔");
-        Header("Drink reminder (Island page 5)");
-        AddCheck("Remind me to drink water with a notice on the Island", nameof(NovaSettings.HydrationEnabled));
-        AddSlider("Minutes between reminders", nameof(NovaSettings.HydrationIntervalMinutes), 15, 240, 5, "0");
-        AddSlider("Daily goal (glasses)", nameof(NovaSettings.HydrationGoalGlasses), 1, 20, 1, "0");
-        AddSlider("Remind from (hour)", nameof(NovaSettings.HydrationFromHour), 0, 23, 1, "0");
-        AddSlider("Remind until (hour)", nameof(NovaSettings.HydrationToHour), 0, 24, 1, "0");
+        Category("Wajah Island");
+        Header("Wajah");
+        AddCombo<IslandFaceMode>("Isi Island ringkas", nameof(NovaSettings.IslandFaceMode), "Jam saja, jam dan wajah bergantian, wajah saja, atau semua modul bergantian (jam, wajah, air, salat).");
+        AddCombo<IslandFaceStyle>("Gaya mata", nameof(NovaSettings.IslandFaceStyle), "Pet berupa mata bulat sederhana. Gaya lain berupa mata anime yang berkedip, melirik, menghilang, dan muncul lagi.");
+        AddSlider("Detik jam tampil sebelum wajah", nameof(NovaSettings.IslandFaceClockSeconds), 5, 120, 1, "0", "Untuk mode jam dan wajah bergantian.");
+        AddSlider("Detik wajah tampil sebelum jam kembali", nameof(NovaSettings.IslandFaceShowSeconds), 3, 60, 1, "0");
 
-        Header("Prayer times and adzan (Island page 6, worked out on this PC, no internet)");
-        AddCheck("Show a notice (and play a sound) at each prayer time", nameof(NovaSettings.PrayerNotify));
-        AddCheck("Play a sound with the adzan notice", nameof(NovaSettings.PrayerSound));
-        Row("Location", new TextBlock { Text = "Automatic: your current place (shown as village, regency, province), read from Windows Location (Settings > Privacy & security > Location must be on). Times follow the Kemenag method: Fajr 20, Isha 18 degrees.", TextWrapping = TextWrapping.Wrap, Opacity = 0.75 });
-        AddText("Adzan sound file (wav or mp3, empty = system sound)", nameof(NovaSettings.PrayerSoundPath));
+        Header("Perilaku mata");
+        AddCheck("Mata mengikuti kursor", nameof(NovaSettings.IslandEyeFollowMouse), "Saat kursor diam, mata melirik sendiri.");
+        AddCheck("Mata menunjukkan suasana", nameof(NovaSettings.IslandEyeMoods), "Mengantuk saat baterai lemah atau larut malam, menyipit saat fokus Pomodoro, melebar saat ada pemberitahuan, bercahaya saat musik.");
+        AddCheck("Gaya mata mengikuti waktu", nameof(NovaSettings.IslandEyeAutoTheme), "Sore: AnimeAura. Malam: Hollow.");
 
-        Header("Fokus, tugas & alarm (Island page 4)");
-        AddText("Alarm sound file (wav or mp3, empty = system sound)", nameof(NovaSettings.AlarmSoundPath));
+        Category("Pintasan");
+        Header("Island");
+        AddText("Buka atau tutup Island", nameof(NovaSettings.Hotkey), "Contoh: Ctrl+Alt+N.");
+        AddText("Sembunyikan atau tampilkan Island", nameof(NovaSettings.ToggleHotkey), "Kosong = mati. Saat tersembunyi, hanya pemberitahuan penting seperti alarm yang muncul.");
+        AddText("Awalan pintasan halaman", nameof(NovaSettings.PageHotkeyPrefix), "Awalan + 1 sampai 7 membuka halaman Island itu. Ctrl+Alt menghasilkan Ctrl+Alt+1 sampai Ctrl+Alt+7. Kosong = mati.");
+        Header("Alat cepat");
+        AddText("Peluncur cepat", nameof(NovaSettings.LauncherHotkey), "Ketik untuk membuka aplikasi, folder, atau alamat web, atau hitung angka. Contoh: Ctrl+Alt+Space. Kosong = mati.");
+        AddText("Terjemah", nameof(NovaSettings.TranslateHotkey), "Contoh: Ctrl+Alt+T. Kosong = mati.");
+        AddText("Tanya", nameof(NovaSettings.AskHotkey), "Contoh: Ctrl+Alt+K. Kosong = mati.");
 
-        Category("Online & Data", "🌐");
-        Header("Lyrics (optional, uses the internet)");
-        AddCheck("Show synced lyrics. Sends the artist and song title (and length) of what is playing to lrclib.net", nameof(NovaSettings.LyricsEnabled));
+        Category("Tanya dan Terjemah");
+        Header("Tanya");
+        AddChoice("Mesin bawaan", nameof(NovaSettings.AskEngine), new[]
+        {
+            ("googleai", "Google AI Mode (browser)"), ("google", "Google (browser)"), ("brave", "Brave (browser)"),
+            ("aihere", "AI di sini (jawaban di notch, tanpa key)"), ("gemini", "Gemini (jawaban di notch, butuh key)"),
+        });
+        AddText("Gaya jawaban", nameof(NovaSettings.AskStyle), "Instruksi bebas, mis. \"Jawab maksimal 3 kalimat, Bahasa Indonesia santai\". Dipakai oleh Gemini dan AI di sini.");
+        AddSlider("Panjang jawaban maksimal", nameof(NovaSettings.AskMaxChars), 100, 3000, 100, "0", "Dalam karakter, di notch.");
+        AddText("Kunci API Gemini", nameof(NovaSettings.GeminiApiKey), "Dari aistudio.google.com. Kosong = mati. Pertanyaan dikirim ke Google hanya pada mode Gemini.");
+        Header("Terjemah");
+        AddChoice("Bahasa tujuan awal", nameof(NovaSettings.TranslateTarget), new[]
+        {
+            ("id", "Indonesia"), ("en", "Inggris"), ("ja", "Jepang"), ("ar", "Arab"), ("zh-CN", "Mandarin"), ("ko", "Korea"),
+        });
+        AddSlider("Jumlah versi terjemahan", nameof(NovaSettings.TranslateVersions), 1, 5, 1, "0", "Ditampilkan sebagai v1, v2, dan seterusnya.");
+        AddCheck("Bentuk kata kerja", nameof(NovaSettings.TranslateVerbForms), "Menampilkan Verb 1, Verb 2, Verb 3, Verb-ing, dan Verb-s di bawah hasil bila yang diterjemahkan satu kata kerja.");
 
-        Header("Weather (optional, uses the internet)");
-        AddCheck("Show weather for your current location. Sends its coordinates (every 30 min) to open-meteo.com", nameof(NovaSettings.WeatherEnabled));
-        AddCheck("Use Fahrenheit", nameof(NovaSettings.WeatherFahrenheit));
+        Category("Dock");
+        Header("Perilaku");
+        AddCheck("Sembunyikan dock otomatis", nameof(NovaSettings.DockAutoHide), "Dock meluncur pergi dan kembali saat kursor menyentuh tepi bawah layar.");
+        AddCheck("Sisihkan ruang untuk dock", nameof(NovaSettings.DockReservesSpace), "Jendela berhenti di atas dock, seperti taskbar.");
+        AddMonitor("Monitor dock", nameof(NovaSettings.DockMonitor));
+        Header("Ukuran dan posisi");
+        AddSlider("Ukuran ikon", nameof(NovaSettings.DockIconSize), 24, 96, 1, "0");
+        AddSlider("Jarak antar ikon", nameof(NovaSettings.DockSpacing), 0, 32, 1, "0");
+        AddSlider("Jarak dari bawah layar", nameof(NovaSettings.DockBottomOffset), 0, 200, 1, "0");
+        AddCheck("Perbesar ikon di dekat kursor", nameof(NovaSettings.DockMagnify), "Seperti Dock Mac.");
+        AddSlider("Besar zoom", nameof(NovaSettings.DockMagnifyScale), 1.0, 2.2, 0.1, "0.0", "1.0 = tanpa zoom.");
+        Header("Latar");
+        AddCheck("Dock kaca", nameof(NovaSettings.DockGlass), "Latar tembus pandang. Hanya tombol Start dan ikon aplikasi yang terlihat.");
+        AddSlider("Kepekatan latar dock", nameof(NovaSettings.DockOpacity), 0.2, 1.0, 0.05, "P0", "100% = pekat, 20% = sangat tembus pandang. Ikon tetap tajam.");
 
-        Header("Clipboard history (optional, private)");
-        AddCheck("Keep clipboard history. Text, pictures and copied files; memory only, never saved to disk", nameof(NovaSettings.ClipboardHistoryEnabled));
-        AddSlider("Items to keep", nameof(NovaSettings.ClipboardMaxItems), 5, 50, 1, "0");
+        Category("Pengingat");
+        Header("Minum air (halaman Island 5)");
+        AddCheck("Ingatkan minum lewat Island", nameof(NovaSettings.HydrationEnabled));
+        AddSlider("Menit antar pengingat", nameof(NovaSettings.HydrationIntervalMinutes), 15, 240, 5, "0");
+        AddSlider("Target harian (gelas)", nameof(NovaSettings.HydrationGoalGlasses), 1, 20, 1, "0");
+        AddSlider("Mulai dari jam", nameof(NovaSettings.HydrationFromHour), 0, 23, 1, "0");
+        AddSlider("Sampai jam", nameof(NovaSettings.HydrationToHour), 0, 24, 1, "0");
 
-        Category("Hemat daya", "⚡");
-        Header("Battery and memory");
-        AddCheck("Eco mode: lower priority, Windows efficiency mode and memory trimming when idle (lightest on RAM and CPU)", nameof(NovaSettings.EcoMode));
-        AddCheck("Battery saver: while the laptop runs on battery, turn off animations (the face, slides) so NOVA uses less CPU", nameof(NovaSettings.BatterySaver));
-        Header("Motion and startup");
-        AddCheck("Reduce motion", nameof(NovaSettings.ReducedMotion));
-        AddCheck("Start NOVA when I sign in to Windows", nameof(NovaSettings.StartWithWindows));
+        Header("Waktu salat dan adzan (halaman Island 6)");
+        AddCheck("Pemberitahuan tiap waktu salat", nameof(NovaSettings.PrayerNotify), "Dihitung di PC ini, tanpa internet.");
+        AddCheck("Suara adzan", nameof(NovaSettings.PrayerSound));
+        AddText("Berkas suara adzan", nameof(NovaSettings.PrayerSoundPath), "Berkas wav atau mp3. Kosong = suara sistem.");
+        Row("Lokasi", new TextBlock { Text = "Otomatis dari lokasi Anda saat ini (desa, kabupaten, provinsi), dibaca dari Lokasi Windows. Nyalakan di Pengaturan > Privasi & keamanan > Lokasi. Metode Kemenag: Subuh 20 derajat, Isya 18 derajat.", TextWrapping = TextWrapping.Wrap, Opacity = 0.75 });
 
-        Category("Cadangan", "💾");
-        Header("Layout profiles");
+        Header("Fokus, tugas, dan alarm (halaman Island 4)");
+        AddText("Berkas suara alarm", nameof(NovaSettings.AlarmSoundPath), "Berkas wav atau mp3. Kosong = suara sistem.");
+
+        Category("Online dan data");
+        Header("Lirik");
+        AddCheck("Lirik tersinkron", nameof(NovaSettings.LyricsEnabled), "Mengirim artis, judul, dan durasi lagu yang diputar ke lrclib.net.");
+        Header("Cuaca");
+        AddCheck("Cuaca di lokasi Anda", nameof(NovaSettings.WeatherEnabled), "Mengirim koordinat ke open-meteo.com tiap 30 menit.");
+        AddCheck("Pakai Fahrenheit", nameof(NovaSettings.WeatherFahrenheit));
+        Header("Riwayat clipboard");
+        AddCheck("Simpan riwayat clipboard", nameof(NovaSettings.ClipboardHistoryEnabled), "Teks, gambar, dan berkas yang disalin. Hanya di memori, tidak pernah ditulis ke disk.");
+        AddSlider("Jumlah item", nameof(NovaSettings.ClipboardMaxItems), 5, 50, 1, "0");
+
+        Category("Hemat daya");
+        Header("Baterai dan memori");
+        AddCheck("Mode eco", nameof(NovaSettings.EcoMode), "Prioritas rendah, mode efisiensi Windows, dan pemangkasan memori saat idle.");
+        AddCheck("Penghemat baterai", nameof(NovaSettings.BatterySaver), "Animasi (wajah, geser) dimatikan saat laptop memakai baterai.");
+        Header("Gerak dan mulai");
+        AddCheck("Kurangi gerak", nameof(NovaSettings.ReducedMotion));
+        AddCheck("Jalankan NOVA saat masuk Windows", nameof(NovaSettings.StartWithWindows));
+
+        Category("Cadangan");
+        Header("Profil tata letak");
         _profileBox = new ComboBox { MinWidth = 200 };
-        Row("Saved profiles", _profileBox);
+        Row("Profil tersimpan", _profileBox);
         _profileName = new TextBox { MinWidth = 200, Padding = new Thickness(4) };
-        Row("Profile name", _profileName);
+        Row("Nama profil", _profileName);
         var profileButtons = new WrapPanel();
-        var save = SmallButton("Save current layout as profile", "Save the current layout under the profile name");
-        var load = SmallButton("Load selected profile", "Load the selected layout profile into the form");
-        var del = SmallButton("Delete selected profile", "Delete the selected layout profile");
+        var save = SmallButton("Simpan tata letak ini", "Simpan tata letak saat ini dengan nama profil");
+        var load = SmallButton("Muat profil", "Muat profil yang dipilih ke formulir");
+        var del = SmallButton("Hapus profil", "Hapus profil yang dipilih");
         save.Click += (_, _) => SaveProfile();
         load.Click += (_, _) => LoadProfile();
         del.Click += (_, _) => DeleteProfile();
         foreach (var b in new[] { save, load, del }) { b.Margin = new Thickness(0, 4, 8, 0); profileButtons.Children.Add(b); }
         _cur.Children.Add(profileButtons);
 
-        Header("Backup and restore");
+        Header("Ekspor dan impor");
         var backupButtons = new WrapPanel();
-        var export = SmallButton("Export settings…", "Save the settings in the form to a backup file");
-        var import = SmallButton("Import settings…", "Load settings from a backup file into the form");
+        var export = SmallButton("Ekspor pengaturan…", "Simpan pengaturan di formulir ke berkas cadangan");
+        var import = SmallButton("Impor pengaturan…", "Muat pengaturan dari berkas cadangan ke formulir");
         export.Click += (_, _) => ExportSettings();
         import.Click += (_, _) => ImportSettings();
         foreach (var b in new[] { export, import }) { b.Margin = new Thickness(0, 4, 8, 0); backupButtons.Children.Add(b); }
@@ -195,14 +221,14 @@ public partial class SettingsWindow : Window
     }
 
     /// <summary>Starts a new page with its own button in the left menu.</summary>
-    void Category(string title, string icon)
+    void Category(string title)
     {
         var page = new StackPanel { Margin = new Thickness(0, 0, 8, 12) };
         var big = new TextBlock { Text = title, FontSize = 20, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 6) };
         big.SetResourceReference(TextBlock.ForegroundProperty, "NovaOnSurface");
         AutomationProperties.SetName(big, title);
         page.Children.Add(big);
-        var nav = new RadioButton { GroupName = "SettingsMenu", Style = (Style)FindResource("NavItem"), Content = $"{icon}  {title}" };
+        var nav = new RadioButton { GroupName = "SettingsMenu", Style = (Style)FindResource("NavItem"), Content = title };
         AutomationProperties.SetName(nav, title);
         nav.Checked += (_, _) => { Form.Content = page; PageScroll.ScrollToTop(); };
         Nav.Children.Add(nav);
@@ -212,13 +238,22 @@ public partial class SettingsWindow : Window
 
     void Header(string text)
     {
-        var tb = new TextBlock { Text = text, FontSize = 14, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 16, 0, 4), Opacity = 0.85 };
+        var tb = new TextBlock { Text = text, FontSize = 13, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 22, 0, 6), Opacity = 0.7 };
         tb.SetResourceReference(TextBlock.ForegroundProperty, "NovaOnSurface");
         AutomationProperties.SetName(tb, text);
         _cur.Children.Add(tb);
     }
 
-    void Row(string label, UIElement control)
+    void Hint(string? text, Thickness margin)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return;
+        var h = new TextBlock { Text = text, FontSize = 12, Opacity = 0.65, TextWrapping = TextWrapping.Wrap, Margin = margin };
+        h.SetResourceReference(TextBlock.ForegroundProperty, "NovaOnSurface");
+        AutomationProperties.SetName(h, text);
+        _cur.Children.Add(h);
+    }
+
+    void Row(string label, UIElement control, string? hint = null)
     {
         var g = new Grid { Margin = new Thickness(0, 4, 0, 4) };
         g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(210) });
@@ -229,13 +264,14 @@ public partial class SettingsWindow : Window
         g.Children.Add(tb); g.Children.Add(control);
         AutomationProperties.SetName(control, label);
         _cur.Children.Add(g);
+        Hint(hint, new Thickness(210, -2, 0, 6));
     }
 
-    void AddCombo<T>(string label, string prop) where T : struct, Enum
+    void AddCombo<T>(string label, string prop, string? hint = null) where T : struct, Enum
     {
         var cb = new ComboBox { ItemsSource = Enum.GetValues<T>(), MinWidth = 160 };
         cb.SetBinding(Selector.SelectedItemProperty, new Binding(prop) { Mode = BindingMode.TwoWay });
-        Row(label, cb);
+        Row(label, cb, hint);
     }
 
     void AddMonitor(string label, string prop)
@@ -245,23 +281,36 @@ public partial class SettingsWindow : Window
         Row(label, cb);
     }
 
-    void AddText(string label, string prop)
+    void AddText(string label, string prop, string? hint = null)
     {
         var t = new TextBox { MinWidth = 160, Padding = new Thickness(4) };
         t.SetBinding(TextBox.TextProperty, new Binding(prop) { Mode = BindingMode.TwoWay, UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged });
-        Row(label, t);
+        Row(label, t, hint);
     }
 
-    void AddCheck(string label, string prop)
+    /// <summary>A pick-list for a setting stored as text (value kept in the file, label shown).</summary>
+    void AddChoice(string label, string prop, (string Value, string Label)[] items, string? hint = null)
     {
-        var c = new CheckBox { Content = label, Margin = new Thickness(0, 4, 0, 4) };
+        var cb = new ComboBox
+        {
+            ItemsSource = items.Select(i => new { i.Value, i.Label }).ToList(),
+            DisplayMemberPath = "Label", SelectedValuePath = "Value", MinWidth = 220,
+        };
+        cb.SetBinding(Selector.SelectedValueProperty, new Binding(prop) { Mode = BindingMode.TwoWay });
+        Row(label, cb, hint);
+    }
+
+    void AddCheck(string label, string prop, string? hint = null)
+    {
+        var c = new CheckBox { Content = label, Margin = new Thickness(0, 6, 0, hint is null ? 6 : 0) };
         c.SetResourceReference(Control.ForegroundProperty, "NovaOnSurface");
         c.SetBinding(ToggleButton.IsCheckedProperty, new Binding(prop) { Mode = BindingMode.TwoWay });
         AutomationProperties.SetName(c, label);
         _cur.Children.Add(c);
+        Hint(hint, new Thickness(22, 0, 0, 6));
     }
 
-    void AddSlider(string label, string prop, double min, double max, double step, string format)
+    void AddSlider(string label, string prop, double min, double max, double step, string format, string? hint = null)
     {
         var s = new Slider { Minimum = min, Maximum = max, TickFrequency = step, IsSnapToTickEnabled = true, MinWidth = 160, VerticalAlignment = VerticalAlignment.Center };
         s.SetBinding(RangeBase.ValueProperty, new Binding(prop) { Mode = BindingMode.TwoWay });
@@ -274,7 +323,7 @@ public partial class SettingsWindow : Window
         dock.Children.Add(value);
         dock.Children.Add(s);
         AutomationProperties.SetName(s, label);
-        Row(label, dock);
+        Row(label, dock, hint);
         AutomationProperties.SetName(dock, label);
     }
 
@@ -289,47 +338,47 @@ public partial class SettingsWindow : Window
 
     void SaveProfile()
     {
-        if (!LayoutProfiles.TrySave(_work, _profileName?.Text, out var error)) { Status("Error: " + error); return; }
+        if (!LayoutProfiles.TrySave(_work, _profileName?.Text, out var error)) { Status("Gagal: " + error); return; }
         RefreshProfiles();
         _profileBox!.SelectedItem = LayoutProfiles.CleanName(_profileName?.Text);
-        Status($"Profile “{LayoutProfiles.CleanName(_profileName?.Text)}” saved. Press Apply to keep it permanently.");
+        Status($"Profil “{LayoutProfiles.CleanName(_profileName?.Text)}” tersimpan. Tekan Terapkan agar permanen.");
     }
 
     void LoadProfile()
     {
         var name = _profileBox?.SelectedItem as string;
-        if (name is null || !LayoutProfiles.TryApply(_work, name)) { Status("Error: choose a saved profile first."); return; }
+        if (name is null || !LayoutProfiles.TryApply(_work, name)) { Status("Gagal: pilih profil tersimpan dulu."); return; }
         Refresh();
-        Status($"Profile “{name}” loaded into the form. Press Apply to use it.");
+        Status($"Profil “{name}” dimuat ke formulir. Tekan Terapkan untuk memakainya.");
     }
 
     void DeleteProfile()
     {
         var name = _profileBox?.SelectedItem as string;
-        if (name is null || !LayoutProfiles.Delete(_work, name)) { Status("Error: choose a saved profile first."); return; }
+        if (name is null || !LayoutProfiles.Delete(_work, name)) { Status("Gagal: pilih profil tersimpan dulu."); return; }
         RefreshProfiles();
-        Status($"Profile “{name}” deleted. Press Apply to keep this change.");
+        Status($"Profil “{name}” dihapus. Tekan Terapkan agar perubahan ini tersimpan.");
     }
 
     // ---- backup / restore ----
     void ExportSettings()
     {
-        var dlg = new SaveFileDialog { Filter = "NOVA backup (*.json)|*.json", FileName = "nova-settings-backup.json", Title = "Export NOVA settings" };
+        var dlg = new SaveFileDialog { Filter = "Cadangan NOVA (*.json)|*.json", FileName = "nova-settings-backup.json", Title = "Ekspor pengaturan NOVA" };
         if (dlg.ShowDialog(this) != true) return;
         var error = SettingsStore.Export(dlg.FileName, _work);
-        Status(error ?? "Settings exported.");
+        Status(error ?? "Pengaturan diekspor.");
     }
 
     void ImportSettings()
     {
-        var dlg = new OpenFileDialog { Filter = "NOVA backup (*.json)|*.json", Title = "Import NOVA settings" };
+        var dlg = new OpenFileDialog { Filter = "Cadangan NOVA (*.json)|*.json", Title = "Impor pengaturan NOVA" };
         if (dlg.ShowDialog(this) != true) return;
-        if (!SettingsStore.TryImport(dlg.FileName, out var imported, out var error)) { Status("Error: " + error); return; }
+        if (!SettingsStore.TryImport(dlg.FileName, out var imported, out var error)) { Status("Gagal: " + error); return; }
         _work = imported!;
         _replaceDock = true;
         Refresh();
         RefreshProfiles();
-        Status("Backup loaded into the form (including its dock shortcuts). Press Apply to use it.");
+        Status("Cadangan dimuat ke formulir, termasuk pintasan dock. Tekan Terapkan untuk memakainya.");
     }
 
     // ---- actions ----
@@ -349,24 +398,24 @@ public partial class SettingsWindow : Window
     {
         if (!HotkeyParser.TryParse(_work.Hotkey, out var g) || !HotkeyService.TryResolveKey(g.Key, out _))
         {
-            Status("Error: the shortcut needs Ctrl, Alt, Shift or Win plus a key, for example Ctrl+Alt+N. Nothing was applied.");
+            Status("Gagal: pintasan butuh Ctrl, Alt, Shift, atau Win ditambah satu tombol, misalnya Ctrl+Alt+N. Tidak ada yang diterapkan.");
             return false;
         }
 
         // Explicit consent for the two privacy-relevant features, asked when they are first switched on.
         if (_work.WeatherEnabled && !_liveWeather)
         {
-            if (!Confirm("Weather uses the free open-meteo.com service.\n\nNOVA will read your current location and send its coordinates (about every 30 minutes). Nothing else is sent.\n\nTurn on weather?"))
+            if (!Confirm("Cuaca memakai layanan gratis open-meteo.com.\n\nNOVA membaca lokasi Anda dan mengirim koordinatnya sekitar tiap 30 menit. Tidak ada data lain yang dikirim.\n\nNyalakan cuaca?"))
             { _work.WeatherEnabled = false; Refresh(); }
         }
         if (_work.LyricsEnabled && !_liveLyrics)
         {
-            if (!Confirm("Lyrics use the free lrclib.net service.\n\nWhile a song plays, NOVA will send its artist, title and length to look up the lyrics. Nothing else is sent, and lyrics are only looked up for songs you play.\n\nTurn on lyrics?"))
+            if (!Confirm("Lirik memakai layanan gratis lrclib.net.\n\nSaat lagu diputar, NOVA mengirim artis, judul, dan durasinya untuk mencari lirik. Tidak ada data lain yang dikirim.\n\nNyalakan lirik?"))
             { _work.LyricsEnabled = false; Refresh(); }
         }
         if (_work.ClipboardHistoryEnabled && !_liveClipboard)
         {
-            if (!Confirm("Clipboard history will remember the text, pictures and files you copy, in memory only, until you turn it off, clear it, or exit NOVA. It skips items that password managers mark as private. Anything you copy while it is on can appear in the list.\n\nTurn on clipboard history?"))
+            if (!Confirm("Riwayat clipboard mengingat teks, gambar, dan berkas yang Anda salin, hanya di memori, sampai dimatikan, dihapus, atau NOVA ditutup. Item yang ditandai pribadi oleh pengelola kata sandi dilewati. Semua yang Anda salin selama ini menyala bisa muncul di daftar.\n\nNyalakan riwayat clipboard?"))
             { _work.ClipboardHistoryEnabled = false; Refresh(); }
         }
 
@@ -377,8 +426,8 @@ public partial class SettingsWindow : Window
         _liveWeather = _work.WeatherEnabled; _liveClipboard = _work.ClipboardHistoryEnabled; _liveLyrics = _work.LyricsEnabled;
         Refresh();
         Status(hotkeyOk
-            ? "Settings applied."
-            : $"Settings applied, but the shortcut {_work.Hotkey} is unavailable (another app may be using it). Choose a different one.");
+            ? "Pengaturan diterapkan."
+            : $"Pengaturan diterapkan, tetapi pintasan {_work.Hotkey} tidak tersedia (mungkin dipakai aplikasi lain). Pilih yang lain.");
         return true;
     }
 
@@ -388,11 +437,11 @@ public partial class SettingsWindow : Window
 
     void OnResetAll(object sender, RoutedEventArgs e)
     {
-        if (!Confirm("Reset all settings, including dock shortcuts and saved layout profiles, to defaults?")) return;
+        if (!Confirm("Kembalikan semua pengaturan ke bawaan, termasuk pintasan dock dan profil tata letak tersimpan?")) return;
         _work = _resetAll().Clone();
         _liveWeather = false; _liveClipboard = false; _liveLyrics = false; _replaceDock = false;
         Refresh();
         RefreshProfiles();
-        Status("All settings were reset to defaults.");
+        Status("Semua pengaturan dikembalikan ke bawaan.");
     }
 }

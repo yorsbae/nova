@@ -18,6 +18,7 @@ public static class ThemeService
             Set(app, "NovaOnSurface", SystemColors.WindowTextColor);
             Set(app, "NovaBorder", SystemColors.WindowTextColor);
             Set(app, "NovaAccent", SystemColors.HighlightColor);
+            Set(app, "NovaOnAccent", SystemColors.HighlightTextColor);
             return;
         }
 
@@ -30,7 +31,17 @@ public static class ThemeService
         Set(app, "NovaSurfaceAlt", dark ? Color.FromRgb(0x15, 0x24, 0x40) : Color.FromRgb(0xE4, 0xE4, 0xEA));
         Set(app, "NovaOnSurface", dark ? Colors.White : Color.FromRgb(0x14, 0x14, 0x18));
         Set(app, "NovaBorder", dark ? Color.FromRgb(0x2F, 0x4F, 0x86) : Color.FromRgb(0x60, 0x60, 0x6A));
-        Set(app, "NovaAccent", ParseAccent(s.AccentColor));
+        var accent = ParseAccent(s.AccentColor);
+        Set(app, "NovaAccent", accent);
+        Set(app, "NovaOnAccent", OnAccent(accent));
+    }
+
+    /// <summary>Black or white, whichever reads better on the accent (WCAG relative luminance).</summary>
+    static Color OnAccent(Color c)
+    {
+        static double Lin(byte v) { var x = v / 255.0; return x <= 0.03928 ? x / 12.92 : Math.Pow((x + 0.055) / 1.055, 2.4); }
+        var lum = 0.2126 * Lin(c.R) + 0.7152 * Lin(c.G) + 0.0722 * Lin(c.B);
+        return lum > 0.18 ? Color.FromRgb(0x14, 0x14, 0x18) : Colors.White;
     }
 
     static Color ParseAccent(string text)

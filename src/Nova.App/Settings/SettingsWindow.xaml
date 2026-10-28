@@ -1,11 +1,11 @@
 <Window x:Class="Nova.App.Settings.SettingsWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="NOVA Settings" AutomationProperties.Name="NOVA Settings"
-        Width="780" Height="640" MinWidth="620" MinHeight="440"
+        Title="Pengaturan NOVA" AutomationProperties.Name="Pengaturan NOVA"
+        Width="860" Height="660" MinWidth="680" MinHeight="460"
         WindowStartupLocation="CenterScreen" Background="{DynamicResource NovaWindow}">
   <Window.Resources>
-    <!-- Menu item on the left: one per function. The selected one is filled with the accent colour. -->
+    <!-- Menu item on the left: one per function. The selected one gets a soft fill and an accent bar, so text keeps its normal contrast on any accent colour. -->
     <Style x:Key="NavItem" TargetType="RadioButton">
       <Setter Property="Foreground" Value="{DynamicResource NovaOnSurface}"/>
       <Setter Property="Margin" Value="0,0,0,2"/>
@@ -14,12 +14,20 @@
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="RadioButton">
-            <Border x:Name="Bd" CornerRadius="8" Padding="10,8" Background="Transparent" BorderThickness="0">
-              <ContentPresenter VerticalAlignment="Center" RecognizesAccessKey="False"/>
+            <Border x:Name="Bd" CornerRadius="8" Padding="12,8,10,8" Background="Transparent" BorderThickness="0">
+              <Grid>
+                <Rectangle x:Name="Bar" Width="3" HorizontalAlignment="Left" Margin="-9,2,0,2" RadiusX="1.5" RadiusY="1.5"
+                           Fill="{DynamicResource NovaAccent}" Visibility="Collapsed"/>
+                <ContentPresenter VerticalAlignment="Center" RecognizesAccessKey="False"/>
+              </Grid>
             </Border>
             <ControlTemplate.Triggers>
-              <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Bd" Property="Background" Value="#22808080"/></Trigger>
-              <Trigger Property="IsChecked" Value="True"><Setter TargetName="Bd" Property="Background" Value="{DynamicResource NovaAccent}"/><Setter Property="Foreground" Value="White"/></Trigger>
+              <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Bd" Property="Background" Value="#1A808080"/></Trigger>
+              <Trigger Property="IsChecked" Value="True">
+                <Setter TargetName="Bd" Property="Background" Value="#2A808080"/>
+                <Setter TargetName="Bar" Property="Visibility" Value="Visible"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+              </Trigger>
               <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Bd" Property="BorderThickness" Value="2"/><Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource NovaAccent}"/></Trigger>
             </ControlTemplate.Triggers>
           </ControlTemplate>
@@ -28,24 +36,24 @@
     </Style>
   </Window.Resources>
   <DockPanel Margin="16">
-    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
-      <Button x:Name="ResetAllButton" Content="Reset all to defaults" Margin="0,0,8,0"
-              AutomationProperties.Name="Reset all settings and dock shortcuts to defaults" Click="OnResetAll"/>
-      <Button x:Name="ApplyButton" Content="Apply" Margin="0,0,8,0"
-              AutomationProperties.Name="Apply settings now" Click="OnApply"/>
-      <Button x:Name="SaveButton" Content="Save and close" IsDefault="True" Margin="0,0,8,0"
-              AutomationProperties.Name="Apply settings and close" Click="OnSaveClose"/>
-      <Button x:Name="CloseButton" Content="Close" IsCancel="True"
-              AutomationProperties.Name="Close without applying further changes" Click="OnClose"/>
-    </StackPanel>
+    <DockPanel DockPanel.Dock="Bottom" Margin="0,12,0,0" LastChildFill="False">
+      <Button x:Name="ResetAllButton" DockPanel.Dock="Left" Content="Kembalikan semua ke bawaan"
+              AutomationProperties.Name="Kembalikan semua pengaturan dan pintasan dock ke bawaan" Click="OnResetAll"/>
+      <Button x:Name="SaveButton" DockPanel.Dock="Right" Style="{StaticResource NovaPrimaryButton}" Content="Simpan dan tutup" IsDefault="True"
+              AutomationProperties.Name="Terapkan pengaturan lalu tutup" Click="OnSaveClose"/>
+      <Button x:Name="ApplyButton" DockPanel.Dock="Right" Content="Terapkan" Margin="0,0,8,0"
+              AutomationProperties.Name="Terapkan pengaturan sekarang" Click="OnApply"/>
+      <Button x:Name="CloseButton" DockPanel.Dock="Right" Content="Tutup" IsCancel="True" Margin="0,0,8,0"
+              AutomationProperties.Name="Tutup tanpa menerapkan perubahan lagi" Click="OnClose"/>
+    </DockPanel>
     <TextBlock x:Name="StatusText" DockPanel.Dock="Bottom" Margin="0,10,0,0" TextWrapping="Wrap" FontWeight="SemiBold"
-               Foreground="{DynamicResource NovaOnSurface}" AutomationProperties.LiveSetting="Polite"
-               AutomationProperties.Name="Settings status"/>
+               Foreground="{DynamicResource NovaOnSurface}" AutomationProperties.LiveSetting="Polite" MinHeight="20"
+               AutomationProperties.Name="Status pengaturan"/>
     <!-- Left: the menu (one button per function). Right: only the chosen function's settings. -->
     <Grid>
-      <Grid.ColumnDefinitions><ColumnDefinition Width="168"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+      <Grid.ColumnDefinitions><ColumnDefinition Width="176"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
       <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
-        <StackPanel x:Name="Nav" AutomationProperties.Name="Settings menu"/>
+        <StackPanel x:Name="Nav" AutomationProperties.Name="Menu pengaturan"/>
       </ScrollViewer>
       <Border Grid.Column="1" Width="1" Margin="10,0,14,0" Background="#33808080"/>
       <ScrollViewer Grid.Column="2" x:Name="PageScroll" VerticalScrollBarVisibility="Auto" Focusable="False">

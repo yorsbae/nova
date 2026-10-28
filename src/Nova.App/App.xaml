@@ -16,13 +16,15 @@
       </Setter>
     </Style>
 
-    <!-- Default button (used in Settings and the clipboard window) -->
+    <!-- Default button (used in Settings and the clipboard window). Hover changes colour only, so nothing shifts. -->
     <Style TargetType="Button">
       <Setter Property="FocusVisualStyle" Value="{StaticResource NovaFocusVisual}"/>
       <Setter Property="Foreground" Value="{DynamicResource NovaOnSurface}"/>
       <Setter Property="Background" Value="{DynamicResource NovaSurfaceAlt}"/>
       <Setter Property="BorderBrush" Value="{DynamicResource NovaBorder}"/>
-      <Setter Property="Padding" Value="10,6"/>
+      <Setter Property="Padding" Value="12,6"/>
+      <Setter Property="MinHeight" Value="32"/>
+      <Setter Property="Cursor" Value="Hand"/>
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="Button">
@@ -33,12 +35,26 @@
             <ControlTemplate.Triggers>
               <Trigger Property="IsMouseOver" Value="True">
                 <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource NovaAccent}"/>
-                <Setter TargetName="Bd" Property="BorderThickness" Value="2"/>
+              </Trigger>
+              <Trigger Property="IsPressed" Value="True">
+                <Setter TargetName="Bd" Property="Opacity" Value="0.8"/>
+              </Trigger>
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter TargetName="Bd" Property="Opacity" Value="0.45"/>
+                <Setter Property="Cursor" Value="Arrow"/>
               </Trigger>
             </ControlTemplate.Triggers>
           </ControlTemplate>
         </Setter.Value>
       </Setter>
+    </Style>
+
+    <!-- The one main action of a window (Save and close). Filled with the accent; text colour follows the accent's brightness. -->
+    <Style x:Key="NovaPrimaryButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+      <Setter Property="Background" Value="{DynamicResource NovaAccent}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource NovaAccent}"/>
+      <Setter Property="Foreground" Value="{DynamicResource NovaOnAccent}"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
     </Style>
 
     <!-- Dock tile: just the icon. The zoom under the pointer is done by the dock itself, so there is no hover box and no fixed scale here. -->
