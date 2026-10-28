@@ -206,6 +206,8 @@ public sealed class NovaSettings
     /// <summary>Opens the "Terjemah" page of the Island with the cursor in the text box. Empty = off.</summary>
     public string TranslateHotkey { get; set; } = "Ctrl+Alt+T";
     /// <summary>Language the translation page starts on: id, en, ja, ar, zh-CN or ko.</summary>
+    /// <summary>How many alternative translations to show as v1, v2, … (1–5).</summary>
+    public int TranslateVersions { get; set; } = 3;
     public string TranslateTarget { get; set; } = "id";
     /// <summary>Default engine for a question: googleai, google, brave (open in the browser) or gemini (answered in the notch, needs GeminiApiKey).</summary>
     public string AskEngine { get; set; } = "googleai";

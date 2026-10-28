@@ -9,19 +9,20 @@ public static class TranslateClient
 {
     static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(15) };
 
-    public static async Task<(bool Ok, string Text)> TranslateAsync(string text, string target, CancellationToken ct)
+    /// <summary>Returns the translations (v1, v2, …) or an error text.</summary>
+    public static async Task<(bool Ok, List<string> Versions, string Error)> TranslateAsync(string text, string target, int versions, CancellationToken ct)
     {
-        if (!Translation.FitsLimit(text)) return (false, "Teks terlalu panjang untuk terjemahan gratis (maks ±500 byte). Tekan Ctrl+Enter untuk Google Translate.");
+        if (!Translation.FitsLimit(text)) return (false, new List<string>(), "Teks terlalu panjang untuk terjemahan gratis (maks ±500 byte). Tekan Ctrl+Enter untuk Google Translate.");
         try
         {
             var json = await Http.GetStringAsync(Translation.BuildUrl(text, target), ct).ConfigureAwait(true);
-            return Translation.ParseReply(json);
+            return Translation.ParseVersions(json, versions, text);
         }
-        catch (OperationCanceledException) { return (false, "Dibatalkan atau terlalu lama."); }
+        catch (OperationCanceledException) { return (false, new List<string>(), "Dibatalkan atau terlalu lama."); }
         catch (HttpRequestException ex)
         {
             FileLog.Write($"Translate request failed: {ex.GetType().Name}");
-            return (false, "Tidak bisa terhubung ke layanan terjemahan. Cek internet.");
+            return (false, new List<string>(), "Tidak bisa terhubung ke layanan terjemahan. Cek internet.");
         }
     }
 }

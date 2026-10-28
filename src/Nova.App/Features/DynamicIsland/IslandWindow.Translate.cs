@@ -48,7 +48,7 @@ public partial class IslandWindow
         Grid.SetColumn(clear, 1);
         head.Children.Add(chips); head.Children.Add(clear);
 
-        var hint = Lbl("Bahasa asal dikenali otomatis  ·  Enter terjemahkan  ·  klik hasil untuk menyalin  ·  Ctrl+Enter buka Google Translate", 11, 0.6);
+        var hint = Lbl("Bahasa asal dikenali otomatis  ·  Enter terjemahkan  ·  klik v1 / v2 … untuk menyalin  ·  Ctrl+Enter buka Google Translate", 11, 0.6);
         hint.Margin = new Thickness(2, 6, 2, 4);
         _trScroll = new ScrollViewer
         {
@@ -96,36 +96,48 @@ public partial class IslandWindow
         if (_trBusy) return;
         _trInput.Clear();
         AddTranslateBubble(text, fromUser: true);
-        var result = AddTranslateBubble("…", fromUser: false);
+        var bubble = AddTranslateBubble("…", fromUser: false);
         _trBusy = true;
         _trCts?.Cancel(); _trCts = new CancellationTokenSource();
-        var (ok, translated) = await TranslateClient.TranslateAsync(text, _trTarget, _trCts.Token);
+        var (ok, versions, error) = await TranslateClient.TranslateAsync(text, _trTarget, _s.TranslateVersions, _trCts.Token);
         _trBusy = false;
-        result.Text = ok ? translated : "⚠ " + translated;
-        if (ok)
+        if (!ok) { ((TextBlock)bubble.Child).Text = "⚠ " + error; return; }
+
+        // v1: …  v2: …  — every version is its own line; a click copies that one.
+        var rows = new StackPanel();
+        for (int i = 0; i < versions.Count; i++)
         {
-            result.Cursor = Cursors.Hand;
-            result.ToolTip = "Klik untuk menyalin";
-            result.MouseLeftButtonUp += (_, _) => { try { Clipboard.SetText(translated); ShowNotice("Terjemahan disalin", seconds: 2); } catch (System.Runtime.InteropServices.ExternalException) { } };
+            var v = versions[i];
+            var row = Lbl("", 12.5);
+            row.Margin = new Thickness(0, i == 0 ? 0 : 5, 0, 0);
+            if (versions.Count > 1) row.Inlines.Add(new System.Windows.Documents.Run($"v{i + 1}: ") { FontWeight = FontWeights.SemiBold, Foreground = Brushes.Gray });
+            row.Inlines.Add(new System.Windows.Documents.Run(v));
+            row.Cursor = Cursors.Hand;
+            row.ToolTip = "Klik untuk menyalin";
+            AutomationProperties.SetName(row, $"Versi {i + 1}: {v}");
+            row.MouseLeftButtonUp += (_, _) => { try { Clipboard.SetText(v); ShowNotice("Terjemahan disalin", seconds: 2); } catch (System.Runtime.InteropServices.ExternalException) { } };
+            rows.Children.Add(row);
         }
+        bubble.Child = rows;
         Dispatcher.BeginInvoke(new Action(() => _trScroll.ScrollToEnd()), DispatcherPriority.Background);
     }
 
-    TextBlock AddTranslateBubble(string text, bool fromUser)
+    Border AddTranslateBubble(string text, bool fromUser)
     {
         var tb = Lbl(text, 12.5);
-        tb.Margin = new Thickness(8, 5, 8, 5);
+        tb.Margin = new Thickness(0);
         var fill = (FindResource("NovaOnSurface") as SolidColorBrush)?.Clone() ?? new SolidColorBrush(Colors.Gray);
         fill.Opacity = fromUser ? 0.22 : 0.10;
         var bubble = new Border
         {
-            Child = tb, Background = fill, CornerRadius = new CornerRadius(10), Margin = new Thickness(fromUser ? 40 : 0, 3, fromUser ? 0 : 40, 3),
+            Child = tb, Background = fill, CornerRadius = new CornerRadius(10), Padding = new Thickness(8, 5, 8, 5),
+            Margin = new Thickness(fromUser ? 40 : 0, 3, fromUser ? 0 : 40, 3),
             HorizontalAlignment = fromUser ? HorizontalAlignment.Right : HorizontalAlignment.Left
         };
         AutomationProperties.SetName(bubble, fromUser ? "Teks asal" : "Terjemahan");
         _trLog.Children.Add(bubble);
         Dispatcher.BeginInvoke(new Action(() => _trScroll.ScrollToEnd()), DispatcherPriority.Background);
-        return tb;
+        return bubble;
     }
 
     /// <summary>Shortcut entry point: opens the Island on the Terjemah page with the cursor in the text box (again = close).</summary>

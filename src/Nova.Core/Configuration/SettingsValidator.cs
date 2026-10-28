@@ -123,6 +123,7 @@ public static class SettingsValidator
         bool TakenTr(string k) => TakenAsk(k) || string.Equals(k, s.AskHotkey, StringComparison.OrdinalIgnoreCase);
         if (s.TranslateHotkey.Length > 0 && (!HotkeyParser.TryParse(s.TranslateHotkey, out _) || TakenTr(s.TranslateHotkey)))
             s.TranslateHotkey = TakenTr(d.TranslateHotkey) ? "" : d.TranslateHotkey;
+        s.TranslateVersions = Math.Clamp(s.TranslateVersions, 1, 5);
         if (!Nova.Core.Translate.Translation.IsKnownLanguage(s.TranslateTarget)) s.TranslateTarget = d.TranslateTarget;
         if (!Nova.Core.Ask.AskSearch.TryParseEngine(s.AskEngine, out _)) s.AskEngine = d.AskEngine;
         s.AskStyle = CleanText(s.AskStyle, 300);

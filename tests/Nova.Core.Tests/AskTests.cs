@@ -129,3 +129,27 @@ public class AskStyleTests
         Assert.Equal(100, s.AskMaxChars);
     }
 }
+
+public class TranslationVersionTests
+{
+    const string Json = "{\"responseStatus\":200,\"responseData\":{\"translatedText\":\"Selamat pagi\"},\"matches\":[" +
+        "{\"translation\":\"Selamat pagi\"},{\"translation\":\"Pagi yang baik\"},{\"translation\":\"good morning\"},{\"translation\":\"Met pagi\"},{\"translation\":\"Pagi\"}]}";
+
+    [Fact]
+    public void Versions_are_distinct_ordered_and_limited()
+    {
+        var (ok, v, _) = Nova.Core.Translate.Translation.ParseVersions(Json, 3, "good morning");
+        Assert.True(ok);
+        Assert.Equal(new[] { "Selamat pagi", "Pagi yang baik", "Met pagi" }, v);   // duplicate and the untranslated source are skipped
+    }
+
+    [Fact]
+    public void Single_unchanged_result_is_still_returned_and_errors_pass_through()
+    {
+        var same = "{\"responseStatus\":200,\"responseData\":{\"translatedText\":\"OK\"}}";
+        var (ok, v, _) = Nova.Core.Translate.Translation.ParseVersions(same, 3, "OK");
+        Assert.True(ok); Assert.Single(v);
+        Assert.False(Nova.Core.Translate.Translation.ParseVersions("{\"responseStatus\":\"429\"}", 3, "x").Ok);
+        Assert.Equal(1, Nova.Core.Configuration.SettingsValidator.Normalize(new Nova.Core.Configuration.NovaSettings { TranslateVersions = 0 }).TranslateVersions);
+    }
+}
