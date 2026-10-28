@@ -119,6 +119,11 @@ public static class SettingsValidator
         bool TakenAsk(string k) => Taken(k) || string.Equals(k, s.LauncherHotkey, StringComparison.OrdinalIgnoreCase);
         if (s.AskHotkey.Length > 0 && (!HotkeyParser.TryParse(s.AskHotkey, out _) || TakenAsk(s.AskHotkey)))
             s.AskHotkey = TakenAsk(d.AskHotkey) ? "" : d.AskHotkey;
+        s.TranslateHotkey = (s.TranslateHotkey ?? "").Trim();
+        bool TakenTr(string k) => TakenAsk(k) || string.Equals(k, s.AskHotkey, StringComparison.OrdinalIgnoreCase);
+        if (s.TranslateHotkey.Length > 0 && (!HotkeyParser.TryParse(s.TranslateHotkey, out _) || TakenTr(s.TranslateHotkey)))
+            s.TranslateHotkey = TakenTr(d.TranslateHotkey) ? "" : d.TranslateHotkey;
+        if (!Nova.Core.Translate.Translation.IsKnownLanguage(s.TranslateTarget)) s.TranslateTarget = d.TranslateTarget;
         if (!Nova.Core.Ask.AskSearch.TryParseEngine(s.AskEngine, out _)) s.AskEngine = d.AskEngine;
         s.GeminiApiKey = (s.GeminiApiKey ?? "").Trim();
         if (s.GeminiApiKey.Length > 200 || s.GeminiApiKey.Any(char.IsWhiteSpace)) s.GeminiApiKey = "";

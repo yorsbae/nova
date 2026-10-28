@@ -35,6 +35,7 @@ public partial class App : Application
     readonly List<HotkeyService> _pageHotkeys = new();
     HotkeyService? _toggleHotkey;   // hides / shows the whole Island
     HotkeyService? _launcherHotkey; // opens the quick launcher
+    HotkeyService? _translateHotkey; // opens the "Terjemah" page in the notch
     HotkeyService? _askHotkey;      // opens the "Tanya" page (search / ask) in the notch
     LauncherWindow? _launcher;
     TrayService? _tray;
@@ -175,6 +176,9 @@ public partial class App : Application
             _toggleHotkey = new HotkeyService(_island, () => _island.ToggleHidden(), 0x4E58);
             if (!RegisterToggleHotkey(_settings))
                 Notify($"Shortcut {_settings.ToggleHotkey} (hide / show the Island) is in use by another app. Change it in Settings.", true);
+            _translateHotkey = new HotkeyService(_island, () => _island.InvokeTranslate(), 0x4E5B);
+            if (!RegisterTranslateHotkey(_settings))
+                Notify($"Shortcut {_settings.TranslateHotkey} (translate in the notch) is in use by another app. Change it in Settings.", true);
             _askHotkey = new HotkeyService(_island, () => _island.InvokeAsk(), 0x4E5A);
             if (!RegisterAskHotkey(_settings))
                 Notify($"Shortcut {_settings.AskHotkey} (ask / search in the notch) is in use by another app. Change it in Settings.", true);
@@ -406,6 +410,13 @@ public partial class App : Application
         return _launcherHotkey.Register(s.LauncherHotkey);
     }
 
+    bool RegisterTranslateHotkey(NovaSettings s)
+    {
+        if (_translateHotkey is null) return true;
+        if (s.TranslateHotkey.Length == 0) { _translateHotkey.Register(""); return true; }
+        return _translateHotkey.Register(s.TranslateHotkey);
+    }
+
     bool RegisterAskHotkey(NovaSettings s)
     {
         if (_askHotkey is null) return true;
@@ -445,6 +456,7 @@ public partial class App : Application
         hotkeyOk &= RegisterToggleHotkey(s);
         hotkeyOk &= RegisterLauncherHotkey(s);
         hotkeyOk &= RegisterAskHotkey(s);
+        hotkeyOk &= RegisterTranslateHotkey(s);
 
         ApplyMedia(s);
         ApplyClipboard(s);
@@ -714,6 +726,7 @@ public partial class App : Application
         _toggleHotkey?.Dispose();
         _launcherHotkey?.Dispose();
         _askHotkey?.Dispose();
+        _translateHotkey?.Dispose();
         _launcher?.Close();
         _statusPoll.Stop();
         _alerts?.Dispose();

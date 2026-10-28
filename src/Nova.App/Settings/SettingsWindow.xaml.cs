@@ -96,6 +96,8 @@ public partial class SettingsWindow : Window
         AddCheck("Show temporary notices (including 'now playing' in Adaptive mode)", nameof(NovaSettings.TemporaryNotices));
         AddText("Keyboard shortcut (e.g. Ctrl+Alt+N)", nameof(NovaSettings.Hotkey));
         AddText("Quick launcher: type to open an app, folder or web address, or do a sum (e.g. Ctrl+Alt+Space; empty = off)", nameof(NovaSettings.LauncherHotkey));
+        AddText("Terjemah (teks di notch): shortcut, mis. Ctrl+Alt+T; kosong = mati", nameof(NovaSettings.TranslateHotkey));
+        AddText("Bahasa tujuan terjemahan awal: id, en, ja, ar, zh-CN atau ko", nameof(NovaSettings.TranslateTarget));
         AddText("Tanya (cari / bertanya di notch): shortcut, mis. Ctrl+Alt+K; kosong = mati", nameof(NovaSettings.AskHotkey));
         AddText("Mesin tanya bawaan: googleai (AI Mode di browser), google, brave, aihere (AI Mode dijawab di notch, tanpa key) atau gemini (butuh key)", nameof(NovaSettings.AskEngine));
         AddText("Gemini API key sendiri (aistudio.google.com) untuk mode gemini; kosong = mati. Pertanyaan dikirim ke Google hanya di mode ini", nameof(NovaSettings.GeminiApiKey));

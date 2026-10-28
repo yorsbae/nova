@@ -75,3 +75,33 @@ public class AskSearchTests
         Assert.True(AskSearch.TryParseEngine("aihere", out var e) && e == AskEngine.AiHere);
     }
 }
+
+public class TranslationTests
+{
+    [Fact]
+    public void Url_autodetects_source_and_escapes_text()
+    {
+        Assert.Equal("https://api.mymemory.translated.net/get?q=good%20morning&langpair=Autodetect%7Cid", Nova.Core.Translate.Translation.BuildUrl("good morning", "id"));
+        Assert.StartsWith("https://translate.google.com/?sl=auto&tl=ja&op=translate&text=a%20%26%20b", Nova.Core.Translate.Translation.BuildBrowserUrl("a & b", "ja"));
+    }
+
+    [Fact]
+    public void Reply_is_parsed_decoded_and_errors_reported()
+    {
+        var ok = Nova.Core.Translate.Translation.ParseReply("{\"responseData\":{\"translatedText\":\"Selamat pagi, it&#39;s ok\"},\"responseStatus\":200}");
+        Assert.True(ok.Ok); Assert.Equal("Selamat pagi, it's ok", ok.Text);
+        var quota = Nova.Core.Translate.Translation.ParseReply("{\"responseData\":{\"translatedText\":\"MYMEMORY WARNING\"},\"responseStatus\":\"429\"}");
+        Assert.False(quota.Ok); Assert.Contains("Ctrl+Enter", quota.Text);
+        Assert.False(Nova.Core.Translate.Translation.ParseReply("<html>").Ok);
+    }
+
+    [Fact]
+    public void Length_limit_counts_bytes_and_settings_are_cleaned()
+    {
+        Assert.True(Nova.Core.Translate.Translation.FitsLimit(new string('a', 500)));
+        Assert.False(Nova.Core.Translate.Translation.FitsLimit(new string('日', 200)));   // 600 bytes
+        var s = Nova.Core.Configuration.SettingsValidator.Normalize(new Nova.Core.Configuration.NovaSettings { TranslateTarget = "xx", TranslateHotkey = "Ctrl+Alt+K" });
+        Assert.Equal("id", s.TranslateTarget);
+        Assert.NotEqual("Ctrl+Alt+K", s.TranslateHotkey);   // clashes with the Tanya shortcut
+    }
+}

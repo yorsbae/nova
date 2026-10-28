@@ -203,6 +203,10 @@ public sealed class NovaSettings
     public string LauncherHotkey { get; set; } = "Ctrl+Alt+Space";
     /// <summary>Opens the "Tanya" page of the Island with the cursor in the question box. Empty = off.</summary>
     public string AskHotkey { get; set; } = "Ctrl+Alt+K";
+    /// <summary>Opens the "Terjemah" page of the Island with the cursor in the text box. Empty = off.</summary>
+    public string TranslateHotkey { get; set; } = "Ctrl+Alt+T";
+    /// <summary>Language the translation page starts on: id, en, ja, ar, zh-CN or ko.</summary>
+    public string TranslateTarget { get; set; } = "id";
     /// <summary>Default engine for a question: googleai, google, brave (open in the browser) or gemini (answered in the notch, needs GeminiApiKey).</summary>
     public string AskEngine { get; set; } = "googleai";
     /// <summary>Own Gemini API key (aistudio.google.com). Stored only in settings.json on this PC; empty = Gemini answers are off.</summary>
