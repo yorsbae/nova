@@ -89,7 +89,7 @@ public partial class IslandWindow
         _pomoTimer.Tick += (_, _) => OnPomoTick();
         _remTimer.Tick += (_, _) => CheckReminders();
         _quickTimer.Tick += (_, _) => RefreshQuick();
-        Closed += (_, _) => { _pomoTimer.Stop(); _remTimer.Stop(); _quickTimer.Stop(); _waveTimer.Stop(); _meter?.Dispose(); };
+        Closed += (_, _) => { _pomoTimer.Stop(); _remTimer.Stop(); _quickTimer.Stop(); _waveTimer.Stop(); _meter?.Dispose(); _aiMode?.Dispose(); };
         UpdateRemTimer();
 
         // Swipe left/right with the mouse on a page, or scroll the wheel over the title.

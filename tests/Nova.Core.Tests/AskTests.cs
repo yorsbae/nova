@@ -57,4 +57,21 @@ public class AskSearchTests
         Assert.Equal(AskSearch.DefaultModel, s.GeminiModel);
         Assert.NotEqual("Ctrl+Alt+Space", s.AskHotkey);   // clashes with the launcher shortcut
     }
+
+    [Fact]
+    public void Answer_is_cleaned_of_menus_question_and_footer()
+    {
+        var raw = "AI Mode\nSemua\nGambar\napa itu wpf\nWPF adalah kerangka UI dari Microsoft.\n\nDipakai untuk aplikasi desktop Windows.\nTampilkan lebih banyak\nTanya apa saja\nsampah";
+        var clean = AskSearch.CleanAnswer(raw, "apa itu wpf");
+        Assert.Equal("WPF adalah kerangka UI dari Microsoft.\n\nDipakai untuk aplikasi desktop Windows.", clean);
+    }
+
+    [Fact]
+    public void Blocked_pages_are_detected_and_prefix_a_picks_ai_here()
+    {
+        Assert.True(AskSearch.LooksBlocked("https://www.google.com/sorry/index?x=1", ""));
+        Assert.False(AskSearch.LooksBlocked("https://www.google.com/search?udm=50", "halo"));
+        Assert.Equal((AskEngine.AiHere, "kapan magrib"), AskSearch.ParsePrefix("a kapan magrib", AskEngine.Google));
+        Assert.True(AskSearch.TryParseEngine("aihere", out var e) && e == AskEngine.AiHere);
+    }
 }

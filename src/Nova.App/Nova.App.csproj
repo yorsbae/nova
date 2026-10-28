@@ -24,6 +24,10 @@
     <Using Remove="System.Drawing" />
   </ItemGroup>
   <ItemGroup>
+    <!-- Hidden browser for the "AI di sini" engine of the Tanya page (Evergreen WebView2 runtime ships with Windows 11 / Edge). -->
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2739.15" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\Nova.Core\Nova.Core.csproj" />
   </ItemGroup>
 </Project>

@@ -29,6 +29,7 @@ public partial class IslandWindow
     AskEngine _askEngine = AskEngine.GoogleAi;
     CancellationTokenSource? _askCts;
     bool _askBusy;
+    AiModeClient? _aiMode;
 
     UIElement BuildAskPage()
     {
@@ -41,7 +42,7 @@ public partial class IslandWindow
         {
             var e = engine;
             var chip = TabBtn(AskSearch.Label(e), (_, _) => SetAskEngine(e), $"Kirim pertanyaan ke {AskSearch.Label(e)}");
-            chip.Padding = new Thickness(8, 3, 8, 3);
+            chip.Padding = new Thickness(6, 3, 6, 3);
             _askChips.Add(chip); chips.Children.Add(chip);
         }
         var clear = IconBtn("\uE74D", (_, _) => ClearAsk(), "Hapus percakapan", 28);
@@ -76,7 +77,9 @@ public partial class IslandWindow
         _askEngine = engine;
         var all = Enum.GetValues<AskEngine>();
         for (int i = 0; i < _askChips.Count; i++) _askChips[i].Tag = all[i] == engine ? "on" : null;
-        _askHint.Text = engine == AskEngine.Gemini
+        _askHint.Text = engine == AskEngine.AiHere
+            ? "Jawaban Google AI Mode muncul di sini, tanpa API key (lewat browser tersembunyi)  ·  Tab ganti mesin"
+            : engine == AskEngine.Gemini
             ? (_s.GeminiApiKey.Length == 0 ? "Gemini menjawab di sini, tapi butuh API key di Pengaturan  ·  Tab ganti mesin" : "Jawaban muncul di sini (pertanyaan dikirim ke Google Gemini)  ·  Tab ganti mesin")
             : $"Enter membuka {AskSearch.Label(engine)} di browser  ·  Tab ganti mesin  ·  awalan: b  g  ai  ?";
         _askInput?.Focus();
@@ -94,8 +97,9 @@ public partial class IslandWindow
         var (engine, query) = AskSearch.ParsePrefix(_askInput.Text, _askEngine);
         if (query.Length == 0) return;
         _askInput.Clear();
-        AddAskBubble(query, fromUser: true, engine == AskEngine.Gemini ? null : $"↗ {AskSearch.Label(engine)}");
+        AddAskBubble(query, fromUser: true, engine is AskEngine.Gemini or AskEngine.AiHere ? null : $"↗ {AskSearch.Label(engine)}");
         if (engine == AskEngine.Gemini) { _ = AskGeminiAsync(query); return; }
+        if (engine == AskEngine.AiHere) { _ = AskAiModeAsync(query); return; }
         try
         {
             Process.Start(new ProcessStartInfo(AskSearch.BuildUrl(engine, query)) { UseShellExecute = true });
@@ -117,6 +121,18 @@ public partial class IslandWindow
         var (ok, text) = await GeminiClient.AskAsync(_s.GeminiApiKey, _s.GeminiModel, _askHistory, _askCts.Token);
         _askBusy = false;
         if (ok) _askHistory.Add(new AskTurn(false, text)); else _askHistory.RemoveAt(_askHistory.Count - 1);
+        waiting.Text = ok ? text : "⚠ " + text;
+        ScrollAskToEnd();
+    }
+
+    async Task AskAiModeAsync(string query)
+    {
+        var waiting = AddAskBubble("Mencari jawaban…", fromUser: false);
+        _askBusy = true;
+        _askCts?.Cancel(); _askCts = new CancellationTokenSource();
+        _aiMode ??= new AiModeClient();
+        var (ok, text) = await _aiMode.AskAsync(query, _askCts.Token);
+        _askBusy = false;
         waiting.Text = ok ? text : "⚠ " + text;
         ScrollAskToEnd();
     }

@@ -4,7 +4,7 @@ using System.Text.Json;
 namespace Nova.Core.Ask;
 
 /// <summary>Where a question goes: answered inside the notch by Gemini, or opened in the browser.</summary>
-public enum AskEngine { Gemini, GoogleAi, Google, Brave }
+public enum AskEngine { Gemini, GoogleAi, Google, Brave, AiHere }
 
 /// <summary>One line of the conversation shown in the notch.</summary>
 public sealed record AskTurn(bool FromUser, string Text);
@@ -20,6 +20,7 @@ public static class AskSearch
         AskEngine.Gemini => "Gemini",
         AskEngine.GoogleAi => "AI Mode",
         AskEngine.Google => "Google",
+        AskEngine.AiHere => "AI di sini",
         _ => "Brave"
     };
 
@@ -28,6 +29,7 @@ public static class AskSearch
         AskEngine.Gemini => "gemini",
         AskEngine.GoogleAi => "googleai",
         AskEngine.Google => "google",
+        AskEngine.AiHere => "aihere",
         _ => "brave"
     };
 
@@ -44,7 +46,7 @@ public static class AskSearch
         var t = (text ?? "").Trim();
         (string prefix, AskEngine engine)[] table =
         {
-            ("b", AskEngine.Brave), ("g", AskEngine.Google), ("ai", AskEngine.GoogleAi), ("?", AskEngine.Gemini)
+            ("b", AskEngine.Brave), ("g", AskEngine.Google), ("ai", AskEngine.GoogleAi), ("?", AskEngine.Gemini), ("a", AskEngine.AiHere)
         };
         foreach (var (prefix, engine) in table)
             if (t.Length > prefix.Length + 1 && t.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) && t[prefix.Length] == ' ')
@@ -63,7 +65,7 @@ public static class AskSearch
         {
             AskEngine.Brave => "https://search.brave.com/search?q=" + q,
             AskEngine.Google => "https://www.google.com/search?q=" + q,
-            _ => "https://www.google.com/search?udm=50&q=" + q   // udm=50 opens Google's AI Mode
+            _ => "https://www.google.com/search?udm=50&q=" + q   // udm=50 opens Google's AI Mode (also used, hidden, by AiHere)
         };
     }
 
@@ -121,6 +123,38 @@ public static class AskSearch
         }
         catch (JsonException) { return (false, "Balasan Gemini tidak terbaca."); }
     }
+
+    static readonly string[] NoiseLines =
+    {
+        "ai mode", "semua", "all", "gambar", "images", "video", "berita", "news", "belanja", "shopping", "maps", "peta",
+        "masuk", "sign in", "tampilkan lebih banyak", "show more", "tampilkan semua", "show all", "salin", "copy", "bagikan", "share"
+    };
+    static readonly string[] EndMarkers =
+    {
+        "tanya apa saja", "ask anything", "respons ai dapat", "ai responses may", "jawaban ai dapat", "tanya lagi", "ask a follow-up", "ajukan pertanyaan lanjutan"
+    };
+
+    /// <summary>Turns the visible text of an AI Mode page into just the answer: drops menus, the echoed question and everything after the follow-up box.</summary>
+    public static string CleanAnswer(string raw, string query, int maxChars = 1500)
+    {
+        var kept = new List<string>();
+        foreach (var line in (raw ?? "").Replace("\r", "").Split('\n'))
+        {
+            var t = line.Trim();
+            if (t.Length == 0) { if (kept.Count > 0 && kept[^1].Length > 0) kept.Add(""); continue; }
+            var low = t.ToLowerInvariant();
+            if (EndMarkers.Any(m => low.StartsWith(m, StringComparison.Ordinal))) break;
+            if (NoiseLines.Contains(low) || string.Equals(t, query?.Trim(), StringComparison.OrdinalIgnoreCase)) continue;
+            kept.Add(t);
+        }
+        var text = string.Join("\n", kept).Trim();
+        return text.Length <= maxChars ? text : text[..maxChars].TrimEnd() + "…";
+    }
+
+    /// <summary>True when Google shows a verification / consent page instead of an answer.</summary>
+    public static bool LooksBlocked(string url, string text) =>
+        (url ?? "").Contains("/sorry/", StringComparison.OrdinalIgnoreCase) || (url ?? "").Contains("consent.google", StringComparison.OrdinalIgnoreCase)
+        || (text ?? "").Contains("unusual traffic", StringComparison.OrdinalIgnoreCase) || (text ?? "").Contains("lalu lintas yang tidak biasa", StringComparison.OrdinalIgnoreCase);
 
     static string Shorten(string s) => s.Length <= 160 ? s : s[..160] + "…";
 }
