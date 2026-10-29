@@ -22,6 +22,15 @@ internal static class NativeMethods
     [DllImport("user32.dll", SetLastError = true)] internal static extern bool AddClipboardFormatListener(IntPtr hwnd);
     [DllImport("user32.dll", SetLastError = true)] internal static extern bool RemoveClipboardFormatListener(IntPtr hwnd);
 
+    // PDH: performance counters addressed by their English names, so they work on any Windows display language.
+    [DllImport("pdh.dll", CharSet = CharSet.Unicode)] internal static extern uint PdhOpenQuery(string? source, IntPtr userData, out IntPtr query);
+    [DllImport("pdh.dll", CharSet = CharSet.Unicode)] internal static extern uint PdhAddEnglishCounterW(IntPtr query, string path, IntPtr userData, out IntPtr counter);
+    [DllImport("pdh.dll")] internal static extern uint PdhCollectQueryData(IntPtr query);
+    [DllImport("pdh.dll")] internal static extern uint PdhGetFormattedCounterValue(IntPtr counter, uint format, out uint type, out PDH_FMT_COUNTERVALUE value);
+    [DllImport("pdh.dll")] internal static extern uint PdhCloseQuery(IntPtr query);
+    internal const uint PDH_FMT_DOUBLE = 0x200;
+    [StructLayout(LayoutKind.Explicit)] internal struct PDH_FMT_COUNTERVALUE { [FieldOffset(0)] public uint CStatus; [FieldOffset(8)] public double DoubleValue; }
+
     [DllImport("kernel32.dll")] internal static extern bool GetSystemTimes(out ulong idle, out ulong kernel, out ulong user);
     [DllImport("kernel32.dll", SetLastError = true)] internal static extern bool GlobalMemoryStatusEx(ref MEMORYSTATUSEX status);
     [DllImport("kernel32.dll", SetLastError = true)] internal static extern bool GetSystemPowerStatus(out SYSTEM_POWER_STATUS status);

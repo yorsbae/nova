@@ -146,7 +146,8 @@ public partial class IslandWindow
             case 4: _faceMove.BeginAnimation(TranslateTransform.YProperty, Keys((3, 0.2), (0, 0.4), (3, 0.6), (0, 0.8))); break;              // nod
             case 5: _faceScale.BeginAnimation(ScaleTransform.ScaleXProperty, Keys((1.25, 0.18), (1, 0.4)));
                     _faceScale.BeginAnimation(ScaleTransform.ScaleYProperty, Keys((0.78, 0.18), (1, 0.4))); break;                           // squish
-            case 6: _faceRot.BeginAnimation(RotateTransform.AngleProperty, Keys((360 * dir, 0.8))); break;                                    // spin
+            case 6: _faceScale.BeginAnimation(ScaleTransform.ScaleXProperty, Keys((1.15, 0.25), (1, 0.55)));
+                    _faceScale.BeginAnimation(ScaleTransform.ScaleYProperty, Keys((1.15, 0.25), (1, 0.55))); break;                         // soft pop (the eyes never turn a full circle)
             default:
                 _faceMove.BeginAnimation(TranslateTransform.XProperty, Keys((4 * dir, 0.3), (-4 * dir, 0.7), (0, 1.0)));                        // sway
                 break;

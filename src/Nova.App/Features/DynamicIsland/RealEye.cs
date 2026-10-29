@@ -98,6 +98,8 @@ internal sealed class RealEye : FrameworkElement
     public static readonly DependencyProperty GazeXProperty = Reg(nameof(GazeX), 0.0);        // −1 left … 1 right (as seen on screen)
     public static readonly DependencyProperty GazeYProperty = Reg(nameof(GazeY), 0.0);        // −1 up … 1 down
     public static readonly DependencyProperty SpinProperty = Reg(nameof(Spin), 0.0);          // degrees: tomoe, transmutation circle, web, star
+    public static readonly DependencyProperty RevealProperty = Reg(nameof(Reveal), 1.0);      // 0 not there … 1 fully there: the one-time fade-in of the aura and the iris pattern
+    public static readonly DependencyProperty RippleProperty = Reg(nameof(Ripple), 0.0);      // degrees of phase only (Rinnegan ripples); never rotates anything
     public static readonly DependencyProperty BreatheProperty = Reg(nameof(Breathe), 1.0);    // Rinnegan rings swelling, 1 … 1.14
     public static readonly DependencyProperty FlickerProperty = Reg(nameof(Flicker), 1.0);    // the ghoul eye's glitching iris, 0 … 1
     public static readonly DependencyProperty BoltProperty = Reg(nameof(Bolt), 0.0);          // lightning clock, 0 … 1 and round again
@@ -116,6 +118,8 @@ internal sealed class RealEye : FrameworkElement
     public double GazeX { get => (double)GetValue(GazeXProperty); set => SetValue(GazeXProperty, value); }
     public double GazeY { get => (double)GetValue(GazeYProperty); set => SetValue(GazeYProperty, value); }
     public double Spin { get => (double)GetValue(SpinProperty); set => SetValue(SpinProperty, value); }
+    public double Reveal { get => (double)GetValue(RevealProperty); set => SetValue(RevealProperty, value); }
+    public double Ripple { get => (double)GetValue(RippleProperty); set => SetValue(RippleProperty, value); }
     public double Breathe { get => (double)GetValue(BreatheProperty); set => SetValue(BreatheProperty, value); }
     public double Flicker { get => (double)GetValue(FlickerProperty); set => SetValue(FlickerProperty, value); }
     public double Bolt { get => (double)GetValue(BoltProperty); set => SetValue(BoltProperty, value); }
@@ -307,7 +311,8 @@ internal sealed class RealEye : FrameworkElement
         double om = Math.Min(o, 1), over = Math.Max(0, o - 1);
         double sq = Clamp(Squint, 0, 1);
         double gx = Clamp(GazeX, -1, 1) * (_mirror ? -1 : 1), gy = Clamp(GazeY, -1, 1);
-        double glow = Math.Max(0, Glow) * (0.55 + 0.45 * Clamp(Pulse, 0, 1.2));
+        double reveal = Clamp(Reveal, 0, 1);
+        double glow = Math.Max(0, Glow) * (0.55 + 0.45 * Clamp(Pulse, 0, 1.2)) * reveal;
 
         // the aura sits behind the eye and is not tilted
         if (_look.Aura is not null && glow > 0.02)
@@ -364,7 +369,9 @@ internal sealed class RealEye : FrameworkElement
             bool flick = _look.Kind == EyeKind.Ghoul;
             if (flick) dc.PushOpacity(Clamp(Flicker, 0, 1));
             dc.DrawEllipse(_iris, _irisPen, ctr, irx, iry);
+            dc.PushOpacity(reveal);
             DrawDecor(dc, ctr, irx, iry);
+            dc.Pop();
 
             double ps = Clamp(PupilScale, 0.3, 3.5);
             if (_look.Slit)
@@ -484,7 +491,7 @@ internal sealed class RealEye : FrameworkElement
             }
             case EyeKind.Rinnegan:   // many fine rings rippling outward, a tiny pupil and small tomoe
             {
-                double ph = Spin * Math.PI / 90;                              // two ripples per turn of Spin
+                double ph = Ripple * Math.PI / 90;                              // two ripples per turn of Spin
                 for (int i = 0; i < RinneganRings.Length; i++)
                 {
                     double f = RinneganRings[i] + 0.022 * Math.Sin(ph - i * 0.9);
@@ -611,6 +618,9 @@ internal sealed class RealEye : FrameworkElement
     /// <summary>Starts the style's own animation: the aura breathing, the sparkle twinkling, a slit pupil widening, tomoe circling, rings rippling, lightning.</summary>
     public void StartLife(double pulseSeconds)
     {
+        // The aura and the iris pattern fade in once, from nothing to there; nothing keeps moving afterwards.
+        if (_look.Aura is not null || _look.Kind != EyeKind.Plain)
+            BeginAnimation(RevealProperty, new DoubleAnimation(0, 1, Sec(1.4)) { EasingFunction = new SineEase { EasingMode = EasingMode.EaseOut }, FillBehavior = FillBehavior.HoldEnd });
         if (_look.Aura is not null) BeginAnimation(PulseProperty, Loop(0.5, 1.0, pulseSeconds, true, new SineEase()));
         if (_look.Sparkle || _look.Kind == EyeKind.Galaxy) BeginAnimation(TwinkleProperty, Loop(0.3, 1.0, 0.9, true, new SineEase()));
         if (_look.Slit) BeginAnimation(PupilScaleProperty, Loop(1.0, 2.6, 1.6, true, new SineEase()));
@@ -619,18 +629,17 @@ internal sealed class RealEye : FrameworkElement
         {
             case EyeKind.Sharingan:
             {
-                BeginAnimation(SpinProperty, Loop(0, 360, 7.2, false));
-                // 0.0-0.9 s three tomoe, bloom into the Mangekyo by 1.6 s, hold, back to tomoe at 6.2 s
-                var ev = new DoubleAnimationUsingKeyFrames { Duration = Sec(7.2), RepeatBehavior = RepeatBehavior.Forever };
-                foreach (var (v, t) in new[] { (0.0, 0.0), (0.0, 0.9), (1.0, 1.6), (1.0, 5.8), (0.0, 6.4), (0.0, 7.2) })
+                // once: 0.0-0.9 s three tomoe, then they bloom into the Mangekyo by 1.6 s and stay
+                var ev = new DoubleAnimationUsingKeyFrames { Duration = Sec(1.6), FillBehavior = FillBehavior.HoldEnd };
+                foreach (var (v, t) in new[] { (0.0, 0.0), (0.0, 0.9), (1.0, 1.6) })
                     ev.KeyFrames.Add(new EasingDoubleKeyFrame(v, Sec(t), new SineEase { EasingMode = EasingMode.EaseInOut }));
                 BeginAnimation(EvolveProperty, ev);
                 break;
             }
-            case EyeKind.Rinnegan: BeginAnimation(SpinProperty, Loop(0, 360, 7.2, false)); break;
-            case EyeKind.Alchemy: BeginAnimation(SpinProperty, Loop(0, 360, 7, false)); break;
-            case EyeKind.Web: BeginAnimation(SpinProperty, Loop(0, _idx == 1 ? -360 : 360, 9, false)); break;
-            case EyeKind.Galaxy: BeginAnimation(SpinProperty, Loop(0, 360, 6, false)); break;
+            case EyeKind.Rinnegan: break;
+            case EyeKind.Alchemy: break;
+            case EyeKind.Web: break;
+            case EyeKind.Galaxy: break;
             case EyeKind.Zone: BeginAnimation(BoltProperty, Loop(0, 1, 2.0, false)); break;
             case EyeKind.Monarch: BeginAnimation(BoltProperty, Loop(0, 1, 2.2, false)); break;
             case EyeKind.Void: break;   // glows with the aura's Pulse
@@ -649,10 +658,10 @@ internal sealed class RealEye : FrameworkElement
     public void StopLife()
     {
         foreach (var p in new[] { BlinkProperty, PulseProperty, TwinkleProperty, PupilScaleProperty, OpenProperty, SquintProperty, TiltProperty, GlowProperty,
-                                  SpinProperty, BreatheProperty, FlickerProperty, BoltProperty, VanishProperty, PopProperty, EvolveProperty })
+                                  SpinProperty, RippleProperty, RevealProperty, BreatheProperty, FlickerProperty, BoltProperty, VanishProperty, PopProperty, EvolveProperty })
             BeginAnimation(p, null);
         Blink = 0; Pulse = 1; Twinkle = 1; PupilScale = 1; Open = 1; Squint = 0; Tilt = 0; Glow = 1; GazeX = 0; GazeY = 0;
-        Spin = 0; Breathe = 1; Flicker = 1; Bolt = 0; Vanish = 0; Pop = 1; Evolve = 0;
+        Spin = 0; Ripple = 0; Reveal = 1; Breathe = 1; Flicker = 1; Bolt = 0; Vanish = 0; Pop = 1; Evolve = 0;
     }
 
     static TimeSpan Sec(double s) => TimeSpan.FromSeconds(s);
